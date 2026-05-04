@@ -1,6 +1,28 @@
-const lessons = [
+const courseItems = [
+  {
+    id: "intro",
+    type: "intro",
+    title: "Introduction",
+    language: "Leçon",
+    description: "A short walkthrough before the first lesson.",
+    slides: [
+      {
+        title: "",
+        body: ""
+      },
+      {
+        title: "",
+        body: ""
+      },
+      {
+        title: "",
+        body: ""
+      }
+    ]
+  },
   {
     id: "lesson-1",
+    type: "lesson",
     title: "Lesson 1: Comment allez-vous ?",
     titleAudio: "audio/L001-French ASSIMIL/S00-TITLE.mp3",
     titleEnglish: "How are you?",
@@ -130,18 +152,36 @@ const lessons = [
         ]
       }
     ]
+  },
+  {
+    id: "lesson-2",
+    type: "lesson",
+    title: "Lesson 2",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 2 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
   }
 ];
+const lessons = courseItems.filter((item) => item.type === "lesson");
+const progressKey = "ogham-progress";
+const lessonAudioProgressKey = "ogham-lesson-audio-progress";
 
 const app = document.querySelector("#app");
 let currentAudio = null;
+let currentAudioButton = null;
 let currentDingContext = null;
 let playbackToken = 0;
 let activeTest = {
   lesson: null,
   test: null,
   itemIndex: 0,
-  selected: []
+  selected: [],
+  attempts: {},
+  submittedCounts: {}
 };
 let activeFillTest = {
   lesson: null,
@@ -150,26 +190,134 @@ let activeFillTest = {
   results: {},
   attempts: {}
 };
+const scorePenalty = 0.25;
+const passingRatio = 0.7;
 
 function setRoute(route) {
   stopCurrentAudio();
   window.location.hash = route;
 }
 
+function getProgress() {
+  const saved = window.localStorage.getItem(progressKey);
+
+  if (!saved) {
+    return {
+      completed: []
+    };
+  }
+
+  return JSON.parse(saved);
+}
+
+function saveProgress(progress) {
+  window.localStorage.setItem(progressKey, JSON.stringify(progress));
+}
+
+function getLessonAudioProgress() {
+  const saved = window.localStorage.getItem(lessonAudioProgressKey);
+
+  if (!saved) {
+    return {
+      completed: []
+    };
+  }
+
+  return JSON.parse(saved);
+}
+
+function isLessonAudioComplete(lessonId) {
+  return getLessonAudioProgress().completed.includes(lessonId);
+}
+
+function completeLessonAudio(lessonId) {
+  const progress = getLessonAudioProgress();
+
+  if (!progress.completed.includes(lessonId)) {
+    progress.completed.push(lessonId);
+    window.localStorage.setItem(lessonAudioProgressKey, JSON.stringify(progress));
+  }
+}
+
+function isLessonTestUnlocked(lesson) {
+  return !lesson.lines.some((line) => line.audio) || isLessonAudioComplete(lesson.id);
+}
+
+function isItemCompleted(itemId) {
+  return getProgress().completed.includes(itemId);
+}
+
+function completeItem(itemId) {
+  const progress = getProgress();
+
+  if (!progress.completed.includes(itemId)) {
+    progress.completed.push(itemId);
+    saveProgress(progress);
+  }
+}
+
+function isItemUnlocked(itemId) {
+  const itemIndex = courseItems.findIndex((item) => item.id === itemId);
+
+  if (itemIndex <= 0) {
+    return true;
+  }
+
+  return isItemCompleted(courseItems[itemIndex - 1].id);
+}
+
+function getNextAvailableItem() {
+  return courseItems.find((item) => isItemUnlocked(item.id) && !isItemCompleted(item.id)) || courseItems[courseItems.length - 1];
+}
+
+function getItem(itemId) {
+  return courseItems.find((item) => item.id === itemId);
+}
+
 function render() {
   const route = window.location.hash.replace("#", "");
 
+  if (route === "history") {
+    renderHistory();
+    return;
+  }
+
+  if (route === "intro") {
+    renderIntro(courseItems[0]);
+    return;
+  }
+
   if (route === "lesson-1") {
-    renderLesson(lessons[0]);
+    renderLockedAwareLesson(lessons[0]);
+    return;
+  }
+
+  if (route === "lesson-2") {
+    renderLockedAwareLesson(lessons[1]);
     return;
   }
 
   if (route === "lesson-1-test-1") {
-    renderTest(lessons[0], lessons[0].tests[0]);
+    if (!isItemUnlocked("lesson-1")) {
+      renderLockedItem(lessons[0]);
+      return;
+    }
+
+    if (!isLessonTestUnlocked(lessons[0])) {
+      renderLesson(lessons[0]);
+      return;
+    }
+
+    renderPartOneIntro(lessons[0], lessons[0].tests[0]);
     return;
   }
 
   if (route === "lesson-1-test-2") {
+    if (!isItemUnlocked("lesson-1")) {
+      renderLockedItem(lessons[0]);
+      return;
+    }
+
     renderFillIntro(lessons[0], lessons[0].tests[1]);
     return;
   }
@@ -178,31 +326,159 @@ function render() {
 }
 
 function renderHome() {
-  const lesson = lessons[0];
+  const currentItem = getNextAvailableItem();
+  const isLocked = !isItemUnlocked(currentItem.id);
 
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
         <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button" data-history>Chronicle</button>
       </div>
       <div class="home-grid">
         <section class="intro" aria-labelledby="home-title">
           <h1 id="home-title">Read one small story at a time.</h1>
-          <p>Start with a booklet, move through the story line by line, listen when you need it, then reveal the English only after you have tried the sentence yourself.</p>
+          <p>Move through the introduction, then unlock each lesson in order. Older lessons stay available in the Chronicle.</p>
         </section>
-        <button class="booklet" type="button" aria-label="Open Lesson 1">
-          <span class="booklet-kicker">${lesson.language}</span>
-          <span class="booklet-title">${lesson.title}</span>
-          <span class="booklet-footer">${lesson.lines.length} starter lines</span>
+        <button class="booklet ${isLocked ? "locked" : ""}" type="button" aria-label="Open ${currentItem.title}" ${isLocked ? "disabled" : ""}>
+          <span class="booklet-kicker">${currentItem.language}</span>
+          <span class="booklet-title">${currentItem.title}</span>
+          <span class="booklet-footer">${getItemStatusLabel(currentItem)}</span>
         </button>
       </div>
     </section>
   `;
 
-  app.querySelector(".booklet").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-history]").addEventListener("click", () => setRoute("history"));
+  app.querySelector(".booklet").addEventListener("click", () => setRoute(currentItem.id));
+}
+
+function getItemStatusLabel(item) {
+  if (!isItemUnlocked(item.id)) {
+    return "Locked";
+  }
+
+  if (isItemCompleted(item.id)) {
+    return "Completed";
+  }
+
+  if (item.type === "intro") {
+    return `${item.slides.length} slides`;
+  }
+
+  return item.lines.length ? `${item.lines.length} story lines` : "Empty for now";
+}
+
+function renderHistory() {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <header class="lesson-header">
+        <h1>Chronicle</h1>
+        <p class="lesson-lede">Revisit completed lessons, continue the current one, and preview what is still locked.</p>
+      </header>
+      <section class="history-list" aria-label="Course history">
+        ${courseItems.map(createHistoryItem).join("")}
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelectorAll("[data-open-item]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(button.dataset.openItem));
+  });
+}
+
+function createHistoryItem(item) {
+  const unlocked = isItemUnlocked(item.id);
+  const completed = isItemCompleted(item.id);
+  const status = completed ? "Completed" : unlocked ? "Available" : "Locked";
+
+  return `
+    <article class="history-item ${unlocked ? "" : "locked"}">
+      <div>
+        <p class="history-kicker">${item.language}</p>
+        <h2>${item.title}</h2>
+        <p>${getItemStatusLabel(item)}</p>
+      </div>
+      <button class="text-button" type="button" data-open-item="${item.id}" ${unlocked ? "" : "disabled"}>${status}</button>
+    </article>
+  `;
+}
+
+function renderIntro(introItem, slideIndex = 0) {
+  const slide = introItem.slides[slideIndex];
+  const isLastSlide = slideIndex === introItem.slides.length - 1;
+
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <section class="slide-panel" aria-label="Introduction slide">
+        <p class="test-progress">Slide ${slideIndex + 1} of ${introItem.slides.length}</p>
+        <h1>${slide.title || " "}</h1>
+        <p class="lesson-lede">${slide.body || " "}</p>
+        <div class="slide-dots" aria-hidden="true">
+          ${introItem.slides.map((_, index) => `<span class="${index === slideIndex ? "active" : ""}"></span>`).join("")}
+        </div>
+        <button class="primary-button" type="button" data-next-slide>${isLastSlide ? "Complete Introduction" : "Next"}</button>
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelector("[data-next-slide]").addEventListener("click", () => {
+    if (isLastSlide) {
+      completeItem(introItem.id);
+      setRoute("lesson-1");
+      return;
+    }
+
+    renderIntro(introItem, slideIndex + 1);
+  });
+}
+
+function renderLockedAwareLesson(lesson) {
+  if (!isItemUnlocked(lesson.id)) {
+    renderLockedItem(lesson);
+    return;
+  }
+
+  renderLesson(lesson);
+}
+
+function renderLockedItem(item) {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <section class="complete-panel">
+        <p class="correct-kicker">Locked</p>
+        <h1>${item.title}</h1>
+        <p class="lesson-lede">Complete the previous section to unlock this lesson.</p>
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
 }
 
 function renderLesson(lesson) {
+  const lineMarkup = lesson.lines.length
+    ? lesson.lines.map((line, index) => createLine(line, index, lesson.notes)).join("")
+    : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`;
+  const testUnlocked = isLessonTestUnlocked(lesson);
+  const testMarkup = lesson.tests.length
+    ? `<p data-test-lock-status>${testUnlocked ? "Practice with listening, sentence building, and fill-in review." : "Listen through the final story audio to unlock the test."}</p><button class="primary-button" type="button" data-test="${lesson.tests[0].id}" ${testUnlocked ? "" : "disabled"}>${testUnlocked ? "Start Test" : "Locked"}</button>`
+    : `<p>Exercise content coming later.</p>`;
+
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
@@ -214,23 +490,17 @@ function renderLesson(lesson) {
           <h1>${lesson.title}</h1>
           <button class="icon-button" type="button" data-title-audio="${lesson.titleAudio}" title="Play title audio" aria-label="Play title audio">▶</button>
         </div>
-        <p class="title-translation">${lesson.titleEnglish}</p>
+        ${lesson.titleEnglish ? `<p class="title-translation">${lesson.titleEnglish}</p>` : ""}
         <p class="lesson-lede">${lesson.description}</p>
       </header>
       <section class="story-list" aria-label="${lesson.title} story lines">
-        ${lesson.lines.map((line, index) => createLine(line, index, lesson.notes)).join("")}
+        ${lineMarkup}
       </section>
       <aside class="note-tray" aria-live="polite" aria-label="Lesson note"></aside>
       <section class="next-steps" aria-label="Lesson practice placeholders">
         <article class="test-placeholder">
-          <h2>Test Part 1</h2>
-          <p>Rebuild each French sentence after hearing the audio.</p>
-          <button class="primary-button" type="button" data-test="${lesson.tests[0].id}">Start</button>
-        </article>
-        <article class="test-placeholder">
-          <h2>Test Part 2</h2>
-          <p>Complete the missing French words from the English prompt.</p>
-          <button class="primary-button" type="button" data-test="${lesson.tests[1].id}">Preview</button>
+          <h2>Test</h2>
+          ${testMarkup}
         </article>
       </section>
     </section>
@@ -263,14 +533,19 @@ function renderLesson(lesson) {
   });
 
   app.querySelectorAll("[data-audio]").forEach((button) => {
-    button.addEventListener("click", () => playLineAudio(button));
+    button.addEventListener("click", () => playLineAudio(button, lesson));
   });
   app.querySelectorAll("[data-note]").forEach((button) => {
     button.addEventListener("click", () => toggleNote(button, lesson.notes));
   });
-  app.querySelector("[data-title-audio]").addEventListener("click", (event) => {
-    playAudio(event.currentTarget.dataset.titleAudio);
-  });
+  const titleAudioButton = app.querySelector("[data-title-audio]");
+  if (titleAudioButton) {
+    titleAudioButton.addEventListener("click", (event) => {
+      if (event.currentTarget.dataset.titleAudio) {
+        playAudio(event.currentTarget.dataset.titleAudio);
+      }
+    });
+  }
 }
 
 function createLine(line, index, notes) {
@@ -282,7 +557,7 @@ function createLine(line, index, notes) {
       <div class="line-main">
         <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
         <p class="french">${createSentenceParts(line, notes)}</p>
-        <button class="icon-button" type="button" data-audio="${line.audio}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play audio for line " + (index + 1) : "Audio coming later for line " + (index + 1)}">▶</button>
+        <button class="icon-button" type="button" data-audio="${line.audio}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play audio for line " + (index + 1) : "Audio coming later for line " + (index + 1)}">▶</button>
         <button class="text-button line-actions" type="button" data-reveal="${translationId}" disabled>Reveal English</button>
       </div>
       <p class="translation" id="${translationId}">${line.english}</p>
@@ -347,11 +622,47 @@ function closeNoteTray() {
   });
 }
 
-function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", autoPlay = true) {
-  activeTest = { lesson, test, itemIndex, selected };
+function unlockLessonTestButton() {
+  const testButton = app.querySelector("[data-test]");
+  const status = app.querySelector("[data-test-lock-status]");
+
+  if (!testButton || !status) {
+    return;
+  }
+
+  testButton.disabled = false;
+  testButton.textContent = "Start Test";
+  status.textContent = "Practice with listening, sentence building, and fill-in review.";
+}
+
+function renderPartOneIntro(lesson, test) {
+  renderTest(lesson, test, 0, [], "", false, {});
+
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <section class="correct-modal intro-modal" role="dialog" aria-modal="true" aria-labelledby="part-one-title">
+      <button class="note-close modal-close" type="button" aria-label="Close introduction">&times;</button>
+      <p class="correct-kicker">Part 1</p>
+      <h2 id="part-one-title">Listen and rebuild the sentence.</h2>
+      <p class="correct-english">Choose the words in order after the audio plays. Correct words stay in place when you try again.</p>
+    </section>
+  `;
+
+  app.appendChild(modal);
+  modal.querySelector(".modal-close").addEventListener("click", () => {
+    modal.remove();
+    playAudio(test.items[0].audio);
+  });
+}
+
+function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", autoPlay = true, attempts = {}, submittedCounts = {}) {
+  activeTest = { lesson, test, itemIndex, selected, attempts, submittedCounts };
 
   const item = test.items[itemIndex];
   const statusText = `Sentence ${itemIndex + 1} of ${test.items.length}`;
+  const tryCount = attempts[itemIndex] || 0;
+  const attemptText = `Attempt ${tryCount + 1}`;
 
   app.innerHTML = `
     <section class="shell">
@@ -364,7 +675,10 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
         <p class="lesson-lede">${test.instructions}</p>
       </header>
       <section class="test-panel" aria-label="${test.title}">
-        <div class="test-progress">${statusText}</div>
+        <div class="question-topline">
+          <div class="test-progress">${statusText}</div>
+          <div class="try-pill">${attemptText}</div>
+        </div>
         <div class="test-controls">
           <button class="icon-button" type="button" data-play-test title="Play audio" aria-label="Play test sentence">▶</button>
           <p class="test-feedback" aria-live="polite">${feedback}</p>
@@ -375,7 +689,7 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
         <div class="word-bank" aria-label="Word bank">
           ${createWordBank(test, item, selected)}
         </div>
-        <button class="primary-button check-button" type="button" data-check ${isAnswerFilled(item, selected) ? "" : "disabled"}>Check</button>
+        <button class="primary-button check-button" type="button" data-check ${canCheckTestAnswer(item, selected, submittedCounts[itemIndex] || 0) ? "" : "disabled"}>Try</button>
       </section>
     </section>
   `;
@@ -398,14 +712,22 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
 }
 
 function createAnswerSlot(answer, punctuation, selectedWord, index) {
-  const label = selectedWord || "blank";
   const filledClass = selectedWord ? "filled" : "";
+  const displayWord = selectedWord ? getSelectedWordDisplay(selectedWord, index) : "";
 
   return `
     <span class="answer-piece">
-      <button class="answer-slot ${filledClass}" type="button" data-slot="${index}" aria-label="${selectedWord ? "Remove " + selectedWord : "Empty slot for " + answer}">${selectedWord || ""}</button><span class="punctuation">${punctuation || ""}</span>
+      <button class="answer-slot ${filledClass}" type="button" data-slot="${index}" aria-label="${selectedWord ? "Remove " + displayWord : "Empty slot for " + answer}">${displayWord}</button><span class="punctuation">${punctuation || ""}</span>
     </span>
   `;
+}
+
+function getSelectedWordDisplay(word, index) {
+  if (index !== 0 || !word) {
+    return word;
+  }
+
+  return `${word.charAt(0).toLocaleUpperCase("fr")}${word.slice(1)}`;
 }
 
 function createWordBank(test, item, selected) {
@@ -429,7 +751,7 @@ function selectBankWord(word) {
   }
 
   selected[openIndex] = word;
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts);
 }
 
 function removeSelectedWord(index) {
@@ -440,42 +762,72 @@ function removeSelectedWord(index) {
   }
 
   selected[index] = "";
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts);
 }
 
 function checkTestAnswer() {
   const item = activeTest.test.items[activeTest.itemIndex];
-  const keptWords = activeTest.selected.map((word, index) => isSameTestWord(word, item.answer[index]) ? word : "");
-  const isCorrect = keptWords.every((word, index) => isSameTestWord(word, item.answer[index]));
+  const attempts = { ...activeTest.attempts };
+  const submittedCounts = { ...activeTest.submittedCounts };
+  const keptWords = item.answer.map((answer, index) => isSameTestWord(activeTest.selected[index], answer) ? activeTest.selected[index] : "");
+  const isCorrect = item.answer.every((answer, index) => isSameTestWord(activeTest.selected[index], answer));
 
   if (isCorrect) {
+    activeTest.attempts = attempts;
+    activeTest.submittedCounts = submittedCounts;
     showCorrectPopup(item);
     return;
   }
 
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, keptWords, "Try again. Correct words stayed in place.", false);
+  attempts[activeTest.itemIndex] = (attempts[activeTest.itemIndex] || 0) + 1;
+  submittedCounts[activeTest.itemIndex] = getSelectedWordCount(keptWords);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, keptWords, "Try again. Correct words stayed in place.", false, attempts, submittedCounts);
 }
 
-function isAnswerFilled(item, selected) {
-  return item.answer.every((_, index) => Boolean(selected[index]));
+function canCheckTestAnswer(item, selected, submittedCount) {
+  const selectedCount = getSelectedWordCount(selected);
+
+  return selectedCount > 0 && selectedCount > submittedCount;
+}
+
+function getSelectedWordCount(selected) {
+  return selected.filter(Boolean).length;
 }
 
 function showCorrectPopup(item) {
+  const wrongAttempts = activeTest.attempts[activeTest.itemIndex] || 0;
   const modal = document.createElement("div");
   modal.className = "modal-backdrop";
   modal.innerHTML = `
     <section class="correct-modal" role="dialog" aria-modal="true" aria-labelledby="correct-title">
-      <p class="correct-kicker">Correct</p>
+      <p class="correct-kicker">${getCorrectAttemptKicker(wrongAttempts)}</p>
       <h2 id="correct-title">${buildSentence(item)}</h2>
       <p class="correct-english">${item.english}</p>
-      <button class="text-button" type="button" data-replay-correct>Play Again</button>
+      <button class="audio-replay-button" type="button" data-replay-correct title="Play audio again" aria-label="Play audio again">&#128266;</button>
       <button class="next-arrow" type="button" aria-label="Go to next sentence">→</button>
     </section>
   `;
 
   app.appendChild(modal);
+  playCorrectDing(() => {});
   modal.querySelector("[data-replay-correct]").addEventListener("click", () => playAudio(item.audio));
   modal.querySelector(".next-arrow").addEventListener("click", goToNextTestItem);
+}
+
+function getCorrectAttemptKicker(wrongAttempts) {
+  if (wrongAttempts === 0) {
+    return "Correct! - 1st attempt";
+  }
+
+  if (wrongAttempts === 1) {
+    return "Correct! - 2nd attempt";
+  }
+
+  if (wrongAttempts === 2) {
+    return "Correct! - 3rd attempt";
+  }
+
+  return "Correct!";
 }
 
 function goToNextTestItem() {
@@ -484,11 +836,35 @@ function goToNextTestItem() {
   const nextIndex = activeTest.itemIndex + 1;
 
   if (nextIndex >= activeTest.test.items.length) {
-    renderFillIntro(activeTest.lesson, activeTest.lesson.tests[1]);
+    renderPartOneComplete(activeTest.lesson, activeTest.test, activeTest.attempts);
     return;
   }
 
-  renderTest(activeTest.lesson, activeTest.test, nextIndex, [], "", true);
+  renderTest(activeTest.lesson, activeTest.test, nextIndex, [], "", true, activeTest.attempts, activeTest.submittedCounts);
+}
+
+function renderPartOneComplete(lesson, test, attempts) {
+  const summary = getScoreSummary(test.items.length, attempts);
+  window.sessionStorage.setItem(`${lesson.id}-part-1-score`, JSON.stringify(summary));
+
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Back to lesson</button>
+      </div>
+      <section class="complete-panel">
+        <p class="correct-kicker">Part 1 Complete</p>
+        <h1>${formatScore(summary.score)} / ${summary.total}</h1>
+        <p class="lesson-lede">You rebuilt every sentence from the audio.</p>
+        ${createScoreBreakdown("Part 1", summary)}
+        <button class="primary-button" type="button" data-start-part-2>Continue to Part 2</button>
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-start-part-2]").addEventListener("click", () => renderFillIntro(lesson, lesson.tests[1], summary));
 }
 
 function getTestWordDisplay(word) {
@@ -512,6 +888,53 @@ function buildSentence(item) {
     .replace(/\s+([,.?])/g, "$1");
 }
 
+function getItemScore(wrongAttempts) {
+  return Math.max(0, 1 - wrongAttempts * scorePenalty);
+}
+
+function getScoreSummary(totalItems, attempts = {}) {
+  const score = Array.from({ length: totalItems }, (_, index) => getItemScore(attempts[index] || 0))
+    .reduce((sum, itemScore) => sum + itemScore, 0);
+
+  return {
+    score,
+    total: totalItems
+  };
+}
+
+function combineScores(...summaries) {
+  return summaries.reduce((combined, summary) => ({
+    score: combined.score + (summary?.score || 0),
+    total: combined.total + (summary?.total || 0)
+  }), { score: 0, total: 0 });
+}
+
+function formatScore(score) {
+  return Number(score || 0).toFixed(2);
+}
+
+function createScoreBreakdown(label, summary) {
+  return `
+    <div class="score-row">
+      <span>${label}</span>
+      <strong>${formatScore(summary?.score || 0)} / ${summary?.total || 0}</strong>
+    </div>
+  `;
+}
+
+function getStoredScoreSummary(lessonId, partId) {
+  const saved = window.sessionStorage.getItem(`${lessonId}-${partId}-score`);
+
+  if (!saved) {
+    return {
+      score: 0,
+      total: 0
+    };
+  }
+
+  return JSON.parse(saved);
+}
+
 function renderTestComplete(lesson) {
   app.innerHTML = `
     <section class="shell">
@@ -531,7 +954,7 @@ function renderTestComplete(lesson) {
   app.querySelector("[data-restart]").addEventListener("click", () => renderTest(lesson, lesson.tests[0]));
 }
 
-function renderFillIntro(lesson, test) {
+function renderFillIntro(lesson, test, partOneSummary = getStoredScoreSummary(lesson.id, "part-1")) {
   stopCurrentAudio();
   app.innerHTML = `
     <section class="shell">
@@ -549,11 +972,11 @@ function renderFillIntro(lesson, test) {
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
-  app.querySelector("[data-start-fill]").addEventListener("click", () => renderFillTest(lesson, test));
+  app.querySelector("[data-start-fill]").addEventListener("click", () => renderFillTest(lesson, test, [], "", {}, {}, partOneSummary));
 }
 
-function renderFillTest(lesson, test, answers = [], feedback = "", results = {}, attempts = {}) {
-  activeFillTest = { lesson, test, answers, results, attempts };
+function renderFillTest(lesson, test, answers = [], feedback = "", results = {}, attempts = {}, partOneSummary = getStoredScoreSummary(lesson.id, "part-1")) {
+  activeFillTest = { lesson, test, answers, results, attempts, partOneSummary };
   const isComplete = test.items.every((_, index) => results[index]?.status === "correct");
 
   app.innerHTML = `
@@ -586,7 +1009,7 @@ function renderFillTest(lesson, test, answers = [], feedback = "", results = {},
   });
   const finishButton = app.querySelector("[data-finish-fill]");
   if (finishButton) {
-    finishButton.addEventListener("click", () => renderFillComplete(lesson));
+    finishButton.addEventListener("click", () => renderFillComplete(lesson, test, attempts, partOneSummary));
   }
   app.querySelectorAll("[data-fill]").forEach((input) => {
     input.addEventListener("input", updateFillAnswer);
@@ -608,20 +1031,19 @@ function renderFillTest(lesson, test, answers = [], feedback = "", results = {},
 function createFillItem(item, itemIndex, answers, results, attempts) {
   let blankIndex = 0;
   const result = results[itemIndex];
-  const correctionText = result?.corrections?.length ? `Correct. Spelling: ${result.corrections.join(", ")}` : "Correct.";
   const tryCount = attempts[itemIndex] || 0;
   const canShowAnswer = tryCount >= 3 && result?.status === "retry";
   const feedback = result?.status === "correct"
-    ? `<p class="line-feedback success">${correctionText}</p>`
+    ? `<p class="line-feedback success">Correct.</p>`
     : result?.status === "retry"
-      ? `<p class="line-feedback">Try this line again.${result.corrections?.length ? ` Use: ${result.corrections.join(", ")}` : ""}</p>`
+      ? `<p class="line-feedback">Try this line again.</p>`
       : "";
 
   return `
     <article class="fill-item">
       <div class="fill-item-top">
         <p class="fill-english">${itemIndex + 1}. ${item.english}</p>
-        <span class="try-counter">${Math.min(tryCount, 3)}/3 tries</span>
+        <span class="try-counter">Attempt ${tryCount + 1}</span>
       </div>
       <p class="fill-sentence">
         ${item.parts.map((part) => {
@@ -636,8 +1058,14 @@ function createFillItem(item, itemIndex, answers, results, attempts) {
             : result?.incorrect?.includes(fillId)
               ? "needs-work"
               : "";
+          const correction = result?.correctionMap?.[fillId];
           blankIndex += 1;
-          return `<input class="fill-input ${stateClass}" type="text" value="${answerValue}" data-fill="${fillId}" aria-label="Missing word, ${part.answer.length} characters" placeholder="..." style="--chars: ${Math.max(part.answer.length, 2)}">`;
+          return `
+            <span class="fill-blank">
+              <input class="fill-input ${stateClass}" type="text" value="${answerValue}" data-fill="${fillId}" aria-label="Missing word, ${part.answer.length} characters" placeholder="..." style="--chars: ${Math.max(part.answer.length, 2)}">
+              ${correction ? `<span class="spelling-hint">${correction}</span>` : ""}
+            </span>
+          `;
         }).join(" ")}
       </p>
       <div class="line-check-row">
@@ -686,22 +1114,23 @@ function checkFillItem(itemIndex) {
 
   answers[itemIndex] = result.answers;
   results[itemIndex] = result.isCorrect
-    ? { status: "correct", corrections: result.corrections }
+    ? { status: "correct", corrections: result.corrections, correctionMap: result.correctionMap }
     : {
         status: "retry",
         corrections: result.corrections,
+        correctionMap: result.correctionMap,
         almost: result.almost,
         incorrect: result.incorrect
       };
-  attempts[itemIndex] = result.isCorrect ? 0 : (attempts[itemIndex] || 0) + 1;
+  attempts[itemIndex] = result.incorrect.length ? (attempts[itemIndex] || 0) + 1 : (attempts[itemIndex] || 0);
 
   if (result.isCorrect) {
     playCorrectDing(() => {});
-    renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, attempts);
+    renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, attempts, activeFillTest.partOneSummary);
     return;
   }
 
-  renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, attempts);
+  renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, attempts, activeFillTest.partOneSummary);
   result.almost.forEach((fillId) => {
     const input = app.querySelector(`[data-fill="${fillId}"]`);
     if (input) {
@@ -725,11 +1154,12 @@ function showFillAnswer(itemIndex) {
   results[itemIndex] = {
     status: "retry",
     corrections: expectedAnswers,
+    correctionMap: Object.fromEntries(expectedAnswers.map((answer, blankIndex) => [`${itemIndex}-${blankIndex}`, answer])),
     almost: getFillAnswers(item).map((_, blankIndex) => `${itemIndex}-${blankIndex}`),
     incorrect: []
   };
 
-  renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, activeFillTest.attempts);
+  renderFillTest(activeFillTest.lesson, activeFillTest.test, answers, "", results, activeFillTest.attempts, activeFillTest.partOneSummary);
   results[itemIndex].almost.forEach((fillId) => {
     const input = app.querySelector(`[data-fill="${fillId}"]`);
     if (input) {
@@ -740,6 +1170,7 @@ function showFillAnswer(itemIndex) {
 
 function checkFillItemResult(item, answers) {
   const corrections = [];
+  const correctionMap = {};
   const almost = [];
   const incorrect = [];
   const updatedAnswers = [...answers];
@@ -763,6 +1194,7 @@ function checkFillItemResult(item, answers) {
     if (!result.isExact) {
       corrections.push(expected);
       updatedAnswers[blankIndex] = "";
+      correctionMap[`${itemIndex}-${blankIndex}`] = expected;
       almost.push(`${itemIndex}-${blankIndex}`);
     }
   });
@@ -771,12 +1203,19 @@ function checkFillItemResult(item, answers) {
     almost,
     answers: updatedAnswers,
     corrections,
+    correctionMap,
     incorrect,
     isCorrect: incorrect.length === 0 && almost.length === 0
   };
 }
 
-function renderFillComplete(lesson) {
+function renderFillComplete(lesson, test = lesson.tests[1], attempts = activeFillTest.attempts, partOneSummary = activeFillTest.partOneSummary) {
+  completeItem(lesson.id);
+  const partTwoSummary = getScoreSummary(test.items.length, attempts);
+  const combinedSummary = combineScores(partOneSummary, partTwoSummary);
+  const passingScore = combinedSummary.total * passingRatio;
+  const passed = combinedSummary.score >= passingScore;
+
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
@@ -784,15 +1223,21 @@ function renderFillComplete(lesson) {
         <button class="back-link" type="button">Back to lesson</button>
       </div>
       <section class="complete-panel">
-        <h1>Exercise 2 Complete</h1>
-        <p class="lesson-lede">You finished the missing-word practice.</p>
+        <p class="correct-kicker">Lesson Score</p>
+        <h1>${formatScore(combinedSummary.score)} / ${combinedSummary.total}</h1>
+        <p class="lesson-lede">${passed ? "Passed" : "Needs review"} · Passing score: ${formatScore(passingScore)} / ${combinedSummary.total}</p>
+        ${createScoreBreakdown("Part 1", partOneSummary)}
+        ${createScoreBreakdown("Part 2", partTwoSummary)}
+        ${createScoreBreakdown("Total", combinedSummary)}
         <button class="primary-button" type="button" data-restart-fill>Restart Exercise 2</button>
+        <button class="primary-button" type="button" data-next-lesson>Continue</button>
       </section>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
-  app.querySelector("[data-restart-fill]").addEventListener("click", () => renderFillTest(lesson, lesson.tests[1]));
+  app.querySelector("[data-restart-fill]").addEventListener("click", () => renderFillTest(lesson, lesson.tests[1], [], "", {}, {}, partOneSummary));
+  app.querySelector("[data-next-lesson]").addEventListener("click", () => setRoute("lesson-2"));
 }
 
 function getFillAnswers(item) {
@@ -880,7 +1325,7 @@ function shuffleWords(words) {
     .map((item) => item.word);
 }
 
-function playLineAudio(button) {
+function playLineAudio(button, lesson) {
   const source = button.dataset.audio;
 
   if (!source) {
@@ -890,19 +1335,44 @@ function playLineAudio(button) {
   stopCurrentAudio();
   const audio = new Audio(source);
   currentAudio = audio;
+  currentAudioButton = button;
   button.disabled = true;
   audio.addEventListener("ended", () => {
     if (currentAudio === audio) {
       currentAudio = null;
     }
-    button.disabled = false;
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    resetAudioButton(button);
     const revealButton = button.parentElement.querySelector("[data-reveal]");
     revealButton.disabled = false;
+    if (lesson && Number(button.dataset.lineIndex) === lesson.lines.length - 1) {
+      completeLessonAudio(lesson.id);
+      unlockLessonTestButton();
+    }
   });
   audio.addEventListener("error", () => {
-    button.disabled = false;
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    resetAudioButton(button);
   });
-  audio.play();
+  audio.play().catch(() => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    resetAudioButton(button);
+  });
+}
+
+function resetAudioButton(button = currentAudioButton) {
+  if (button) {
+    button.disabled = false;
+  }
 }
 
 function playAudio(source, onEnded) {
@@ -982,6 +1452,8 @@ function playCorrectDing(onEnded) {
 
 function stopCurrentAudio() {
   playbackToken += 1;
+  resetAudioButton();
+  currentAudioButton = null;
 
   if (!currentAudio) {
     if (currentDingContext) {
