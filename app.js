@@ -1,4 +1,4 @@
-const courseItems = [
+let courseItems = [
   {
     id: "intro",
     type: "intro",
@@ -166,9 +166,14 @@ const courseItems = [
     tests: []
   }
 ];
-const lessons = courseItems.filter((item) => item.type === "lesson");
+let lessons = courseItems.filter((item) => item.type === "lesson");
 const progressKey = "ogham-progress";
 const lessonAudioProgressKey = "ogham-lesson-audio-progress";
+const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
+const remoteLessonFiles = [
+  "lessons/lesson-1-comment-allez-vous.json",
+  "lessons/lesson-2-le-cafe.json"
+];
 
 const app = document.querySelector("#app");
 let currentAudio = null;
@@ -196,6 +201,105 @@ const passingRatio = 0.7;
 function setRoute(route) {
   stopCurrentAudio();
   window.location.hash = route;
+}
+
+function renderLoading() {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+      </div>
+      <section class="complete-panel">
+        <p class="correct-kicker">Loading</p>
+        <h1>Preparing lessons...</h1>
+      </section>
+    </section>
+  `;
+}
+
+async function loadRemoteLessons() {
+  try {
+    const remoteLessons = await Promise.all(remoteLessonFiles.map(async (file) => {
+      const response = await fetch(getContentUrl(file));
+
+      if (!response.ok) {
+        throw new Error(`Could not load ${file}: ${response.status}`);
+      }
+
+      return hydrateLessonAssets(await response.json());
+    }));
+
+    courseItems = courseItems.map((item) => {
+      const remoteLesson = remoteLessons.find((lesson) => lesson.id === item.id);
+
+      return remoteLesson || item;
+    });
+    lessons = courseItems.filter((item) => item.type === "lesson");
+  } catch (error) {
+    console.warn("Using embedded lessons because remote lessons could not load.", error);
+  }
+}
+
+function hydrateLessonAssets(lesson) {
+  return {
+    ...lesson,
+    titleAudio: getLessonAssetUrl(lesson, lesson.titleAudio),
+    lines: lesson.lines.map((line) => ({
+      ...line,
+      audio: getLessonAssetUrl(lesson, line.audio)
+    })),
+    tests: lesson.tests.map((test) => ({
+      ...test,
+      items: test.items.map((item) => ({
+        ...item,
+        audio: getLessonAssetUrl(lesson, item.audio)
+      }))
+    }))
+  };
+}
+
+function getLessonAssetUrl(lesson, path) {
+  return getContentUrl(normalizeLessonAssetPath(lesson, path));
+}
+
+function normalizeLessonAssetPath(lesson, path) {
+  if (!path || /^(https?:|data:|blob:)/.test(path)) {
+    return path;
+  }
+
+  const folderByLesson = {
+    "lesson-1": "L001-French ASSIMIL",
+    "lesson-2": "L002-French ASSIMIL"
+  };
+  const folder = folderByLesson[lesson.id];
+
+  if (!folder) {
+    return path;
+  }
+
+  if (path === `audio/${lesson.id}/title.mp3`) {
+    return `audio/${folder}/S00-TITLE.mp3`;
+  }
+
+  const storyMatch = path.match(new RegExp(`^audio/${lesson.id}/story-(\\d+)\\.mp3$`));
+  if (storyMatch) {
+    return `audio/${folder}/S${storyMatch[1]}.mp3`;
+  }
+
+  const testMatch = path.match(new RegExp(`^audio/${lesson.id}/test-(\\d+)\\.mp3$`));
+  if (testMatch) {
+    return `audio/${folder}/T${testMatch[1]}.mp3`;
+  }
+
+  return path;
+}
+
+function getContentUrl(path) {
+  if (!path || /^(https?:|data:|blob:)/.test(path)) {
+    return path;
+  }
+
+  return new URL(path, contentBaseUrl).href;
 }
 
 function getProgress() {
@@ -276,6 +380,7 @@ function getItem(itemId) {
 
 function render() {
   const route = window.location.hash.replace("#", "");
+  const routeItem = getItem(route);
 
   if (route === "history") {
     renderHistory();
@@ -287,42 +392,49 @@ function render() {
     return;
   }
 
-  if (route === "lesson-1") {
-    renderLockedAwareLesson(lessons[0]);
+  if (routeItem?.type === "lesson") {
+    renderLockedAwareLesson(routeItem);
     return;
   }
 
-  if (route === "lesson-2") {
-    renderLockedAwareLesson(lessons[1]);
-    return;
-  }
+  const testRoute = getTestRoute(route);
 
-  if (route === "lesson-1-test-1") {
-    if (!isItemUnlocked("lesson-1")) {
-      renderLockedItem(lessons[0]);
+  if (testRoute) {
+    if (!isItemUnlocked(testRoute.lesson.id)) {
+      renderLockedItem(testRoute.lesson);
       return;
     }
 
-    if (!isLessonTestUnlocked(lessons[0])) {
-      renderLesson(lessons[0]);
+    if (!isLessonTestUnlocked(testRoute.lesson)) {
+      renderLesson(testRoute.lesson);
       return;
     }
 
-    renderPartOneIntro(lessons[0], lessons[0].tests[0]);
-    return;
-  }
-
-  if (route === "lesson-1-test-2") {
-    if (!isItemUnlocked("lesson-1")) {
-      renderLockedItem(lessons[0]);
-      return;
+    if (testRoute.testIndex === 0) {
+      renderPartOneIntro(testRoute.lesson, testRoute.test);
+    } else {
+      renderFillIntro(testRoute.lesson, testRoute.test);
     }
-
-    renderFillIntro(lessons[0], lessons[0].tests[1]);
     return;
   }
 
   renderHome();
+}
+
+function getTestRoute(route) {
+  for (const lesson of lessons) {
+    const testIndex = lesson.tests.findIndex((test) => test.id === route);
+
+    if (testIndex !== -1) {
+      return {
+        lesson,
+        test: lesson.tests[testIndex],
+        testIndex
+      };
+    }
+  }
+
+  return null;
 }
 
 function renderHome() {
@@ -1473,5 +1585,11 @@ function stopCurrentAudio() {
   }
 }
 
+async function initializeApp() {
+  renderLoading();
+  await loadRemoteLessons();
+  render();
+}
+
 window.addEventListener("hashchange", render);
-render();
+initializeApp();

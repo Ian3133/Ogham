@@ -1,0 +1,236 @@
+{
+  "id": "lesson-1",
+  "type": "lesson",
+  "title": "Lesson 1: Comment allez-vous ?",
+  "titleAudio": "audio/L001-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "How are you?",
+  "language": "French",
+  "description": "A connected story for slow reading, listening, and sentence-by-sentence translation.",
+  "notes": {
+    "1": "<strong>bonjour</strong> literally means <strong>good (bon) day (jour)</strong>. It can be used as the equivalent of <strong>good morning</strong> but also as a formal way of saying <strong>hello</strong> throughout the day until around 6 pm.",
+    "2": "<strong>allez</strong> comes from the irregular verb <strong>aller</strong>, <strong>to go</strong>, the verb used to enquire about someone's health or well-being instead of <strong>to be</strong> in English: <strong>How are you?</strong> <strong>Allez</strong> is the form used with the formal address for you (<strong>vous</strong>) when speaking to people other than close friends or family.",
+    "3": "<strong>va</strong> is the third-person singular (<strong>he/she/it</strong>) of <strong>aller</strong>.",
+    "4": "<strong>présenter</strong> means <strong>to present</strong> but, in this context, <strong>to introduce</strong>. <strong>Je vous présente</strong> is the equivalent of <strong>May I introduce</strong>, <strong>I would like to introduce</strong>, etc.",
+    "5": "<strong>Comment ça va ?</strong> <strong>How are you doing?</strong> is equivalent to <strong>Comment allez-vous ?</strong>, but slightly more familiar. Here, <strong>Jeanne</strong> is talking to her friend's daughter, so she uses a less formal phrase."
+  },
+  "lines": [
+    {
+      "french": "Bonjour Jeanne, comment allez-vous ?",
+      "parts": [
+        "Bonjour",
+        {
+          "note": 1
+        },
+        " Jeanne, comment allez-vous",
+        {
+          "note": 2
+        },
+        " ?"
+      ],
+      "english": "Hello Jeanne, how are you (how go-you)?",
+      "audio": "audio/L001-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Bien, et vous ?",
+      "english": "Well, and you?",
+      "audio": "audio/L001-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Ça va très bien, merci.",
+      "parts": [
+        "Ça va",
+        {
+          "note": 3
+        },
+        " très bien, merci."
+      ],
+      "english": "(It goes) very well, thanks.",
+      "audio": "audio/L001-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Je vous présente ma fille, Chloé.",
+      "parts": [
+        "Je vous présente",
+        {
+          "note": 4
+        },
+        " ma fille, Chloé."
+      ],
+      "english": "Let me introduce (I present you) my daughter, Chloé.",
+      "audio": "audio/L001-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Bonjour, Chloé. Comment ça va ?",
+      "parts": [
+        "Bonjour, Chloé. Comment ça va",
+        {
+          "note": 5
+        },
+        " ?"
+      ],
+      "english": "Hello, Chloé. How are you (it goes)?",
+      "audio": "audio/L001-French ASSIMIL/S05.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-1-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "merci",
+        "Jeanne",
+        "Bonjour",
+        "fille",
+        "et",
+        "vous"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Bonjour",
+            "comment",
+            "allez-vous"
+          ],
+          "punctuation": [
+            ",",
+            "",
+            " ?"
+          ],
+          "english": "Hello, how are you?",
+          "audio": "audio/L001-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "Ça",
+            "va",
+            "très",
+            "bien"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I'm very well.",
+          "audio": "audio/L001-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Comment",
+            "ça",
+            "va",
+            "Jean"
+          ],
+          "punctuation": [
+            "",
+            "",
+            ",",
+            " ?"
+          ],
+          "english": "How are you, Jean?",
+          "audio": "audio/L001-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "Je",
+            "vous",
+            "présente",
+            "ma",
+            "fille"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "Let me introduce my daughter.",
+          "audio": "audio/L001-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Chloé",
+            "va",
+            "très",
+            "bien"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "Chloé is very well.",
+          "audio": "audio/L001-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-1-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "How are you?",
+          "parts": [
+            {
+              "answer": "Comment"
+            },
+            "allez-vous ?"
+          ]
+        },
+        {
+          "english": "Very well, thank you.",
+          "parts": [
+            "Ça",
+            {
+              "answer": "va"
+            },
+            "très bien,",
+            {
+              "answer": "merci"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "Let me introduce Jeanne and Chloé.",
+          "parts": [
+            "Je vous",
+            {
+              "answer": "présente"
+            },
+            "Jeanne",
+            {
+              "answer": "et"
+            },
+            "Chloé."
+          ]
+        },
+        {
+          "english": "Well, and you?",
+          "parts": [
+            {
+              "answer": "Bien"
+            },
+            "et vous ?"
+          ]
+        },
+        {
+          "english": "My first lesson.",
+          "parts": [
+            "Ma",
+            {
+              "answer": "première"
+            },
+            "leçon."
+          ]
+        }
+      ]
+    }
+  ]
+}

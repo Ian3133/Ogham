@@ -1,0 +1,265 @@
+{
+  "id": "lesson-2",
+  "type": "lesson",
+  "title": "Lesson 2: Le café",
+  "titleAudio": "audio/L002-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "The café",
+  "language": "French",
+  "description": "A café dialogue for ordering breakfast and practicing articles, preferences, and simple service phrases.",
+  "notes": {
+    "1": "<strong>vous désirez ?</strong> literally means <strong>you desire?</strong>. In a café or shop, it is a natural way to ask <strong>What would you like?</strong>",
+    "2": "<strong>un café</strong> is both a beverage (<strong>a coffee</strong>) and the place where you drink it (<strong>a café</strong>). If you order <strong>un café</strong> in France, you will get a shot of espresso without milk, also called <strong>un expresso</strong> or <strong>un express</strong>.",
+    "3": "Although <strong>s'il vous plaît</strong> (<strong>if it pleases you</strong>) may seem very formal, it isn't. It just means <strong>please</strong>.",
+    "4": "<strong>une tartine beurrée</strong> (or simply <strong>une tartine</strong>) is a slice of buttered bread, a popular breakfast alternative to a croissant. <strong>Beurré</strong> is the adjective formed from <strong>le beurre</strong>, butter. In this sentence, it agrees with the feminine noun <strong>une tartine</strong>, so another <strong>-e</strong> is added: <strong>beurrée</strong>.",
+    "5": "<strong>le déjeuner</strong> means <strong>lunch</strong>, so <strong>le petit-déjeuner</strong>, literally <strong>small lunch</strong>, is <strong>breakfast</strong>.",
+    "6": "All French nouns have a gender: they are either masculine or feminine. A masculine noun is indicated by <strong>un/le</strong>, <strong>a/the</strong>, and a feminine noun by <strong>une/la</strong>. French does not have a separate word for <strong>one</strong>, so <strong>un café</strong> can mean <strong>a coffee</strong> or <strong>one coffee</strong>, depending on the context."
+  },
+  "lines": [
+    {
+      "french": "Monsieur, madame, vous désirez ?",
+      "parts": [
+        "Monsieur, madame, vous désirez",
+        {
+          "note": 1
+        },
+        " ?"
+      ],
+      "english": "Sir, Madam, what would you like (you desire)?",
+      "audio": "audio/L002-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Deux cafés et deux croissants, s'il vous plaît.",
+      "parts": [
+        "Deux cafés",
+        {
+          "note": 2
+        },
+        " et deux croissants, s'il vous plaît",
+        {
+          "note": 3
+        },
+        "."
+      ],
+      "english": "Two coffees and two croissants, please (if it pleases you).",
+      "audio": "audio/L002-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Non, je préfère une tartine beurrée pour le petit-déjeuner.",
+      "parts": [
+        "Non, je préfère une tartine beurrée",
+        {
+          "note": 4
+        },
+        " pour le petit-déjeuner",
+        {
+          "note": 5
+        },
+        "."
+      ],
+      "english": "No, I prefer a slice of buttered bread for breakfast.",
+      "audio": "audio/L002-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Donc, deux‿expressos, un croissant et une tartine ?",
+      "parts": [
+        "Donc, deux‿expressos, un croissant et une tartine",
+        {
+          "note": 6
+        },
+        " ?"
+      ],
+      "english": "So, two espressos, one croissant and one slice of buttered bread?",
+      "audio": "audio/L002-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Oui, c'est ça. Le croissant est pour moi et la tartine pour elle.",
+      "english": "Yes, that's right (this is it). The croissant is for me and the bread for her.",
+      "audio": "audio/L002-French ASSIMIL/S05.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-2-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "café",
+        "croissant",
+        "tartine",
+        "madame",
+        "monsieur",
+        "vous",
+        "ça",
+        "pour"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Je",
+            "préfère",
+            "un",
+            "croissant",
+            "pour",
+            "le",
+            "petit-déjeuner"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I prefer a croissant for breakfast.",
+          "audio": "audio/L002-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "Un",
+            "café",
+            "s'il",
+            "vous",
+            "plaît"
+          ],
+          "punctuation": [
+            "",
+            ",",
+            "",
+            "",
+            "."
+          ],
+          "english": "One/A coffee, please.",
+          "audio": "audio/L002-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Oui",
+            "c'est",
+            "ça"
+          ],
+          "punctuation": [
+            ",",
+            "",
+            "."
+          ],
+          "english": "Yes, that's right.",
+          "audio": "audio/L002-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "La",
+            "tartine",
+            "est",
+            "pour",
+            "elle"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "The slice of bread is for her.",
+          "audio": "audio/L002-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Et",
+            "l'expresso",
+            "est",
+            "pour",
+            "moi"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "And the espresso is for me.",
+          "audio": "audio/L002-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-2-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "One/A coffee and a/one slice of buttered bread.",
+          "parts": [
+            {
+              "answer": "Un"
+            },
+            "café et",
+            {
+              "answer": "une"
+            },
+            "tartine",
+            {
+              "answer": "beurrée"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "The croissant and the slice of bread.",
+          "parts": [
+            {
+              "answer": "Le"
+            },
+            "croissant et",
+            {
+              "answer": "la"
+            },
+            "tartine."
+          ]
+        },
+        {
+          "english": "Two croissants, please.",
+          "parts": [
+            {
+              "answer": "Deux"
+            },
+            "croissants,",
+            {
+              "answer": "s'il vous plaît"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "No, actually, I prefer...",
+          "parts": [
+            {
+              "answer": "Non"
+            },
+            ",",
+            {
+              "answer": "en fait"
+            },
+            ", je",
+            {
+              "answer": "préfère"
+            },
+            "..."
+          ]
+        },
+        {
+          "english": "Madam and Sir.",
+          "parts": [
+            {
+              "answer": "madame et monsieur"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
