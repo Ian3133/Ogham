@@ -74,6 +74,29 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
+.account-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.account-email {
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.sync-status {
+  color: var(--accent-dark);
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .back-link {
   background: transparent;
   border: 1px solid var(--line);
@@ -118,6 +141,27 @@ h1 {
   font-size: 1rem;
   line-height: 1.65;
   max-width: 56ch;
+}
+
+.auth-panel {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin: 72px auto 0;
+  max-width: 640px;
+  padding: 34px;
+}
+
+.auth-panel h1 {
+  font-size: clamp(2rem, 5vw, 3.8rem);
+}
+
+.auth-error {
+  color: #b64234;
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .booklet {

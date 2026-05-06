@@ -230,6 +230,13 @@ let lessons = courseItems.filter((item) => item.type === "lesson");
 const progressKey = "ogham-progress";
 const lessonAudioProgressKey = "ogham-lesson-audio-progress";
 const bestScoresKey = "ogham-best-scores";
+const authStateKey = "ogham-auth-state";
+const authVerifierKey = "ogham-auth-verifier";
+const authSessionKey = "ogham-auth-session";
+const cognitoDomain = "https://us-east-1lecx3id7z.auth.us-east-1.amazoncognito.com";
+const cognitoClientId = "7ifahuq15bidifgdm57t3389e5";
+const cognitoRedirectUri = "http://localhost:8000/";
+const userStateApiUrl = "https://4ei4w1egn9.execute-api.us-east-1.amazonaws.com";
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
 const remoteLessonFiles = [
   "lessons/lesson-1-comment-allez-vous.json",
@@ -263,9 +270,338 @@ let activeFillTest = {
 };
 const scorePenalty = 0.25;
 const passingRatio = 0.7;
+let cloudSaveTimer = null;
+let isApplyingCloudState = false;
+let cloudSaveStatus = "";
+
+function getAuthSession() {
+  const saved = window.localStorage.getItem(authSessionKey);
+
+  if (!saved) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(saved);
+
+    if (!session.idToken || !session.expiresAt || Date.now() >= session.expiresAt) {
+      clearAuthSession();
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    clearAuthSession();
+    return null;
+  }
+}
+
+function getCurrentUser() {
+  const session = getAuthSession();
+
+  if (!session?.idToken) {
+    return null;
+  }
+
+  const claims = decodeJwt(session.idToken);
+
+  if (!claims?.sub) {
+    return null;
+  }
+
+  return {
+    sub: claims.sub,
+    email: claims.email || "Signed in"
+  };
+}
+
+function getScopedStorageKey(key) {
+  const user = getCurrentUser();
+
+  if (!user) {
+    return key;
+  }
+
+  return `${key}:${user.sub}`;
+}
+
+function readStoredJson(key, fallback) {
+  const saved = window.localStorage.getItem(getScopedStorageKey(key));
+
+  if (!saved) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(saved);
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function writeStoredJson(key, value) {
+  window.localStorage.setItem(getScopedStorageKey(key), JSON.stringify(value));
+}
+
+function clearAuthSession() {
+  window.localStorage.removeItem(authSessionKey);
+  window.sessionStorage.removeItem(authStateKey);
+  window.sessionStorage.removeItem(authVerifierKey);
+}
+
+async function startLogin() {
+  const verifier = createCodeVerifier();
+  const challenge = await createCodeChallenge(verifier);
+  const state = crypto.randomUUID();
+  const route = window.location.hash.replace("#", "");
+  const params = new URLSearchParams({
+    client_id: cognitoClientId,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    redirect_uri: cognitoRedirectUri,
+    response_type: "code",
+    scope: "openid email",
+    state
+  });
+
+  window.sessionStorage.setItem(authVerifierKey, verifier);
+  window.sessionStorage.setItem(authStateKey, JSON.stringify({ state, route }));
+  window.location.href = `${cognitoDomain}/oauth2/authorize?${params.toString()}`;
+}
+
+function logout() {
+  clearAuthSession();
+  const params = new URLSearchParams({
+    client_id: cognitoClientId,
+    logout_uri: cognitoRedirectUri
+  });
+
+  window.location.href = `${cognitoDomain}/logout?${params.toString()}`;
+}
+
+async function handleAuthRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+
+  if (!code) {
+    return;
+  }
+
+  const savedState = JSON.parse(window.sessionStorage.getItem(authStateKey) || "{}");
+
+  if (params.get("state") !== savedState.state) {
+    throw new Error("The sign-in response did not match this browser session.");
+  }
+
+  const verifier = window.sessionStorage.getItem(authVerifierKey);
+
+  if (!verifier) {
+    throw new Error("The sign-in verifier was missing. Please try logging in again.");
+  }
+
+  const tokenResponse = await fetch(`${cognitoDomain}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      client_id: cognitoClientId,
+      code,
+      code_verifier: verifier,
+      grant_type: "authorization_code",
+      redirect_uri: cognitoRedirectUri
+    })
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error(`Cognito token exchange failed: ${tokenResponse.status}`);
+  }
+
+  const tokens = await tokenResponse.json();
+  const session = {
+    accessToken: tokens.access_token,
+    idToken: tokens.id_token,
+    refreshToken: tokens.refresh_token,
+    expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000
+  };
+
+  window.localStorage.setItem(authSessionKey, JSON.stringify(session));
+  clearAuthCallbackState();
+  migrateLegacyProgress();
+  window.history.replaceState({}, document.title, `${window.location.pathname}${savedState.route ? `#${savedState.route}` : ""}`);
+}
+
+function clearAuthCallbackState() {
+  window.sessionStorage.removeItem(authStateKey);
+  window.sessionStorage.removeItem(authVerifierKey);
+}
+
+function migrateLegacyProgress() {
+  const user = getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
+  [progressKey, lessonAudioProgressKey, bestScoresKey].forEach((key) => {
+    const scopedKey = getScopedStorageKey(key);
+
+    if (!window.localStorage.getItem(scopedKey) && window.localStorage.getItem(key)) {
+      window.localStorage.setItem(scopedKey, window.localStorage.getItem(key));
+    }
+  });
+}
+
+function getStateSnapshot(route = window.location.hash.replace("#", "")) {
+  return {
+    currentRoute: route,
+    progress: getProgress(),
+    lessonAudioProgress: getLessonAudioProgress(),
+    bestScores: getBestScores()
+  };
+}
+
+async function loadCloudState() {
+  const session = getAuthSession();
+
+  if (!session?.idToken) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${userStateApiUrl}/state`, {
+      headers: {
+        Authorization: `Bearer ${session.idToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Could not load cloud state: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const state = payload.state;
+
+    if (!state) {
+      await saveCloudStateNow();
+      return;
+    }
+
+    applyCloudState(state);
+  } catch (error) {
+    console.warn("Cloud progress could not be loaded. Using local progress for now.", error);
+  }
+}
+
+function applyCloudState(state) {
+  isApplyingCloudState = true;
+
+  if (state.progress) {
+    writeStoredJson(progressKey, state.progress);
+  }
+
+  if (state.lessonAudioProgress) {
+    writeStoredJson(lessonAudioProgressKey, state.lessonAudioProgress);
+  }
+
+  if (state.bestScores) {
+    writeStoredJson(bestScoresKey, state.bestScores);
+  }
+
+  if (!window.location.hash && state.currentRoute) {
+    window.location.hash = state.currentRoute;
+  }
+
+  isApplyingCloudState = false;
+}
+
+function queueCloudStateSave(route) {
+  if (isApplyingCloudState || !getCurrentUser()) {
+    return;
+  }
+
+  cloudSaveStatus = "Saving...";
+  updateAccountSyncStatus();
+  window.clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = window.setTimeout(() => {
+    saveCloudStateNow(route).catch((error) => {
+      console.warn("Cloud progress could not be saved.", error);
+      cloudSaveStatus = "Save failed";
+      updateAccountSyncStatus();
+    });
+  }, 350);
+}
+
+function flushCloudStateSave(route) {
+  window.clearTimeout(cloudSaveTimer);
+  cloudSaveStatus = "Saving...";
+  updateAccountSyncStatus();
+  saveCloudStateNow(route).catch((error) => {
+    console.warn("Cloud progress could not be saved.", error);
+    cloudSaveStatus = "Save failed";
+    updateAccountSyncStatus();
+  });
+}
+
+async function saveCloudStateNow(route, options = {}) {
+  const session = getAuthSession();
+
+  if (!session?.idToken) {
+    return;
+  }
+
+  const response = await fetch(`${userStateApiUrl}/state`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${session.idToken}`,
+      "Content-Type": "application/json"
+    },
+    keepalive: Boolean(options.keepalive),
+    body: JSON.stringify(getStateSnapshot(route))
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not save cloud state: ${response.status}`);
+  }
+
+  cloudSaveStatus = "Saved";
+  updateAccountSyncStatus();
+}
+
+function createCodeVerifier() {
+  const values = new Uint8Array(32);
+  crypto.getRandomValues(values);
+  return base64UrlEncode(values);
+}
+
+async function createCodeChallenge(verifier) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function base64UrlEncode(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeJwt(token) {
+  try {
+    const payload = token.split(".")[1];
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + (4 - normalized.length % 4) % 4, "=");
+
+    return JSON.parse(atob(padded));
+  } catch (error) {
+    return null;
+  }
+}
 
 function setRoute(route) {
   stopCurrentAudio();
+  queueCloudStateSave(route);
   window.location.hash = route;
 }
 
@@ -386,29 +722,16 @@ function getContentUrl(path) {
 }
 
 function getProgress() {
-  const saved = window.localStorage.getItem(progressKey);
-
-  if (!saved) {
-    return {
-      completed: []
-    };
-  }
-
-  return JSON.parse(saved);
+  return readStoredJson(progressKey, { completed: [] });
 }
 
 function saveProgress(progress) {
-  window.localStorage.setItem(progressKey, JSON.stringify(progress));
+  writeStoredJson(progressKey, progress);
+  queueCloudStateSave();
 }
 
 function getBestScores() {
-  const saved = window.localStorage.getItem(bestScoresKey);
-
-  if (!saved) {
-    return {};
-  }
-
-  return JSON.parse(saved);
+  return readStoredJson(bestScoresKey, {});
 }
 
 function getBestScore(itemId) {
@@ -431,19 +754,12 @@ function saveBestScore(itemId, summary) {
     score: summary.score,
     total: summary.total
   };
-  window.localStorage.setItem(bestScoresKey, JSON.stringify(scores));
+  writeStoredJson(bestScoresKey, scores);
+  flushCloudStateSave();
 }
 
 function getLessonAudioProgress() {
-  const saved = window.localStorage.getItem(lessonAudioProgressKey);
-
-  if (!saved) {
-    return {
-      completed: []
-    };
-  }
-
-  return JSON.parse(saved);
+  return readStoredJson(lessonAudioProgressKey, { completed: [] });
 }
 
 function isLessonAudioComplete(lessonId) {
@@ -455,7 +771,8 @@ function completeLessonAudio(lessonId) {
 
   if (!progress.completed.includes(lessonId)) {
     progress.completed.push(lessonId);
-    window.localStorage.setItem(lessonAudioProgressKey, JSON.stringify(progress));
+    writeStoredJson(lessonAudioProgressKey, progress);
+    flushCloudStateSave();
   }
 }
 
@@ -473,6 +790,7 @@ function completeItem(itemId) {
   if (!progress.completed.includes(itemId)) {
     progress.completed.push(itemId);
     saveProgress(progress);
+    flushCloudStateSave();
   }
 }
 
@@ -495,21 +813,29 @@ function getItem(itemId) {
 }
 
 function render() {
+  if (!getCurrentUser()) {
+    renderAuthGate();
+    return;
+  }
+
   const route = window.location.hash.replace("#", "");
   const routeItem = getItem(route);
 
   if (route === "history") {
     renderHistory();
+    renderAccountControls();
     return;
   }
 
   if (route === "intro") {
     renderIntro(courseItems[0]);
+    renderAccountControls();
     return;
   }
 
   if (routeItem?.type === "lesson") {
     renderLockedAwareLesson(routeItem);
+    renderAccountControls();
     return;
   }
 
@@ -518,11 +844,13 @@ function render() {
   if (testRoute) {
     if (!isItemUnlocked(testRoute.lesson.id)) {
       renderLockedItem(testRoute.lesson);
+      renderAccountControls();
       return;
     }
 
     if (!isLessonTestUnlocked(testRoute.lesson)) {
       renderLesson(testRoute.lesson);
+      renderAccountControls();
       return;
     }
 
@@ -531,10 +859,59 @@ function render() {
     } else {
       renderFillIntro(testRoute.lesson, testRoute.test);
     }
+    renderAccountControls();
     return;
   }
 
   renderHome();
+  renderAccountControls();
+}
+
+function renderAuthGate(message = "") {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+      </div>
+      <section class="auth-panel" aria-labelledby="auth-title">
+        <p class="correct-kicker">Ogham account</p>
+        <h1 id="auth-title">Sign in to continue.</h1>
+        <p class="lesson-lede">Use your email to save lesson progress under your account.</p>
+        ${message ? `<p class="auth-error">${message}</p>` : ""}
+        <button class="primary-button" type="button" data-login>Sign in or create account</button>
+      </section>
+    </section>
+  `;
+
+  app.querySelector("[data-login]").addEventListener("click", startLogin);
+}
+
+function renderAccountControls() {
+  const user = getCurrentUser();
+  const topbar = app.querySelector(".topbar");
+
+  if (!user || !topbar || topbar.querySelector(".account-controls")) {
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "account-controls";
+  controls.innerHTML = `
+    <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
+    <span class="account-email">${user.email}</span>
+    <button class="back-link" type="button" data-logout>Log out</button>
+  `;
+
+  topbar.appendChild(controls);
+  controls.querySelector("[data-logout]").addEventListener("click", logout);
+}
+
+function updateAccountSyncStatus() {
+  const status = app.querySelector("[data-sync-status]");
+
+  if (status) {
+    status.textContent = cloudSaveStatus;
+  }
 }
 
 function getTestRoute(route) {
@@ -1939,9 +2316,33 @@ function stopCurrentAudio() {
 
 async function initializeApp() {
   renderLoading();
+
+  try {
+    await handleAuthRedirect();
+  } catch (error) {
+    console.error(error);
+    renderAuthGate("Sign-in could not be completed. Please try again.");
+    return;
+  }
+
+  if (!getCurrentUser()) {
+    renderAuthGate();
+    return;
+  }
+
   await loadRemoteLessons();
+  migrateLegacyProgress();
+  await loadCloudState();
   render();
 }
 
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => {
+  queueCloudStateSave();
+  render();
+});
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && getCurrentUser()) {
+    saveCloudStateNow(undefined, { keepalive: true }).catch(() => {});
+  }
+});
 initializeApp();
