@@ -1,0 +1,301 @@
+{
+  "id": "lesson-6",
+  "type": "lesson",
+  "title": "Lesson 6: À l'hôtel",
+  "titleAudio": "audio/L006-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "At the hotel",
+  "language": "French",
+  "description": "A hotel check-in dialogue for greetings, room reservations, names, agreement, floors, keys, and luggage.",
+  "notes": {
+    "1": "<strong>Bonsoir</strong>, <strong>good evening</strong>, is the formal greeting used after 6 pm.",
+    "2": "Remember that the definite article <strong>l'</strong> replaces <strong>le</strong> or <strong>la</strong> in front of a word beginning with a vowel or an <strong>h</strong>. <strong>Un hôtel</strong> is masculine.",
+    "3": "<strong>Le nom</strong> means <strong>the name</strong>. The word generally refers to a person's surname, the proper term for which is <strong>le nom de famille</strong>, <strong>family name</strong>. <strong>Le prénom</strong>, literally <strong>pre-name</strong>, is the term for the first name.",
+    "4": "<strong>Grand</strong> is an adjective meaning <strong>big</strong> or <strong>large</strong>. Adjectives agree with the gender of the noun they qualify, so we say <strong>un grand lit</strong>, <strong>a large bed</strong>, but <strong>une grande chambre</strong>. You see now why learning noun genders is so important.",
+    "5": "Here's another type of agreement: pronouns also need to change depending on whether the noun is plural or singular. <strong>Vos</strong> is the plural of <strong>votre</strong>: <strong>votre nom</strong>, <strong>your name</strong>, but <strong>vos bagages</strong>, <strong>your bags</strong>."
+  },
+  "lines": [
+    {
+      "french": "Bonsoir monsieur, bonsoir madame. Bienvenue à l'Hôtel Molière.",
+      "parts": [
+        "Bonsoir",
+        {
+          "note": 1
+        },
+        " monsieur, bonsoir madame. Bienvenue à l'Hôtel",
+        {
+          "note": 2
+        },
+        " Molière."
+      ],
+      "english": "Good evening, sir; good evening, madam. Welcome to the Molière Hotel.",
+      "audio": "audio/L006-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Bonsoir, nous‿avons une chambre réservée pour deux nuits.",
+      "parts": [
+        "Bonsoir, nous‿avons une chambre réservée pour deux nuits."
+      ],
+      "english": "Good evening, we have a room reserved for two nights.",
+      "audio": "audio/L006-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Quel‿est votre nom, s'il vous plaît ?",
+      "parts": [
+        "Quel‿est votre nom",
+        {
+          "note": 3
+        },
+        ", s'il vous plaît ?"
+      ],
+      "english": "What is your name, please?",
+      "audio": "audio/L006-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Je m'appelle Bailly : B-A-I deux‿L-Y. Alain.",
+      "parts": [
+        "Je m'appelle Bailly : B-A-I deux‿L-Y. Alain."
+      ],
+      "english": "My name is Bailly: B-A-I-double-L-Y. Alain.",
+      "audio": "audio/L006-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Absolument : une grande chambre avec‿un grand lit et une salle de bains.",
+      "parts": [
+        "Absolument : une grande chambre avec‿un grand lit",
+        {
+          "note": 4
+        },
+        " et une salle de bains."
+      ],
+      "english": "Absolutely: a large room with a double bed and a bathroom.",
+      "audio": "audio/L006-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "C'est‿au quatrième étage. Voici la clé.",
+      "parts": [
+        "C'est‿au quatrième étage. Voici la clé."
+      ],
+      "english": "It's on the fourth floor. Here's the key.",
+      "audio": "audio/L006-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Où sont vos bagages ?",
+      "parts": [
+        "Où sont vos",
+        {
+          "note": 5
+        },
+        " bagages ?"
+      ],
+      "english": "Where are your bags?",
+      "audio": "audio/L006-French ASSIMIL/S07.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-6-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "monsieur",
+        "madame",
+        "bagages",
+        "nuit",
+        "réservée",
+        "grand",
+        "lit",
+        "bains"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Bienvenue",
+            "à",
+            "l'hôtel"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "."
+          ],
+          "english": "Welcome to the hotel.",
+          "audio": "audio/L006-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "Votre",
+            "chambre",
+            "est",
+            "au",
+            "sixième",
+            "étage",
+            "Voici",
+            "la",
+            "clé"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ".",
+            "",
+            "",
+            "."
+          ],
+          "english": "Your room is on the sixth floor. Here's the key.",
+          "audio": "audio/L006-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Votre",
+            "nom",
+            "est",
+            "Bailly",
+            "Absolument",
+            "Mon",
+            "prénom",
+            "est",
+            "Alain"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            " ?",
+            ".",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "Is your surname Bailly? Absolutely. My first name is Alain.",
+          "audio": "audio/L006-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "J'ai",
+            "une",
+            "chambre",
+            "réservée",
+            "pour",
+            "trois",
+            "nuits"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I have a room reserved for three nights.",
+          "audio": "audio/L006-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Où",
+            "est",
+            "la",
+            "salle",
+            "de",
+            "bains",
+            "s'il",
+            "vous",
+            "plaît"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            ",",
+            "",
+            "",
+            " ?"
+          ],
+          "english": "Where's the bathroom, please?",
+          "audio": "audio/L006-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-6-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "I have a large room with a big bed.",
+          "parts": [
+            "J'ai",
+            {
+              "answer": "une grande"
+            },
+            "chambre",
+            {
+              "answer": "avec un grand"
+            },
+            "lit."
+          ]
+        },
+        {
+          "english": "Where is the room and where are the bags?",
+          "parts": [
+            {
+              "answer": "Où est la"
+            },
+            "chambre et",
+            {
+              "answer": "où sont les"
+            },
+            "bagages ?"
+          ]
+        },
+        {
+          "english": "The bathroom is big.",
+          "parts": [
+            {
+              "answer": "La salle de bains"
+            },
+            "est",
+            {
+              "answer": "grande"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "What is your name?",
+          "parts": [
+            {
+              "answer": "Quel"
+            },
+            "est",
+            {
+              "answer": "votre"
+            },
+            "nom ?"
+          ]
+        },
+        {
+          "english": "Good evening. My name is Alain Bailly.",
+          "parts": [
+            {
+              "answer": "Bonsoir"
+            },
+            ".",
+            {
+              "answer": "Je m'appelle"
+            },
+            "Alain Bailly."
+          ]
+        }
+      ]
+    }
+  ]
+}

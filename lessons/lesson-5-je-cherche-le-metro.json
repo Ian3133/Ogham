@@ -1,0 +1,274 @@
+{
+  "id": "lesson-5",
+  "type": "lesson",
+  "title": "Lesson 5: Je cherche le métro",
+  "titleAudio": "audio/L005-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I'm looking for the metro",
+  "language": "French",
+  "description": "A short exchange for asking directions, using chercher, apologizing politely, and following simple street directions.",
+  "notes": {
+    "1": "French does not have a separate verb form to express a present continuous action, such as <strong>I am looking</strong>. Instead, you use the simple form, <strong>I look</strong>, which makes life much easier.",
+    "2": "<strong>Le Métropolitain</strong>, known universally as <strong>le métro</strong>, is the underground railway system, or subway, of major cities such as Paris, Marseille, or Lyon. The word is also used to refer to a specific station: <strong>le métro Châtelet</strong>, the Châtelet metro station, as well as to the train itself. You can also ask for <strong>une station de métro</strong>, a metro station.",
+    "3": "As we will see throughout this course, a substantial portion of English vocabulary is derived from French. While <strong>désolé</strong> is the root of <strong>desolate</strong> and <strong>desolation</strong>, it is an ordinary, everyday word equivalent to <strong>sorry</strong>: <strong>Je suis désolé</strong>, <strong>I'm sorry</strong>.",
+    "4": "French people use <strong>madame</strong> and <strong>monsieur</strong> a lot when addressing strangers. This is not as formal as it might sound in English, which lacks a convenient, polite way of catching someone's attention.",
+    "5": "<strong>Une ville</strong> means <strong>a city</strong> or <strong>a town</strong>. French makes no difference between the two.",
+    "6": "<strong>Voilà</strong> is the companion word to <strong>voici</strong>. In principle, we use <strong>voici</strong> to designate something or someone located close to us, like <strong>here is</strong> or <strong>here are</strong>, and <strong>voilà</strong> for something farther away, like <strong>there is</strong> or <strong>there are</strong>. In practice, <strong>voilà</strong> is used in both instances."
+  },
+  "lines": [
+    {
+      "french": "Excusez-moi, je cherche le métro Saint-Michel.",
+      "parts": [
+        "Excusez-moi, je cherche",
+        {
+          "note": 1
+        },
+        " le métro",
+        {
+          "note": 2
+        },
+        " Saint-Michel."
+      ],
+      "english": "Excuse me, I'm looking for the Saint-Michel metro station.",
+      "audio": "audio/L005-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Désolée, madame, je ne suis pas d'ici.",
+      "parts": [
+        "Désolée",
+        {
+          "note": 3
+        },
+        ", madame",
+        {
+          "note": 4
+        },
+        ", je ne suis pas d'ici."
+      ],
+      "english": "Sorry, madam, I'm not from here.",
+      "audio": "audio/L005-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Mais attendez une minute, j'ai un plan de la ville.",
+      "parts": [
+        "Mais attendez une minute, j'ai un plan de la ville",
+        {
+          "note": 5
+        },
+        "."
+      ],
+      "english": "But wait a minute, I have a map of the city.",
+      "audio": "audio/L005-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Voilà : traversez le boulevard et tournez à gauche à la fontaine.",
+      "parts": [
+        "Voilà",
+        {
+          "note": 6
+        },
+        " : traversez le boulevard et tournez à gauche à la fontaine."
+      ],
+      "english": "Here we are: cross the boulevard and turn left at the fountain.",
+      "audio": "audio/L005-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Merci beaucoup pour votre‿aide !",
+      "parts": [
+        "Merci beaucoup pour votre‿aide !"
+      ],
+      "english": "Thanks very much for your help!",
+      "audio": "audio/L005-French ASSIMIL/S05.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-5-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "métro",
+        "ville",
+        "madame",
+        "voilà",
+        "fontaine",
+        "tournez",
+        "gauche",
+        "boulevard"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Excusez-moi",
+            "je",
+            "cherche",
+            "le",
+            "métro"
+          ],
+          "punctuation": [
+            ",",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "Excuse me, I'm looking for the metro station.",
+          "audio": "audio/L005-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "Désolé",
+            "je",
+            "ne",
+            "suis",
+            "pas",
+            "d'ici"
+          ],
+          "punctuation": [
+            ",",
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I'm sorry, I'm not from here.",
+          "audio": "audio/L005-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Merci",
+            "beaucoup",
+            "pour",
+            "votre",
+            "aide"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "Thanks very much for your help.",
+          "audio": "audio/L005-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "Je",
+            "n'ai",
+            "pas",
+            "de",
+            "plan"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I don't have a map.",
+          "audio": "audio/L005-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Attendez",
+            "une",
+            "minute",
+            "s'il",
+            "vous",
+            "plaît"
+          ],
+          "punctuation": [
+            "",
+            "",
+            ",",
+            "",
+            "",
+            "."
+          ],
+          "english": "Wait a minute, please.",
+          "audio": "audio/L005-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-5-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "Cross the boulevard and turn left at the fountain.",
+          "parts": [
+            {
+              "answer": "Traversez le"
+            },
+            "boulevard et",
+            {
+              "answer": "tournez"
+            },
+            "à gauche à",
+            {
+              "answer": "la"
+            },
+            "fontaine."
+          ]
+        },
+        {
+          "english": "Wait two minutes, please.",
+          "parts": [
+            {
+              "answer": "Attendez"
+            },
+            "deux minutes,",
+            {
+              "answer": "s'il vous plaît"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "Are you looking for the metro station?",
+          "parts": [
+            "Vous",
+            {
+              "answer": "cherchez le"
+            },
+            "métro ?"
+          ]
+        },
+        {
+          "english": "Here's a city map.",
+          "parts": [
+            {
+              "answer": "Voilà un"
+            },
+            "plan",
+            {
+              "answer": "de la"
+            },
+            "ville."
+          ]
+        },
+        {
+          "english": "Sorry, I'm an hour late.",
+          "parts": [
+            {
+              "answer": "Désolé"
+            },
+            ",",
+            {
+              "answer": "j'ai une"
+            },
+            "heure de",
+            {
+              "answer": "retard"
+            },
+            "."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+{
+  "id": "lesson-3",
+  "type": "lesson",
+  "title": "Lesson 3: Présentations",
+  "titleAudio": "audio/L003-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Introductions",
+  "language": "French",
+  "description": "A short introduction dialogue for names, origins, nationalities, and the main present-tense forms of être.",
+  "notes": {
+    "1": "<strong>appeler</strong> means <strong>to call</strong>. <strong>Je m'appelle</strong> literally means <strong>I call myself</strong>, but is equivalent to <strong>My name is...</strong>",
+    "2": "A formal but simple way to form a question with <strong>être</strong> is to switch the verb and pronoun: <strong>Vous êtes Breton ?</strong> becomes <strong>Êtes-vous Breton ?</strong>",
+    "3": "Some nouns and adjectives describing men and women have two forms. <strong>bretonne</strong> is the feminine form of <strong>breton</strong>.",
+    "4": "The first-person pronoun <strong>je</strong>, <strong>I</strong>, does not take an initial capital unless it is the first word of the sentence.",
+    "5": "Now you know the main forms of <strong>être</strong>: <strong>je suis</strong>, <strong>il est</strong>, <strong>vous êtes</strong>, <strong>nous sommes</strong>: <strong>I am</strong>, <strong>he is</strong>, <strong>you are</strong>, <strong>we are</strong>."
+  },
+  "lines": [
+    {
+      "french": "Je me présente : je m'appelle Sophie Mercier.",
+      "parts": [
+        "Je me présente : je m'appelle",
+        {
+          "note": 1
+        },
+        " Sophie Mercier."
+      ],
+      "english": "Let me introduce myself (I introduce me): I am (I call myself) Sophie Mercier.",
+      "audio": "audio/L003-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Et voici mon‿ami Loïc Le Gall. Il est breton.",
+      "parts": [
+        "Et voici mon‿ami Loïc Le Gall. Il est breton."
+      ],
+      "english": "And here is my friend Loïc Le Gall. He is Breton.",
+      "audio": "audio/L003-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Et vous, êtes-vous bretonne aussi ?",
+      "parts": [
+        "Et vous, êtes-vous",
+        {
+          "note": 2
+        },
+        " bretonne",
+        {
+          "note": 3
+        },
+        " aussi ?"
+      ],
+      "english": "And you, are you Breton, too?",
+      "audio": "audio/L003-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Pas du tout, je suis de Nîmes, dans le Midi de la France.",
+      "parts": [
+        "Pas du tout, je",
+        {
+          "note": 4
+        },
+        " suis de Nîmes, dans le Midi de la France."
+      ],
+      "english": "Not at all, I am from Nîmes, in the south of France.",
+      "audio": "audio/L003-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Mais maintenant nous sommes parisiens.",
+      "parts": [
+        "Mais maintenant nous sommes",
+        {
+          "note": 5
+        },
+        " parisiens."
+      ],
+      "english": "But now we are Parisians.",
+      "audio": "audio/L003-French ASSIMIL/S05.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-3-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "Sophie",
+        "Mercier",
+        "ami",
+        "vous",
+        "nous",
+        "sommes",
+        "aussi",
+        "dans"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Je",
+            "m'appelle",
+            "Loïc"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "."
+          ],
+          "english": "My name is Loïc.",
+          "audio": "audio/L003-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "Et",
+            "voici",
+            "mes",
+            "deux",
+            "amis"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "And these are my two friends.",
+          "audio": "audio/L003-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Êtes-vous",
+            "parisien"
+          ],
+          "punctuation": [
+            "",
+            " ?"
+          ],
+          "english": "Are you Parisian?",
+          "audio": "audio/L003-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "Pas",
+            "du",
+            "tout",
+            "Je",
+            "suis",
+            "breton"
+          ],
+          "punctuation": [
+            "",
+            "",
+            " !",
+            "",
+            "",
+            "."
+          ],
+          "english": "Not at all! I'm Breton.",
+          "audio": "audio/L003-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Il",
+            "est",
+            "de",
+            "Nîmes",
+            "aussi"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "He's from Nîmes, too.",
+          "audio": "audio/L003-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-3-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "I'm Breton and she's Breton, too.",
+          "parts": [
+            "Je suis",
+            {
+              "answer": "breton"
+            },
+            "et elle est",
+            {
+              "answer": "bretonne"
+            },
+            {
+              "answer": "aussi"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "We are Parisians.",
+          "parts": [
+            {
+              "answer": "Nous sommes"
+            },
+            "parisiens."
+          ]
+        },
+        {
+          "english": "Are you from Nîmes?",
+          "parts": [
+            {
+              "answer": "Êtes-vous"
+            },
+            "de Nîmes ?"
+          ]
+        },
+        {
+          "english": "I'm called Sophie. And you?",
+          "parts": [
+            {
+              "answer": "Je m'appelle"
+            },
+            "Sophie.",
+            {
+              "answer": "Et vous"
+            },
+            "?"
+          ]
+        },
+        {
+          "english": "I'm now at the third lesson.",
+          "parts": [
+            {
+              "answer": "Je suis"
+            },
+            "maintenant à la",
+            {
+              "answer": "troisième"
+            },
+            "leçon."
+          ]
+        }
+      ]
+    }
+  ]
+}

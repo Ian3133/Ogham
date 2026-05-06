@@ -164,15 +164,81 @@ let courseItems = [
     notes: {},
     lines: [],
     tests: []
+  },
+  {
+    id: "lesson-3",
+    type: "lesson",
+    title: "Lesson 3",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 3 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-4",
+    type: "lesson",
+    title: "Lesson 4",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 4 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-5",
+    type: "lesson",
+    title: "Lesson 5",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 5 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-6",
+    type: "lesson",
+    title: "Lesson 6",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 6 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-7",
+    type: "lesson",
+    title: "Lesson 7",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 7 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
   }
 ];
 let lessons = courseItems.filter((item) => item.type === "lesson");
 const progressKey = "ogham-progress";
 const lessonAudioProgressKey = "ogham-lesson-audio-progress";
+const bestScoresKey = "ogham-best-scores";
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
 const remoteLessonFiles = [
   "lessons/lesson-1-comment-allez-vous.json",
-  "lessons/lesson-2-le-cafe.json"
+  "lessons/lesson-2-le-cafe.json",
+  "lessons/lesson-3-presentations.json",
+  "lessons/lesson-4-lheure.json",
+  "lessons/lesson-5-je-cherche-le-metro.json",
+  "lessons/lesson-6-a-lhotel.json",
+  "lessons/lesson-7-review.json"
 ];
 
 const app = document.querySelector("#app");
@@ -218,26 +284,38 @@ function renderLoading() {
 }
 
 async function loadRemoteLessons() {
-  try {
-    const remoteLessons = await Promise.all(remoteLessonFiles.map(async (file) => {
-      const response = await fetch(getContentUrl(file));
+  const remoteLessons = await Promise.all(remoteLessonFiles.map(async (file) => {
+    try {
+      return await loadLessonFile(getContentUrl(file));
+    } catch (error) {
+      console.warn(`Remote lesson ${file} could not load. Trying local copy.`, error);
+    }
 
-      if (!response.ok) {
-        throw new Error(`Could not load ${file}: ${response.status}`);
-      }
+    try {
+      return await loadLessonFile(file);
+    } catch (error) {
+      console.warn(`Using embedded lesson because ${file} could not load.`, error);
+    }
 
-      return hydrateLessonAssets(await response.json());
-    }));
+    return null;
+  }));
 
-    courseItems = courseItems.map((item) => {
-      const remoteLesson = remoteLessons.find((lesson) => lesson.id === item.id);
+  courseItems = courseItems.map((item) => {
+    const remoteLesson = remoteLessons.find((lesson) => lesson?.id === item.id);
 
-      return remoteLesson || item;
-    });
-    lessons = courseItems.filter((item) => item.type === "lesson");
-  } catch (error) {
-    console.warn("Using embedded lessons because remote lessons could not load.", error);
+    return remoteLesson || item;
+  });
+  lessons = courseItems.filter((item) => item.type === "lesson");
+}
+
+async function loadLessonFile(path) {
+  const response = await fetch(path);
+
+  if (!response.ok) {
+    throw new Error(`Could not load ${path}: ${response.status}`);
   }
+
+  return hydrateLessonAssets(await response.json());
 }
 
 function hydrateLessonAssets(lesson) {
@@ -269,7 +347,12 @@ function normalizeLessonAssetPath(lesson, path) {
 
   const folderByLesson = {
     "lesson-1": "L001-French ASSIMIL",
-    "lesson-2": "L002-French ASSIMIL"
+    "lesson-2": "L002-French ASSIMIL",
+    "lesson-3": "L003-French ASSIMIL",
+    "lesson-4": "L004-French ASSIMIL",
+    "lesson-5": "L005-French ASSIMIL",
+    "lesson-6": "L006-French ASSIMIL",
+    "lesson-7": "L007-French ASSIMIL"
   };
   const folder = folderByLesson[lesson.id];
 
@@ -316,6 +399,39 @@ function getProgress() {
 
 function saveProgress(progress) {
   window.localStorage.setItem(progressKey, JSON.stringify(progress));
+}
+
+function getBestScores() {
+  const saved = window.localStorage.getItem(bestScoresKey);
+
+  if (!saved) {
+    return {};
+  }
+
+  return JSON.parse(saved);
+}
+
+function getBestScore(itemId) {
+  return getBestScores()[itemId];
+}
+
+function saveBestScore(itemId, summary) {
+  if (!summary?.total) {
+    return;
+  }
+
+  const scores = getBestScores();
+  const previous = scores[itemId];
+
+  if (previous && getScoreRatio(previous) >= getScoreRatio(summary)) {
+    return;
+  }
+
+  scores[itemId] = {
+    score: summary.score,
+    total: summary.total
+  };
+  window.localStorage.setItem(bestScoresKey, JSON.stringify(scores));
 }
 
 function getLessonAudioProgress() {
@@ -506,19 +622,48 @@ function renderHistory() {
 
 function createHistoryItem(item) {
   const unlocked = isItemUnlocked(item.id);
-  const completed = isItemCompleted(item.id);
-  const status = completed ? "Completed" : unlocked ? "Available" : "Locked";
+  const bestScore = getBestScore(item.id);
+  const scoreLabel = getHistoryScoreLabel(item, bestScore);
+  const status = !unlocked ? "Locked" : bestScore ? "Review" : "Available";
 
   return `
-    <article class="history-item ${unlocked ? "" : "locked"}">
+    <article class="history-item ${getHistoryItemClass(item, unlocked, bestScore)}">
       <div>
         <p class="history-kicker">${item.language}</p>
         <h2>${item.title}</h2>
-        <p>${getItemStatusLabel(item)}</p>
+        <p>${scoreLabel}</p>
       </div>
       <button class="text-button" type="button" data-open-item="${item.id}" ${unlocked ? "" : "disabled"}>${status}</button>
     </article>
   `;
+}
+
+function getHistoryItemClass(item, unlocked, bestScore) {
+  if (!unlocked) {
+    return "locked";
+  }
+
+  if (bestScore && getScoreRatio(bestScore) >= 1) {
+    return "perfect";
+  }
+
+  if (bestScore && getScoreRatio(bestScore) >= passingRatio) {
+    return "passing";
+  }
+
+  return "current";
+}
+
+function getHistoryScoreLabel(item, bestScore) {
+  if (!isItemUnlocked(item.id)) {
+    return "Locked";
+  }
+
+  if (!bestScore) {
+    return getItemStatusLabel(item);
+  }
+
+  return `Best score: ${formatScore(bestScore.score)} / ${bestScore.total} (${formatPercent(getScoreRatio(bestScore))})`;
 }
 
 function renderIntro(introItem, slideIndex = 0) {
@@ -734,6 +879,65 @@ function closeNoteTray() {
   });
 }
 
+function showLookBack(lesson) {
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <section class="correct-modal review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
+      <button class="note-close modal-close" type="button" aria-label="Return to test">&times;</button>
+      <p class="correct-kicker">Look Back</p>
+      <h2 id="review-title">${lesson.title}</h2>
+      <div class="review-list">
+        ${lesson.lines.map((line, index) => createReviewLine(line, index)).join("")}
+      </div>
+    </section>
+  `;
+
+  app.appendChild(modal);
+  const closeReview = () => {
+    stopCurrentAudio();
+    modal.remove();
+  };
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeReview();
+    }
+  });
+  modal.querySelector(".modal-close").addEventListener("click", closeReview);
+  modal.querySelectorAll("[data-review-reveal]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const translation = modal.querySelector(`#${button.dataset.reviewReveal}`);
+      const isVisible = translation.classList.toggle("visible");
+      button.classList.toggle("active", isVisible);
+      button.title = isVisible ? "Hide English" : "Reveal English";
+      button.setAttribute("aria-label", isVisible ? "Hide English" : "Reveal English");
+    });
+  });
+  modal.querySelectorAll("[data-review-audio]").forEach((button) => {
+    button.addEventListener("click", () => playAudio(button.dataset.reviewAudio));
+  });
+}
+
+function createReviewLine(line, index) {
+  const hasAudio = Boolean(line.audio);
+  const translationId = `review-translation-${index + 1}`;
+
+  return `
+    <article class="review-line">
+      <div class="review-line-main">
+        <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
+        <div>
+          <p class="review-french">${line.french}</p>
+          <p class="review-english" id="${translationId}">${line.english}</p>
+        </div>
+        <button class="icon-button" type="button" data-review-audio="${line.audio}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play review audio for line " + (index + 1) : "Audio coming later for line " + (index + 1)}">▶</button>
+        <button class="icon-button review-flip" type="button" data-review-reveal="${translationId}" title="Reveal English" aria-label="Reveal English">↻</button>
+      </div>
+    </article>
+  `;
+}
+
 function unlockLessonTestButton() {
   const testButton = app.querySelector("[data-test]");
   const status = app.querySelector("[data-test-lock-status]");
@@ -768,19 +972,23 @@ function renderPartOneIntro(lesson, test) {
   });
 }
 
-function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", autoPlay = true, attempts = {}, submittedCounts = {}) {
-  activeTest = { lesson, test, itemIndex, selected, attempts, submittedCounts };
+function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", autoPlay = true, attempts = {}, submittedCounts = {}, revealedAnswers = {}) {
+  activeTest = { lesson, test, itemIndex, selected, attempts, submittedCounts, revealedAnswers };
 
   const item = test.items[itemIndex];
   const statusText = `Sentence ${itemIndex + 1} of ${test.items.length}`;
   const tryCount = attempts[itemIndex] || 0;
   const attemptText = `Attempt ${tryCount + 1}`;
+  const revealedSentence = revealedAnswers[itemIndex] ? buildSentence(item) : "";
 
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
         <div class="brand">Personal Language Reader</div>
-        <button class="back-link" type="button">Back to lesson</button>
+        <div class="topbar-actions">
+          <button class="back-link" type="button" data-look-back>Look back</button>
+          <button class="back-link" type="button" data-back-lesson>Back to lesson</button>
+        </div>
       </div>
       <header class="lesson-header">
         <h1>${test.title}</h1>
@@ -795,6 +1003,7 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
           <button class="icon-button" type="button" data-play-test title="Play audio" aria-label="Play test sentence">▶</button>
           <p class="test-feedback" aria-live="polite">${feedback}</p>
         </div>
+        ${revealedSentence ? `<p class="test-answer-hint">${revealedSentence}</p>` : ""}
         <div class="answer-row" aria-label="Answer blanks">
           ${item.answer.map((answer, index) => createAnswerSlot(answer, item.punctuation[index], selected[index], index)).join("")}
         </div>
@@ -802,20 +1011,29 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
           ${createWordBank(test, item, selected)}
         </div>
         <button class="primary-button check-button" type="button" data-check ${canCheckTestAnswer(item, selected, submittedCounts[itemIndex] || 0) ? "" : "disabled"}>Try</button>
+        ${tryCount >= 4 && !revealedSentence ? `<button class="text-button" type="button" data-show-test-answer>Show correct sentence</button>` : ""}
       </section>
     </section>
   `;
 
-  app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-back-lesson]").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-look-back]").addEventListener("click", () => showLookBack(lesson));
   app.querySelector("[data-play-test]").addEventListener("click", () => playAudio(item.audio));
   app.querySelector("[data-check]").addEventListener("click", checkTestAnswer);
+  app.querySelector("[data-show-test-answer]")?.addEventListener("click", showTestAnswer);
 
   app.querySelectorAll("[data-bank-word]").forEach((button) => {
     button.addEventListener("click", () => selectBankWord(button.dataset.bankWord));
+    button.addEventListener("dragstart", handleBankWordDragStart);
   });
 
   app.querySelectorAll("[data-slot]").forEach((button) => {
     button.addEventListener("click", () => removeSelectedWord(Number(button.dataset.slot)));
+    button.addEventListener("dragstart", handleSlotDragStart);
+    button.addEventListener("dragover", allowSlotDrop);
+    button.addEventListener("drop", handleSlotDrop);
+    button.addEventListener("dragenter", markSlotDropTarget);
+    button.addEventListener("dragleave", unmarkSlotDropTarget);
   });
 
   if (autoPlay) {
@@ -829,7 +1047,7 @@ function createAnswerSlot(answer, punctuation, selectedWord, index) {
 
   return `
     <span class="answer-piece">
-      <button class="answer-slot ${filledClass}" type="button" data-slot="${index}" aria-label="${selectedWord ? "Remove " + displayWord : "Empty slot for " + answer}">${displayWord}</button><span class="punctuation">${punctuation || ""}</span>
+      <button class="answer-slot ${filledClass}" type="button" data-slot="${index}" draggable="${selectedWord ? "true" : "false"}" aria-label="${selectedWord ? "Remove " + displayWord : "Empty slot for " + answer}">${displayWord}</button><span class="punctuation">${punctuation || ""}</span>
     </span>
   `;
 }
@@ -843,13 +1061,23 @@ function getSelectedWordDisplay(word, index) {
 }
 
 function createWordBank(test, item, selected) {
-  const words = shuffleWords([...new Set([...item.answer, ...test.distractors])]);
-  const usedWords = selected.filter(Boolean);
+  const answerWords = item.answer.map(getTestWordDisplay);
+  const distractorWords = test.distractors
+    .map(getTestWordDisplay)
+    .filter((word) => !answerWords.some((answerWord) => isSameTestWord(answerWord, word)));
+  const words = shuffleWords([...answerWords, ...distractorWords]);
+  const usedWordCounts = selected.filter(Boolean).reduce((counts, word) => {
+    const key = normalizeAnswer(word);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  const renderedWordCounts = {};
 
   return words.map((word) => {
-    const displayWord = getTestWordDisplay(word);
-    const isUsed = usedWords.includes(displayWord);
-    return `<button class="word-chip" type="button" data-bank-word="${displayWord}" ${isUsed ? "disabled" : ""}>${displayWord}</button>`;
+    const key = normalizeAnswer(word);
+    renderedWordCounts[key] = (renderedWordCounts[key] || 0) + 1;
+    const isUsed = renderedWordCounts[key] <= (usedWordCounts[key] || 0);
+    return `<button class="word-chip" type="button" data-bank-word="${word}" draggable="${isUsed ? "false" : "true"}" ${isUsed ? "disabled" : ""}>${word}</button>`;
   }).join("");
 }
 
@@ -863,7 +1091,7 @@ function selectBankWord(word) {
   }
 
   selected[openIndex] = word;
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts, activeTest.revealedAnswers);
 }
 
 function removeSelectedWord(index) {
@@ -874,7 +1102,82 @@ function removeSelectedWord(index) {
   }
 
   selected[index] = "";
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts, activeTest.revealedAnswers);
+}
+
+function handleBankWordDragStart(event) {
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("application/json", JSON.stringify({
+    source: "bank",
+    word: event.currentTarget.dataset.bankWord
+  }));
+}
+
+function handleSlotDragStart(event) {
+  const index = Number(event.currentTarget.dataset.slot);
+  const word = activeTest.selected[index];
+
+  if (!word) {
+    event.preventDefault();
+    return;
+  }
+
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("application/json", JSON.stringify({
+    source: "slot",
+    index,
+    word
+  }));
+}
+
+function allowSlotDrop(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+}
+
+function markSlotDropTarget(event) {
+  event.preventDefault();
+  event.currentTarget.classList.add("drop-target");
+}
+
+function unmarkSlotDropTarget(event) {
+  event.currentTarget.classList.remove("drop-target");
+}
+
+function handleSlotDrop(event) {
+  event.preventDefault();
+  event.currentTarget.classList.remove("drop-target");
+
+  const payload = getDragPayload(event);
+
+  if (!payload?.word) {
+    return;
+  }
+
+  const targetIndex = Number(event.currentTarget.dataset.slot);
+  const selected = [...activeTest.selected];
+
+  if (payload.source === "slot") {
+    const sourceIndex = Number(payload.index);
+
+    if (sourceIndex === targetIndex) {
+      return;
+    }
+
+    [selected[sourceIndex], selected[targetIndex]] = [selected[targetIndex] || "", payload.word];
+  } else {
+    selected[targetIndex] = payload.word;
+  }
+
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, selected, "", false, activeTest.attempts, activeTest.submittedCounts, activeTest.revealedAnswers);
+}
+
+function getDragPayload(event) {
+  try {
+    return JSON.parse(event.dataTransfer.getData("application/json"));
+  } catch (error) {
+    return null;
+  }
 }
 
 function checkTestAnswer() {
@@ -893,7 +1196,7 @@ function checkTestAnswer() {
 
   attempts[activeTest.itemIndex] = (attempts[activeTest.itemIndex] || 0) + 1;
   submittedCounts[activeTest.itemIndex] = getSelectedWordCount(keptWords);
-  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, keptWords, "Try again. Correct words stayed in place.", false, attempts, submittedCounts);
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, keptWords, "Try again. Correct words stayed in place.", false, attempts, submittedCounts, activeTest.revealedAnswers);
 }
 
 function canCheckTestAnswer(item, selected, submittedCount) {
@@ -926,6 +1229,15 @@ function showCorrectPopup(item) {
   modal.querySelector(".next-arrow").addEventListener("click", goToNextTestItem);
 }
 
+function showTestAnswer() {
+  const revealedAnswers = {
+    ...activeTest.revealedAnswers,
+    [activeTest.itemIndex]: true
+  };
+
+  renderTest(activeTest.lesson, activeTest.test, activeTest.itemIndex, activeTest.selected, "", false, activeTest.attempts, activeTest.submittedCounts, revealedAnswers);
+}
+
 function getCorrectAttemptKicker(wrongAttempts) {
   if (wrongAttempts === 0) {
     return "Correct! - 1st attempt";
@@ -952,7 +1264,7 @@ function goToNextTestItem() {
     return;
   }
 
-  renderTest(activeTest.lesson, activeTest.test, nextIndex, [], "", true, activeTest.attempts, activeTest.submittedCounts);
+  renderTest(activeTest.lesson, activeTest.test, nextIndex, [], "", true, activeTest.attempts, activeTest.submittedCounts, activeTest.revealedAnswers);
 }
 
 function renderPartOneComplete(lesson, test, attempts) {
@@ -1025,6 +1337,18 @@ function formatScore(score) {
   return Number(score || 0).toFixed(2);
 }
 
+function formatPercent(ratio) {
+  return `${Math.round((ratio || 0) * 100)}%`;
+}
+
+function getScoreRatio(summary) {
+  if (!summary?.total) {
+    return 0;
+  }
+
+  return summary.score / summary.total;
+}
+
 function createScoreBreakdown(label, summary) {
   return `
     <div class="score-row">
@@ -1095,7 +1419,10 @@ function renderFillTest(lesson, test, answers = [], feedback = "", results = {},
     <section class="shell">
       <div class="topbar">
         <div class="brand">Personal Language Reader</div>
-        <button class="back-link" type="button">Back to lesson</button>
+        <div class="topbar-actions">
+          <button class="back-link" type="button" data-look-back>Look back</button>
+          <button class="back-link" type="button" data-back-lesson>Back to lesson</button>
+        </div>
       </div>
       <header class="lesson-header">
         <h1>${test.title}</h1>
@@ -1112,7 +1439,8 @@ function renderFillTest(lesson, test, answers = [], feedback = "", results = {},
     </section>
   `;
 
-  app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-back-lesson]").addEventListener("click", () => setRoute(lesson.id));
+  app.querySelector("[data-look-back]").addEventListener("click", () => showLookBack(lesson));
   app.querySelectorAll("[data-check-fill]").forEach((button) => {
     button.addEventListener("click", () => checkFillItem(Number(button.dataset.checkFill)));
   });
@@ -1220,7 +1548,8 @@ function insertSpecialCharacter(character) {
 function checkFillItem(itemIndex) {
   const answers = cloneFillAnswers(activeFillTest.answers);
   const item = activeFillTest.test.items[itemIndex];
-  const result = checkFillItemResult(item, answers[itemIndex] || []);
+  const previousResult = activeFillTest.results[itemIndex];
+  const result = checkFillItemResult(item, answers[itemIndex] || [], previousResult);
   const results = { ...activeFillTest.results };
   const attempts = { ...activeFillTest.attempts };
 
@@ -1280,21 +1609,32 @@ function showFillAnswer(itemIndex) {
   });
 }
 
-function checkFillItemResult(item, answers) {
+function checkFillItemResult(item, answers, previousResult = {}) {
   const corrections = [];
   const correctionMap = {};
   const almost = [];
   const incorrect = [];
   const updatedAnswers = [...answers];
   const itemIndex = activeFillTest.test.items.indexOf(item);
+  const previousAlmost = previousResult.almost || [];
+  const previousCorrectionMap = previousResult.correctionMap || {};
 
   getFillAnswers(item).forEach((expected, blankIndex) => {
+    const fillId = `${itemIndex}-${blankIndex}`;
     const entered = answers[blankIndex] || "";
     const result = compareAnswer(entered, expected);
+    const wasAlmost = previousAlmost.includes(fillId);
 
     if (!result.isClose) {
+      if (wasAlmost) {
+        updatedAnswers[blankIndex] = "";
+        correctionMap[fillId] = previousCorrectionMap[fillId] || expected;
+        almost.push(fillId);
+        return;
+      }
+
       updatedAnswers[blankIndex] = "";
-      incorrect.push(`${itemIndex}-${blankIndex}`);
+      incorrect.push(fillId);
       return;
     }
 
@@ -1306,8 +1646,8 @@ function checkFillItemResult(item, answers) {
     if (!result.isExact) {
       corrections.push(expected);
       updatedAnswers[blankIndex] = "";
-      correctionMap[`${itemIndex}-${blankIndex}`] = expected;
-      almost.push(`${itemIndex}-${blankIndex}`);
+      correctionMap[fillId] = expected;
+      almost.push(fillId);
     }
   });
 
@@ -1327,6 +1667,8 @@ function renderFillComplete(lesson, test = lesson.tests[1], attempts = activeFil
   const combinedSummary = combineScores(partOneSummary, partTwoSummary);
   const passingScore = combinedSummary.total * passingRatio;
   const passed = combinedSummary.score >= passingScore;
+  const nextItem = getNextItem(lesson.id);
+  saveBestScore(lesson.id, combinedSummary);
 
   app.innerHTML = `
     <section class="shell">
@@ -1342,14 +1684,24 @@ function renderFillComplete(lesson, test = lesson.tests[1], attempts = activeFil
         ${createScoreBreakdown("Part 2", partTwoSummary)}
         ${createScoreBreakdown("Total", combinedSummary)}
         <button class="primary-button" type="button" data-restart-fill>Restart Exercise 2</button>
-        <button class="primary-button" type="button" data-next-lesson>Continue</button>
+        <button class="primary-button" type="button" data-next-lesson>${nextItem ? "Continue" : "Back Home"}</button>
       </section>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
   app.querySelector("[data-restart-fill]").addEventListener("click", () => renderFillTest(lesson, lesson.tests[1], [], "", {}, {}, partOneSummary));
-  app.querySelector("[data-next-lesson]").addEventListener("click", () => setRoute("lesson-2"));
+  app.querySelector("[data-next-lesson]").addEventListener("click", () => setRoute(nextItem?.id || ""));
+}
+
+function getNextItem(itemId) {
+  const itemIndex = courseItems.findIndex((item) => item.id === itemId);
+
+  if (itemIndex === -1) {
+    return null;
+  }
+
+  return courseItems[itemIndex + 1] || null;
 }
 
 function getFillAnswers(item) {

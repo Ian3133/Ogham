@@ -1,0 +1,63 @@
+{
+  "id": "lesson-7",
+  "type": "lesson",
+  "title": "Lesson 7: Review",
+  "titleAudio": "audio/L007-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review",
+  "language": "French",
+  "description": "A review dialogue using greetings, asking the time, negatives, appointments, lateness, and thanks.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour Chloé, comment allez-vous ?",
+      "english": "Hello Chloé, how are you?",
+      "audio": "audio/L007-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Ça va très bien merci.",
+      "english": "Very well, thanks.",
+      "audio": "audio/L007-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Et vous ?",
+      "english": "And you?",
+      "audio": "audio/L007-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Très bien. Est-ce que vous avez l'heure ?",
+      "english": "Very well. Do you have the time?",
+      "audio": "audio/L007-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Désolée, je n'ai pas de montre.",
+      "english": "Sorry, I don't have a watch.",
+      "audio": "audio/L007-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Mais je pense qu'il est midi.",
+      "english": "But I think it's noon.",
+      "audio": "audio/L007-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Comment le savez-vous ?",
+      "english": "How do you know?",
+      "audio": "audio/L007-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Parce que j'ai rendez-vous avec ma fille",
+      "english": "Because I have a meeting with my daughter",
+      "audio": "audio/L007-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "et elle a toujours cinq minutes de retard.",
+      "english": "and she's always late.",
+      "audio": "audio/L007-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Merci beaucoup pour votre aide.",
+      "english": "Thanks very much for your help.",
+      "audio": "audio/L007-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

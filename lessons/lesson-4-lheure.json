@@ -1,0 +1,264 @@
+{
+  "id": "lesson-4",
+  "type": "lesson",
+  "title": "Lesson 4: L'heure",
+  "titleAudio": "audio/L004-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "The time",
+  "language": "French",
+  "description": "A short dialogue for asking the time, forming questions with est-ce que, negatives, and expressions with midi and retard.",
+  "notes": {
+    "1": "We know that <strong>le</strong> and <strong>la</strong> are, respectively, the masculine and feminine definite articles, <strong>the</strong>. But if the noun begins with a vowel or an <strong>h</strong>, we use <strong>l'</strong>. You see how important it is to learn your genders: <strong>l'heure</strong> is feminine. <strong>L'heure</strong> literally means <strong>the hour</strong>, but we also use the word when asking the time. <strong>Avez-vous l'heure ?</strong> means <strong>Do you have the time?</strong>",
+    "2": "Another very common way of asking a question is to put <strong>est-ce que</strong>, literally <strong>is it that</strong>, before the verb. So <strong>Avez-vous l'heure ?</strong> and <strong>Est-ce que vous avez l'heure ?</strong> have the same meaning.",
+    "3": "To form the negative, you need two words: <strong>ne</strong>, or <strong>n'</strong> before a vowel or an <strong>h</strong>, directly before the verb, and <strong>pas</strong> directly after it: <strong>Je n'ai pas l'heure</strong>, <strong>I don't have the time</strong>.",
+    "4": "French does not have a neutral pronoun such as <strong>it</strong>. You have to use either <strong>il</strong> or <strong>elle</strong>, depending on the gender of the noun. In neutral contexts, such as when you are telling the time, always use <strong>il</strong>.",
+    "5": "In the last lesson, we saw that <strong>le Midi</strong> is the south of France. The word also means <strong>noon</strong>, or <strong>midday</strong>.",
+    "6": "Here, the article <strong>le</strong> means <strong>it</strong> or <strong>that</strong>. Notice that it is placed before the verb, not afterwards, as in English."
+  },
+  "lines": [
+    {
+      "french": "Pardon, est-ce que vous avez l'heure ?",
+      "parts": [
+        "Pardon, est-ce que",
+        {
+          "note": 2
+        },
+        " vous avez l'heure",
+        {
+          "note": 1
+        },
+        " ?"
+      ],
+      "english": "Excuse me, do you have the time?",
+      "audio": "audio/L004-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je n'ai pas de montre mais je pense qu'il est midi dix.",
+      "parts": [
+        "Je n'ai pas",
+        {
+          "note": 3
+        },
+        " de montre mais je pense qu'il",
+        {
+          "note": 4
+        },
+        " est midi",
+        {
+          "note": 5
+        },
+        " dix."
+      ],
+      "english": "I don't have a watch, but I think that it is ten past noon.",
+      "audio": "audio/L004-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Mais comment le savez-vous ?",
+      "parts": [
+        "Mais comment le",
+        {
+          "note": 6
+        },
+        " savez-vous ?"
+      ],
+      "english": "But how do you know that?",
+      "audio": "audio/L004-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Parce que j'ai rendez-vous avec ma femme à midi...",
+      "parts": [
+        "Parce que j'ai rendez-vous avec ma femme à midi..."
+      ],
+      "english": "Because I'm meeting my wife at noon...",
+      "audio": "audio/L004-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "... et elle a toujours dix minutes de retard !",
+      "parts": [
+        "... et elle a toujours dix minutes de retard !"
+      ],
+      "english": "... and she is always ten minutes late!",
+      "audio": "audio/L004-French ASSIMIL/S05.mp3"
+    }
+  ],
+  "tests": [
+    {
+      "id": "lesson-4-test-1",
+      "title": "Exercice 1 - Traduisez",
+      "instructions": "Listen, then rebuild the French sentence in order.",
+      "distractors": [
+        "femme",
+        "montre",
+        "comment",
+        "midi",
+        "retard",
+        "pardon",
+        "avec",
+        "mais"
+      ],
+      "items": [
+        {
+          "answer": [
+            "Est-ce",
+            "que",
+            "vous",
+            "avez",
+            "l'heure"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            " ?"
+          ],
+          "english": "Do you have the time?",
+          "audio": "audio/L004-French ASSIMIL/T01.mp3"
+        },
+        {
+          "answer": [
+            "J'ai",
+            "rendez-vous",
+            "avec",
+            "ma",
+            "fille"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I'm meeting my daughter.",
+          "audio": "audio/L004-French ASSIMIL/T02.mp3"
+        },
+        {
+          "answer": [
+            "Ma",
+            "femme",
+            "n'a",
+            "pas",
+            "de",
+            "montre"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "My wife does not have a watch.",
+          "audio": "audio/L004-French ASSIMIL/T03.mp3"
+        },
+        {
+          "answer": [
+            "Il",
+            "a",
+            "toujours",
+            "dix",
+            "minutes",
+            "de",
+            "retard"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "He's always ten minutes late.",
+          "audio": "audio/L004-French ASSIMIL/T04.mp3"
+        },
+        {
+          "answer": [
+            "Je",
+            "pense",
+            "qu'il",
+            "est",
+            "midi"
+          ],
+          "punctuation": [
+            "",
+            "",
+            "",
+            "",
+            "."
+          ],
+          "english": "I think it's noon.",
+          "audio": "audio/L004-French ASSIMIL/T05.mp3"
+        }
+      ]
+    },
+    {
+      "id": "lesson-4-test-2",
+      "title": "Exercice 2 - Complétez",
+      "subtitle": "Exercise 2 - Fill in the missing words",
+      "instructions": "Each dot represents a character, which can be a letter, an apostrophe, a hyphen, etc.",
+      "items": [
+        {
+          "english": "Do you have a wife?",
+          "parts": [
+            {
+              "answer": "Est-ce que"
+            },
+            "vous",
+            {
+              "answer": "avez une"
+            },
+            "femme ?"
+          ]
+        },
+        {
+          "english": "How do you know it?",
+          "parts": [
+            "Comment le",
+            {
+              "answer": "savez-vous"
+            },
+            "?"
+          ]
+        },
+        {
+          "english": "I don't have a watch.",
+          "parts": [
+            {
+              "answer": "Je n'ai pas"
+            },
+            "de montre."
+          ]
+        },
+        {
+          "english": "Because I'm ten minutes late.",
+          "parts": [
+            {
+              "answer": "Parce que j'ai"
+            },
+            "dix minutes de",
+            {
+              "answer": "retard"
+            },
+            "."
+          ]
+        },
+        {
+          "english": "Excuse me, is it midday?",
+          "parts": [
+            {
+              "answer": "Pardon"
+            },
+            ",",
+            {
+              "answer": "est-il"
+            },
+            "midi ?"
+          ]
+        }
+      ]
+    }
+  ]
+}

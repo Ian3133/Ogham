@@ -1,0 +1,75 @@
+Ogham app handoff notes
+=======================
+
+Project shape
+-------------
+- Static vanilla JS app: index.html mounts #app, app.js renders everything, styles.css styles it.
+- Lesson data used to be hardcoded in app.js. app.js now attempts to fetch Lesson 1 and Lesson 2 JSON from S3 at startup, then falls back to embedded data if remote fetch fails.
+- Local standalone lesson JSON files live in:
+  - lessons/lesson-1-comment-allez-vous.json
+  - lessons/lesson-2-le-cafe.json
+
+AWS content
+-----------
+- S3 base URL currently wired in app.js:
+  https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/
+- Remote lesson JSON files expected at:
+  - lessons/lesson-1-comment-allez-vous.json
+  - lessons/lesson-2-le-cafe.json
+- Audio folders uploaded to S3 are named:
+  - audio/L001-French ASSIMIL/
+  - audio/L002-French ASSIMIL/
+- Audio files use original names:
+  - S00-TITLE.mp3
+  - S01.mp3 through S05.mp3
+  - T01.mp3 through T05.mp3
+- app.js includes a path-normalizer so old JSON paths like audio/lesson-1/story-01.mp3 map to the real S3 folder names.
+
+Important AWS gotchas
+---------------------
+- S3 is case-sensitive.
+- Spaces in S3 object keys are okay, but URLs encode them as %20.
+- If audio fails, first test an exact MP3 URL in the browser, for example:
+  https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/audio/L001-French%20ASSIMIL/S01.mp3
+- If JSON/audio returns AccessDenied, check bucket policy includes both:
+  arn:aws:s3:::ogham-content-ian-423575705842-us-east-1-an/lessons/*
+  arn:aws:s3:::ogham-content-ian-423575705842-us-east-1-an/audio/*
+- CORS should allow GET and HEAD.
+
+How to run locally
+------------------
+- Do not double-click index.html if testing AWS fetch/audio. file:// origins can cause browser security weirdness.
+- User's machine did not recognize "python".
+- Try:
+  py -m http.server 8000
+- Then open:
+  http://localhost:8000/#lesson-1
+- If py is unavailable, Node is installed. Try:
+  npx serve . -l 8000
+
+Recent behavior changes
+-----------------------
+- Lesson page has one Test button instead of Part 1 / Part 2 buttons.
+- Test button unlocks after the final story audio finishes.
+- Part 1 starts with an intro modal over question 1; closing it starts the first test audio.
+- Part 1 word bank lowercases non-proper nouns, but capitalizes the first selected word in the answer row.
+- Part 1 allows partial attempts:
+  - Try button enables once at least one new word has been added since the last attempt.
+  - Correct words stay in place, wrong words clear.
+  - Attempt label shows Attempt 1, Attempt 2, etc.
+  - Correct popup top label says Correct! - 1st attempt, 2nd, 3rd; after that just Correct!
+- Part 2 line header shows Attempt X, not points.
+- Part 2 almost-correct spelling does not reduce score unless some other blank is actually wrong.
+- Part 2 almost-correct spelling hint appears directly under the input.
+
+Validation commands
+-------------------
+- Syntax check:
+  node --check app.js
+- Whitespace/diff check:
+  git diff --check
+
+Known state
+-----------
+- The live S3 Lesson 1 JSON was once observed still containing old audio paths like audio/lesson-1/story-01.mp3. app.js now normalizes those paths, but re-uploading the updated local JSON files is still best.
+- If a future agent changes the S3 naming scheme, update normalizeLessonAssetPath() in app.js.
