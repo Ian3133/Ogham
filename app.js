@@ -427,29 +427,12 @@ async function handleAuthRedirect() {
 
   window.localStorage.setItem(authSessionKey, JSON.stringify(session));
   clearAuthCallbackState();
-  migrateLegacyProgress();
   window.history.replaceState({}, document.title, `${window.location.pathname}${savedState.route ? `#${savedState.route}` : ""}`);
 }
 
 function clearAuthCallbackState() {
   window.sessionStorage.removeItem(authStateKey);
   window.sessionStorage.removeItem(authVerifierKey);
-}
-
-function migrateLegacyProgress() {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return;
-  }
-
-  [progressKey, lessonAudioProgressKey, bestScoresKey].forEach((key) => {
-    const scopedKey = getScopedStorageKey(key);
-
-    if (!window.localStorage.getItem(scopedKey) && window.localStorage.getItem(key)) {
-      window.localStorage.setItem(scopedKey, window.localStorage.getItem(key));
-    }
-  });
 }
 
 function getStateSnapshot(route = window.location.hash.replace("#", "")) {
@@ -483,6 +466,7 @@ async function loadCloudState() {
     const state = payload.state;
 
     if (!state) {
+      applyCloudState(getEmptyUserState());
       await saveCloudStateNow();
       return;
     }
@@ -491,6 +475,15 @@ async function loadCloudState() {
   } catch (error) {
     console.warn("Cloud progress could not be loaded. Using local progress for now.", error);
   }
+}
+
+function getEmptyUserState() {
+  return {
+    currentRoute: "",
+    progress: { completed: [] },
+    lessonAudioProgress: { completed: [] },
+    bestScores: {}
+  };
 }
 
 function applyCloudState(state) {
@@ -513,6 +506,18 @@ function applyCloudState(state) {
   }
 
   isApplyingCloudState = false;
+}
+
+async function resetCurrentAccountState() {
+  if (!window.confirm("Reset progress for this signed-in account?")) {
+    return;
+  }
+
+  applyCloudState(getEmptyUserState());
+  window.sessionStorage.clear();
+  window.history.replaceState({}, document.title, window.location.pathname);
+  await saveCloudStateNow("");
+  render();
 }
 
 function queueCloudStateSave(route) {
@@ -899,10 +904,18 @@ function renderAccountControls() {
   controls.innerHTML = `
     <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
     <span class="account-email">${user.email}</span>
+    <button class="back-link" type="button" data-reset-account>Reset progress</button>
     <button class="back-link" type="button" data-logout>Log out</button>
   `;
 
   topbar.appendChild(controls);
+  controls.querySelector("[data-reset-account]").addEventListener("click", () => {
+    resetCurrentAccountState().catch((error) => {
+      console.warn("Account progress could not be reset.", error);
+      cloudSaveStatus = "Reset failed";
+      updateAccountSyncStatus();
+    });
+  });
   controls.querySelector("[data-logout]").addEventListener("click", logout);
 }
 
@@ -2331,7 +2344,6 @@ async function initializeApp() {
   }
 
   await loadRemoteLessons();
-  migrateLegacyProgress();
   await loadCloudState();
   render();
 }
