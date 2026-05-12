@@ -1,3 +1,332 @@
+const introSlides = [
+  {
+    title: "Why French?",
+    body: [
+      "French is useful, important, and widely present beyond France itself.",
+      "It is used by an estimated 300 million people across five continents and is a main or official language in more than 25 countries, from Canada to Cambodia."
+    ]
+  },
+  {
+    title: "A Global Language",
+    body: [
+      "French is an official or working language of major organisations including the United Nations, UNESCO, the European Union, NATO, and the International Red Cross.",
+      "It is also a favoured language in fields such as art, fashion, food, dance, and the visual arts."
+    ]
+  },
+  {
+    title: "The Francophone World",
+    body: [
+      "French continues to become more global through bodies such as the Organisation internationale de la Francophonie.",
+      "Some estimates suggest that French could become one of the most important world languages by the middle of the twenty-first century."
+    ]
+  },
+  {
+    title: "The Pleasure Of French",
+    body: [
+      "One of the best reasons to learn French is pleasure.",
+      "There is pleasure in mastering a melodic and precise language, reading great writers in the original, watching films without dubbing, and speaking with local people in beautiful and exciting places.",
+      "As one author and philosopher put it: Ma patrie, c'est la langue francaise."
+    ]
+  },
+  {
+    title: "About The Method",
+    body: [
+      "Assimil is built around natural assimilation: acquiring a language gradually, much as you learned your first language.",
+      "The goal is not to make you sound or behave exactly like a native speaker, but to give you the tools to understand and be understood in many settings."
+    ]
+  },
+  {
+    title: "Realistic Language",
+    body: [
+      "Native speakers do not usually avoid idioms, unfamiliar expressions, or advanced tenses when speaking naturally.",
+      "The course balances progressive learning with real-world exposure, so the language remains learnable while still feeling alive."
+    ]
+  },
+  {
+    title: "What You Will Learn",
+    body: [
+      "The aim is to help beginners and false beginners communicate in French-speaking environments.",
+      "You will work toward understanding clear standard language, handling travel situations, describing events and experiences, and giving brief reasons or explanations."
+    ]
+  },
+  {
+    title: "Everyday Situations",
+    body: [
+      "You will learn simple exchanges such as introducing yourself and ordering food or drinks.",
+      "You will also meet situations such as shopping in a market, ordering online, joining a quiz show, telling a joke, and filing a missing-person report."
+    ]
+  },
+  {
+    title: "Two Learning Phases",
+    body: [
+      "The learning process has two phases.",
+      "Receptive: you absorb the language and become familiar with its patterns.",
+      "Productive: you begin generating French phrases and sentences from what you have already absorbed."
+    ]
+  },
+  {
+    title: "The Receptive Phase",
+    body: [
+      "From lessons 1 to 49, listen to the dialogues, read the text and notes, and complete the exercises.",
+      "Repeat each sentence aloud with the recording. Imitate the speaker as closely as you can. Do not feel shy."
+    ]
+  },
+  {
+    title: "The Productive Phase",
+    body: [
+      "The productive phase starts at lesson 50.",
+      "After each new lesson, go back to earlier lessons and translate the main dialogue and first exercise into French, orally, in writing, or both.",
+      "Use notes, revision lessons, and grammar references whenever you need to consolidate something."
+    ]
+  },
+  {
+    title: "Daily Rhythm",
+    body: [
+      "Work daily when possible.",
+      "If you cannot complete a full lesson, still read a dialogue, listen to a recording, do an exercise, or review a grammar point.",
+      "This regular contact helps build language muscle memory."
+    ]
+  },
+  {
+    title: "Pronunciation",
+    body: [
+      "A perfect accent is not required for successful communication, especially for adult learners.",
+      "Still, French has sounds that English does not, and you need to recognise and practise them to avoid confusion."
+    ]
+  },
+  {
+    title: "Figurative Pronunciation",
+    body: [
+      "Instead of requiring you to learn the International Phonetic Alphabet first, Assimil uses figurative pronunciation.",
+      "This respelling system gives approximate English-based sound clues. It is a guide, not a perfect scientific transcription."
+    ]
+  },
+  {
+    title: "French Vowels",
+    body: [
+      "French has oral and nasal vowel sounds, while almost all English vowels are oral.",
+      "French vowels are not as sharply long or short as English vowels: riche is neither as short as rich nor as long as reach.",
+      "The French u has no exact English equivalent. To approximate it, say oo while moving your lips toward ee."
+    ]
+  },
+  {
+    title: "Nasal Vowels",
+    body: [
+      "Some French vowels are nasalised: air escapes through the nose as well as the mouth.",
+      "This often happens when a vowel sound is followed by n or m, which may become silent.",
+      "Examples in figurative pronunciation include pain [pah\"], croissant [krwahssoeh\"], and bonjour [boh\"zhoor]."
+    ]
+  },
+  {
+    title: "Silent Final E",
+    body: [
+      "A final e without an acute accent is usually silent: pile [peel].",
+      "When e is added to make a masculine adjective feminine, it often causes the final consonant to be pronounced: grand becomes grande."
+    ]
+  },
+  {
+    title: "Accented Vowels",
+    body: [
+      "French uses several accents: acute, grave, circumflex, and diaeresis.",
+      "Sometimes accents mark grammar without changing sound, as in a and a with a grave accent, or ou and ou with a grave accent.",
+      "In other cases, especially with e, accents change pronunciation."
+    ]
+  },
+  {
+    title: "The Letter E",
+    body: [
+      "Bare e may be silent at the end of a word or unstressed inside a word.",
+      "Acute e sounds a little like ay, though shorter.",
+      "Grave e gives a more open sound, like the e in pet."
+    ]
+  },
+  {
+    title: "Circumflex And Trema",
+    body: [
+      "The circumflex can appear on all five vowels and often signals a historical spelling change or distinguishes homophones.",
+      "The trema, two dots over a vowel, shows that two vowels are pronounced separately, as in Noel and mais with trema."
+    ]
+  },
+  {
+    title: "Consonants",
+    body: [
+      "Most consonants sound similar in French and English at the beginning or middle of words.",
+      "Final consonants are often silent, especially plural s and x.",
+      "The common voiced final consonants can be remembered with CaReFuL: c, r, f, and l."
+    ]
+  },
+  {
+    title: "Special Consonant Patterns",
+    body: [
+      "Double l is often pronounced like l, but after i and another vowel it can sound like yy: fille.",
+      "gn sounds like nyuh, ch sounds like sh, and th sounds like t."
+    ]
+  },
+  {
+    title: "G, J, R, And Cedilla",
+    body: [
+      "G is soft before e, i, and y, like the sound in vision. Before other vowels and consonants it is hard, like g in golf.",
+      "J is pronounced like a soft g.",
+      "French r is pronounced at the back of the throat. The cedilla in c-cedilla changes c to an s sound before a, o, or u."
+    ]
+  },
+  {
+    title: "Linkage And Liaison",
+    body: [
+      "Linkage runs a final consonant into the initial vowel or h of the next word.",
+      "Liaison is similar, but it pronounces a final consonant that would otherwise be silent.",
+      "Both help French sentences flow smoothly."
+    ]
+  },
+  {
+    title: "Common Liaison Rules",
+    body: [
+      "Final n in un is sounded before a vowel: un ami.",
+      "Final s in ils, elles, nous, and vous often becomes z before a vowel.",
+      "Final s, t, d, and x can link into the following word in common patterns."
+    ]
+  },
+  {
+    title: "When Liaison Is Not Used",
+    body: [
+      "Liaison is not used with et.",
+      "It is not used between a singular noun and the following word.",
+      "It is not used with h aspire or with proper names."
+    ]
+  },
+  {
+    title: "Stress And Rhythm",
+    body: [
+      "French is syllable-timed: syllables receive roughly equal importance, and vowel sounds are not reduced as strongly as in English.",
+      "The last syllable of a French word is usually slightly more accentuated, but much less dramatically than in English."
+    ]
+  },
+  {
+    title: "Punctuation",
+    body: [
+      "French leaves a space before strong punctuation such as question marks, exclamation marks, colons, and semicolons.",
+      "Days and months are not capitalised. Decimal points are written as commas, and thousands are separated by spaces.",
+      "French quotation marks are often written as chevrons: « Bonjour »."
+    ]
+  },
+  {
+    title: "Ready?",
+    body: [
+      "That is enough theory for now. It is time to start learning French.",
+      "Ready? On y va! We are on our way.",
+      "Before Lesson 1, remember: even if you have studied French before, this introduction and pronunciation guide will help you understand how the method works."
+    ]
+  }
+];
+
+const compactIntroSlides = [
+  {
+    title: "Why French?",
+    section: "Welcome",
+    body: [
+      "French is useful, important, and widely present beyond France itself. It is used by an estimated 300 million people across five continents and is a main or official language in more than 25 countries.",
+      "It is also an official or working language of major organisations including the United Nations, UNESCO, the European Union, NATO, and the International Red Cross.",
+      "One of the best reasons to learn French is pleasure: a melodic and precise language, great books and films, and the ability to speak with people in beautiful and exciting places."
+    ]
+  },
+  {
+    title: "Method",
+    section: "Method",
+    review: true,
+    body: [
+      "Assimil is built around natural assimilation: acquiring the language gradually through repeated exposure, realistic situations, and steady practice.",
+      "First comes the receptive phase: listen, read, repeat aloud, notice patterns, and complete the exercises. Later comes the productive phase: translate back into French and begin forming your own sentences.",
+      "The most important habit is daily contact. If you cannot complete a full lesson, still listen to a line, reread a dialogue, or review one grammar point."
+    ]
+  },
+  {
+    title: "Pronunciation",
+    section: "Pronunciation",
+    review: true,
+    body: [
+      "You do not need a perfect accent, but you do need to hear the sounds that can change meaning: nasal vowels, the French u, silent final letters, and accented e.",
+      "Many final consonants are silent, especially plural s and x. Remember CaReFuL for common final consonants that are often pronounced: c, r, f, and l.",
+      "Watch for French sound patterns: gn sounds like nyuh, ch sounds like sh, j and soft g sound like the s in vision, and French r comes from the back of the throat."
+    ]
+  },
+  {
+    title: "Reference",
+    section: "Reference",
+    review: true,
+    body: [
+      "French rhythm is syllable-timed: syllables stay clearer and more even than in English. Linkage and liaison help words flow smoothly into one another.",
+      "French leaves a space before strong punctuation such as question marks, exclamation marks, colons, and semicolons. Days and months are not capitalised.",
+      "That is enough theory for now. Ready? On y va! We are on our way."
+    ]
+  }
+];
+
+const fullIntroSectionSlides = [
+  {
+    title: "Why French?",
+    section: "Welcome",
+    body: [
+      "French is useful, important, and widely present beyond France itself. It is used by an estimated 300 million people across five continents and is a main or official language in more than 25 countries, from Canada to Cambodia.",
+      "French is an official or working language of major organisations including the United Nations, UNESCO, the European Union, NATO, and the International Red Cross. It is also a favoured language in fields such as art, fashion, food, dance, and the visual arts.",
+      "French continues to become more global through bodies such as the Organisation internationale de la Francophonie. Some estimates suggest that French could become one of the most important world languages by the middle of the twenty-first century.",
+      "One of the best reasons to learn French is pleasure: the pleasure of mastering a melodic and precise language, reading great writers in the original, watching films without dubbing, and speaking with local people in beautiful and exciting places. As one author and philosopher put it: Ma patrie, c'est la langue francaise."
+    ]
+  },
+  {
+    title: "Method",
+    section: "Method",
+    review: true,
+    body: [
+      { heading: "Natural Assimilation" },
+      "Assimil is built around natural assimilation: acquiring a language gradually, much as you learned your first language. The goal is not to make you sound or behave exactly like a native speaker, but to give you the tools to understand and be understood in many settings.",
+      "Native speakers communicate naturally, with idioms, unfamiliar expressions, and sometimes advanced tenses. The course balances progressive learning with real-world exposure, so the language remains learnable while still feeling alive.",
+      { heading: "What You Will Learn" },
+      "The aim is to help beginners and false beginners communicate in French-speaking environments: understanding clear standard language, handling travel situations, describing events and experiences, and giving brief reasons or explanations.",
+      "You will learn everyday exchanges such as introducing yourself and ordering food or drinks, then move into situations such as shopping in a market, ordering online, joining a quiz show, telling a joke, and filing a missing-person report.",
+      { heading: "Two Phases" },
+      "The receptive phase is when you absorb the language and become familiar with its patterns. From lessons 1 to 49, listen to the dialogues, read the text and grammar notes, complete the exercises, and repeat each sentence aloud with the recording.",
+      "The productive phase starts at lesson 50. After each new lesson, go back to earlier lessons and translate the main dialogue and first exercise into French, orally, in writing, or both.",
+      { heading: "Daily Rhythm" },
+      "Work daily when possible. If you cannot complete a full lesson, still read a dialogue, listen to a recording, do an exercise, or review a grammar point. This regular contact helps build language muscle memory."
+    ]
+  },
+  {
+    title: "Pronunciation",
+    section: "Pronunciation",
+    review: true,
+    body: [
+      { heading: "Mindset" },
+      "A perfect accent is not required for successful communication, especially for adult learners. Still, French has sounds that English does not, and you need to recognise and practise them to avoid confusion.",
+      "Assimil uses figurative pronunciation instead of requiring the International Phonetic Alphabet first. This respelling system gives approximate English-based sound clues; it is a guide, not a perfect scientific transcription.",
+      { heading: "Vowels" },
+      "French has oral and nasal vowel sounds, while almost all English vowels are oral. French vowels are not as sharply long or short as English vowels: riche is neither as short as rich nor as long as reach.",
+      "The French u has no exact English equivalent. To approximate it, say oo while moving your lips toward ee. Nasal vowels let air escape through the nose as well as the mouth; examples include pain [pah\"], croissant [krwahssoeh\"], and bonjour [boh\"zhoor].",
+      "A final e without an acute accent is usually silent, but when e is added to make a masculine adjective feminine, it often causes the final consonant to be pronounced.",
+      { heading: "Accents" },
+      "French uses several accents: acute, grave, circumflex, and diaeresis. Sometimes accents mark grammar without changing sound; in other cases, especially with e, accents change pronunciation.",
+      "Bare e may be silent or unstressed. Acute e sounds a little like ay, though shorter. Grave e gives a more open sound, like the e in pet. The circumflex can distinguish written words, and the trema shows that two vowels are pronounced separately.",
+      { heading: "Consonants" },
+      "Most consonants sound similar in French and English at the beginning or middle of words. Final consonants are often silent, especially plural s and x. The common voiced final consonants can be remembered with CaReFuL: c, r, f, and l.",
+      "Double l can sound like yy after i and another vowel, as in fille. gn sounds like nyuh, ch sounds like sh, and th sounds like t. G is soft before e, i, and y; j is pronounced like a soft g; French r is pronounced at the back of the throat.",
+      { heading: "Linkage And Liaison" },
+      "Linkage runs a final consonant into the initial vowel or h of the next word. Liaison is similar, but it pronounces a final consonant that would otherwise be silent. Both help French sentences flow smoothly.",
+      "Common liaison patterns include final n in un before a vowel, final s becoming z in ils, elles, nous, and vous, and final s, t, d, or x linking into the next word. Liaison is not used with et, between a singular noun and the following word, with h aspire, or with proper names."
+    ]
+  },
+  {
+    title: "Reference",
+    section: "Reference",
+    review: true,
+    body: [
+      { heading: "Stress" },
+      "French is syllable-timed: syllables receive roughly equal importance, and vowel sounds are not reduced as strongly as in English. The last syllable of a French word is usually slightly more accentuated, but much less dramatically than in English.",
+      { heading: "Punctuation" },
+      "French leaves a space before strong punctuation such as question marks, exclamation marks, colons, and semicolons. Days of the week and months are not capitalised. Decimal points are written as commas, and thousands are separated by spaces.",
+      "That is enough theory for now. Ready? On y va! We are on our way. Before Lesson 1, remember: even if you have studied French before, this introduction and pronunciation guide will help you understand how the Assimil method works."
+    ]
+  }
+];
+
 let courseItems = [
   {
     id: "intro",
@@ -5,20 +334,7 @@ let courseItems = [
     title: "Introduction",
     language: "Leçon",
     description: "A short walkthrough before the first lesson.",
-    slides: [
-      {
-        title: "",
-        body: ""
-      },
-      {
-        title: "",
-        body: ""
-      },
-      {
-        title: "",
-        body: ""
-      }
-    ]
+    slides: fullIntroSectionSlides
   },
   {
     id: "lesson-1",
@@ -1067,19 +1383,23 @@ function renderIntro(introItem, slideIndex = 0) {
         <button class="back-link" type="button">Back home</button>
       </div>
       <section class="slide-panel" aria-label="Introduction slide">
-        <p class="test-progress">Slide ${slideIndex + 1} of ${introItem.slides.length}</p>
+        <p class="test-progress">${slide.section || "Introduction"} - Slide ${slideIndex + 1} of ${introItem.slides.length}</p>
+        ${createIntroSectionNav(introItem, slideIndex)}
         <h1>${slide.title || " "}</h1>
-        <p class="lesson-lede">${slide.body || " "}</p>
+        <div class="intro-copy">${createIntroSlideBody(slide)}</div>
         <div class="slide-dots" aria-hidden="true">
           ${introItem.slides.map((_, index) => `<span class="${index === slideIndex ? "active" : ""}"></span>`).join("")}
         </div>
-        <button class="primary-button" type="button" data-next-slide>${isLastSlide ? "Complete Introduction" : "Next"}</button>
+        <div class="intro-nav">
+          <button class="icon-button" type="button" data-prev-slide title="Previous slide" aria-label="Previous slide" ${slideIndex === 0 ? "disabled" : ""}>‹</button>
+          <button class="icon-button" type="button" data-next-arrow title="${isLastSlide ? "Complete introduction" : "Next slide"}" aria-label="${isLastSlide ? "Complete introduction" : "Next slide"}">${isLastSlide ? "✓" : "›"}</button>
+        </div>
       </section>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
-  app.querySelector("[data-next-slide]").addEventListener("click", () => {
+  const goNext = () => {
     if (isLastSlide) {
       completeItem(introItem.id);
       setRoute("lesson-1");
@@ -1087,7 +1407,245 @@ function renderIntro(introItem, slideIndex = 0) {
     }
 
     renderIntro(introItem, slideIndex + 1);
+  };
+  app.querySelector("[data-prev-slide]").addEventListener("click", () => {
+    if (slideIndex > 0) {
+      renderIntro(introItem, slideIndex - 1);
+    }
   });
+  app.querySelector("[data-next-arrow]").addEventListener("click", goNext);
+  app.querySelectorAll("[data-intro-jump]").forEach((button) => {
+    button.addEventListener("click", () => renderIntro(introItem, Number(button.dataset.introJump)));
+  });
+  app.querySelectorAll("[data-pronounce]").forEach((button) => {
+    button.addEventListener("click", () => speakIntroTerm(button.dataset.pronounce, button.dataset.lang || "fr-FR"));
+  });
+}
+
+function createIntroSlideBody(slide) {
+  const body = Array.isArray(slide.body) ? slide.body : [slide.body || " "];
+
+  return body.map((block) => {
+    if (typeof block === "object" && block.heading) {
+      return `<h2>${block.heading}</h2>`;
+    }
+
+    return `<p>${markIntroPronunciationTerms(emphasizeIntroText(block))}</p>`;
+  }).join("");
+}
+
+function markIntroPronunciationTerms(html) {
+  const terms = [
+    { text: "Ma patrie, c'est la langue francaise.", say: "Ma patrie, c'est la langue fran\u00e7aise" },
+    { text: "On y va!", say: "On y va !" },
+    { text: "riche", say: "riche" },
+    { text: "French u", say: "vu" },
+    { text: "pain", say: "pain" },
+    { text: "croissant", say: "croissant" },
+    { text: "bonjour", say: "bonjour" },
+    { text: "fille", say: "fille" },
+    { text: "gn", say: "Bretagne" },
+    { text: "ch", say: "chercher" },
+    { text: "th", say: "th\u00e9\u00e2tre" },
+    { text: "soft g", say: "je" },
+    { text: "French r", say: "rue" },
+    { text: "oo", say: "vous" },
+    { text: "ee", say: "si" }
+  ];
+
+  return terms
+    .sort((a, b) => b.text.length - a.text.length)
+    .reduce((copy, term) => {
+      const escapedTerm = term.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const matcher = new RegExp(`(^|[^A-Za-z])(${escapedTerm})(?=$|[^A-Za-z])`, "g");
+
+      return copy.replace(matcher, (_, prefix, label) => {
+        return `${prefix}<button class="intro-pronounce" type="button" data-pronounce="${term.say}" data-lang="${term.lang || "fr-FR"}">${label}</button>`;
+      });
+    }, html);
+}
+
+function speakIntroTerm(text, lang = "fr-FR") {
+  if (!window.speechSynthesis || !text) {
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voice = getPreferredSpeechVoice(lang);
+
+  utterance.lang = lang;
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  }
+  utterance.rate = 0.68;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+function getPreferredSpeechVoice(lang = "fr-FR") {
+  const voices = window.speechSynthesis.getVoices();
+  const language = lang.toLowerCase();
+  const candidates = voices.filter((voice) => voice.lang.toLowerCase().startsWith(language.slice(0, 2)));
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  return candidates
+    .map((voice) => ({
+      voice,
+      score: getSpeechVoiceScore(voice, language)
+    }))
+    .sort((a, b) => b.score - a.score)[0].voice;
+}
+
+function getSpeechVoiceScore(voice, language) {
+  const name = voice.name.toLowerCase();
+  let score = 0;
+
+  if (voice.lang.toLowerCase() === language) {
+    score += 6;
+  }
+
+  if (voice.default) {
+    score += 1;
+  }
+
+  if (/(natural|neural|online|google|microsoft|amelie|denise|henri|thomas)/.test(name)) {
+    score += 5;
+  }
+
+  if (/(compact|basic)/.test(name)) {
+    score -= 2;
+  }
+
+  return score;
+}
+
+function createIntroSectionNav(introItem, slideIndex) {
+  const sections = [];
+
+  introItem.slides.forEach((slide, index) => {
+    if (!slide.review || sections.some((section) => section.label === slide.section)) {
+      return;
+    }
+
+    sections.push({
+      index,
+      label: slide.section
+    });
+  });
+
+  if (!sections.length) {
+    return "";
+  }
+
+  return `
+    <nav class="intro-section-nav" aria-label="Introduction review sections">
+      ${sections.map((section) => `
+        <button class="text-button ${introItem.slides[slideIndex].section === section.label ? "active" : ""}" type="button" data-intro-jump="${section.index}">
+          ${section.label}
+        </button>
+      `).join("")}
+    </nav>
+  `;
+}
+
+function emphasizeIntroText(text) {
+  const phrases = [
+    "useful",
+    "important",
+    "300 million people",
+    "more than 25 countries",
+    "official or working language",
+    "Organisation internationale de la Francophonie",
+    "most important world languages",
+    "pleasure",
+    "melodic and precise language",
+    "Ma patrie, c'est la langue francaise.",
+    "natural assimilation",
+    "repeated exposure",
+    "steady practice",
+    "understand and be understood",
+    "idioms",
+    "progressive learning",
+    "real-world exposure",
+    "beginners and false beginners",
+    "handling travel situations",
+    "receptive phase",
+    "listen",
+    "read",
+    "repeat aloud",
+    "notice patterns",
+    "productive phase",
+    "translate back into French",
+    "daily contact",
+    "Receptive:",
+    "Productive:",
+    "lessons 1 to 49",
+    "Repeat each sentence aloud",
+    "productive phase",
+    "lesson 50",
+    "Work daily",
+    "language muscle memory",
+    "perfect accent is not required",
+    "recognise and practise",
+    "figurative pronunciation",
+    "guide",
+    "sounds that can change meaning",
+    "oral",
+    "nasal",
+    "nasal vowels",
+    "French u",
+    "silent final letters",
+    "accented e",
+    "oo",
+    "ee",
+    "nasalised",
+    "pain [pah\"]",
+    "croissant [krwahssoeh\"]",
+    "bonjour [boh\"zhoor]",
+    "final e",
+    "acute",
+    "grave",
+    "circumflex",
+    "diaeresis",
+    "Bare e",
+    "Acute e",
+    "Grave e",
+    "Final consonants",
+    "final consonants",
+    "plural s and x",
+    "CaReFuL",
+    "gn",
+    "ch",
+    "th",
+    "soft g",
+    "French r",
+    "cedilla",
+    "Linkage",
+    "linkage",
+    "Liaison",
+    "liaison",
+    "syllable-timed",
+    "space before strong punctuation",
+    "strong punctuation",
+    "Days and months are not capitalised",
+    "Decimal points are written as commas",
+    "On y va!",
+    "introduction and pronunciation guide"
+  ];
+
+  return phrases
+    .sort((a, b) => b.length - a.length)
+    .reduce((copy, phrase) => {
+      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const matcher = new RegExp(`(^|[^A-Za-z])(${escapedPhrase})(?=$|[^A-Za-z])`, "g");
+
+      return copy.replace(matcher, "$1<strong>$2</strong>");
+    }, text);
 }
 
 function renderLockedAwareLesson(lesson) {
