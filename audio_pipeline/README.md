@@ -1,31 +1,69 @@
 # French audio pipeline
 
-Generate human-like French MP3 audio from a word, phrase, sentence, or text file.
+Generate French speech audio from a sentence or text file with OpenAI text-to-speech. Output files are written to `audio_pipeline/audio/` by default.
 
-This uses Google's public translate text-to-speech endpoint. It is simple and good for quick lesson assets, but it requires internet access and is not the same as the paid Google Cloud Text-to-Speech product. If you later need official production support, SSML, named voices, or voice tuning, Google Cloud Text-to-Speech is the upgrade path.
+OpenAI's policy requires clear disclosure to listeners that the voice is AI-generated.
 
 ## Setup
 
-No package install is needed. Use Node 18 or newer.
+Use Node 18 or newer. No package install is needed.
 
-## Generate one phrase
+Set your API key in PowerShell:
 
 ```powershell
-node audio_pipeline\make-audio.mjs --text "Bonjour, comment allez-vous ?" --output audio_pipeline\out\bonjour.mp3
+$env:OPENAI_API_KEY="sk-your-token-here"
 ```
+
+Or put the key in an ignored local file:
+
+```powershell
+Set-Content audio_pipeline\.env "sk-your-token-here"
+```
+
+The script reads `audio_pipeline\.env` automatically. You can also store `OPENAI_API_KEY=sk-your-token-here` in that file.
+
+## Generate one French sentence
+
+```powershell
+node audio_pipeline\make-audio.mjs --text "Bonjour, comment allez-vous ?" --voice marin
+```
+
+That creates an MP3 in `audio_pipeline\audio\`.
 
 ## Generate from a text file
 
 ```powershell
-node audio_pipeline\make-audio.mjs --input audio_pipeline\sample_input.txt --output audio_pipeline\out\sample.mp3
+node audio_pipeline\make-audio.mjs --input audio_pipeline\sample_input.txt --voice cedar --output audio_pipeline\audio\sample.mp3
 ```
 
-## Options
+## Voices
+
+List the built-in voices:
 
 ```powershell
-node audio_pipeline\make-audio.mjs --text "Je cherche le metro." --output audio_pipeline\out\metro.mp3 --lang fr --tld fr
+node audio_pipeline\make-audio.mjs --list-voices
 ```
 
-- `--lang fr` is the default.
-- `--tld fr` is the default Google region. Try `ca` for Canadian French.
-- Long input is split into smaller chunks and joined into one MP3.
+Current built-in voices:
+
+`alloy`, `ash`, `ballad`, `coral`, `echo`, `fable`, `nova`, `onyx`, `sage`, `shimmer`, `verse`, `marin`, `cedar`
+
+For best quality, OpenAI recommends `marin` or `cedar`.
+
+## Voice style
+
+Add instructions to control delivery:
+
+```powershell
+node audio_pipeline\make-audio.mjs --text "Je cherche le metro." --voice coral --instructions "Speak slowly in Parisian French, like a patient language teacher."
+```
+
+## Other options
+
+```powershell
+node audio_pipeline\make-audio.mjs --help
+```
+
+- `--format mp3` is the default. Other supported formats are `opus`, `aac`, `flac`, `wav`, and `pcm`.
+- `--model gpt-4o-mini-tts` is the default.
+- `--voice` can be a built-in voice name or a custom voice ID if your OpenAI organization has custom voices enabled.
