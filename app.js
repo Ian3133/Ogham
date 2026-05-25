@@ -546,6 +546,8 @@ let lessons = courseItems.filter((item) => item.type === "lesson");
 const progressKey = "ogham-progress";
 const lessonAudioProgressKey = "ogham-lesson-audio-progress";
 const bestScoresKey = "ogham-best-scores";
+const fluencyRatingsKey = "ogham-fluency-ratings";
+const fluencyRevealsKey = "ogham-fluency-reveals";
 const authStateKey = "ogham-auth-state";
 const authVerifierKey = "ogham-auth-verifier";
 const authSessionKey = "ogham-auth-session";
@@ -756,7 +758,9 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
     currentRoute: route,
     progress: getProgress(),
     lessonAudioProgress: getLessonAudioProgress(),
-    bestScores: getBestScores()
+    bestScores: getBestScores(),
+    fluencyRatings: getFluencyRatings(),
+    fluencyReveals: getFluencyReveals()
   };
 }
 
@@ -798,7 +802,9 @@ function getEmptyUserState() {
     currentRoute: "",
     progress: { completed: [] },
     lessonAudioProgress: { completed: [] },
-    bestScores: {}
+    bestScores: {},
+    fluencyRatings: {},
+    fluencyReveals: {}
   };
 }
 
@@ -815,6 +821,14 @@ function applyCloudState(state) {
 
   if (state.bestScores) {
     writeStoredJson(bestScoresKey, state.bestScores);
+  }
+
+  if (state.fluencyRatings) {
+    writeStoredJson(fluencyRatingsKey, state.fluencyRatings);
+  }
+
+  if (state.fluencyReveals) {
+    writeStoredJson(fluencyRevealsKey, state.fluencyReveals);
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1059,6 +1073,145 @@ function getBestScore(itemId) {
   return getBestScores()[itemId];
 }
 
+function getFluencyRatings() {
+  return readStoredJson(fluencyRatingsKey, {});
+}
+
+function getLessonFluencyRatings(lessonId) {
+  return getFluencyRatings()[lessonId] || {};
+}
+
+function getFluencyReveals() {
+  return readStoredJson(fluencyRevealsKey, {});
+}
+
+function getLessonFluencyReveals(lessonId) {
+  return getFluencyReveals()[lessonId] || {};
+}
+
+function getLineFluencyReveal(lessonId, lineIndex) {
+  return getLessonFluencyReveals(lessonId)[lineIndex] || {};
+}
+
+function saveFluencyReveal(lessonId, lineIndex, revealType) {
+  const reveals = getFluencyReveals();
+  const lessonReveals = reveals[lessonId] || {};
+
+  reveals[lessonId] = {
+    ...lessonReveals,
+    [lineIndex]: {
+      ...(lessonReveals[lineIndex] || {}),
+      [revealType]: true
+    }
+  };
+  writeStoredJson(fluencyRevealsKey, reveals);
+  queueCloudStateSave();
+}
+
+function saveFluencyRating(lessonId, lineIndex, rating) {
+  const ratings = getFluencyRatings();
+
+  ratings[lessonId] = {
+    ...(ratings[lessonId] || {}),
+    [lineIndex]: rating
+  };
+  writeStoredJson(fluencyRatingsKey, ratings);
+  flushCloudStateSave();
+}
+
+function getLessonFluencySummary(lesson) {
+  const lessonRatings = getLessonFluencyRatings(lesson.id);
+  const values = lesson.lines
+    .map((_, index) => Number(lessonRatings[index]))
+    .filter((rating) => rating >= 1 && rating <= 4);
+
+  if (!values.length) {
+    return {
+      average: 0,
+      rated: 0,
+      total: lesson.lines.length
+    };
+  }
+
+  return {
+    average: values.reduce((total, rating) => total + rating, 0) / values.length,
+    rated: values.length,
+    total: lesson.lines.length
+  };
+}
+
+function getFluencySummaryLabel(lesson) {
+  const summary = getLessonFluencySummary(lesson);
+
+  if (!summary.total) {
+    return "No sentences yet";
+  }
+
+  if (!summary.rated) {
+    return `${summary.total} sentences`;
+  }
+
+  return `Fluency: ${formatScore(summary.average)} / 4 (${summary.rated} of ${summary.total} rated)`;
+}
+
+function getFluencyChapters() {
+  const chapterSize = 7;
+  const chapters = [];
+
+  for (let index = 0; index < lessons.length; index += chapterSize) {
+    chapters.push({
+      number: chapters.length + 1,
+      lessons: lessons.slice(index, index + chapterSize)
+    });
+  }
+
+  return chapters;
+}
+
+function getChapterFluencySummary(chapter) {
+  const totals = chapter.lessons.reduce((summary, lesson) => {
+    const lessonSummary = getLessonFluencySummary(lesson);
+
+    return {
+      score: summary.score + (lessonSummary.average * lessonSummary.rated),
+      rated: summary.rated + lessonSummary.rated,
+      total: summary.total + lessonSummary.total
+    };
+  }, { score: 0, rated: 0, total: 0 });
+
+  return {
+    average: totals.rated ? totals.score / totals.rated : 0,
+    rated: totals.rated,
+    total: totals.total
+  };
+}
+
+function getChapterLessonRange(chapter) {
+  const firstLesson = chapter.lessons[0];
+  const lastLesson = chapter.lessons[chapter.lessons.length - 1];
+
+  if (!firstLesson || !lastLesson) {
+    return "No lessons";
+  }
+
+  return `${getLessonNumber(firstLesson)}-${getLessonNumber(lastLesson)}`;
+}
+
+function getLessonNumber(lesson) {
+  const match = lesson.id.match(/lesson-(\d+)/);
+  return match ? Number(match[1]) : lessons.indexOf(lesson) + 1;
+}
+
+function getChapterFluencyLabel(chapter) {
+  const summary = getChapterFluencySummary(chapter);
+
+  if (!summary.rated) {
+    return `${summary.total} sentences`;
+  }
+
+  return `Review average: ${formatScore(summary.average)} / 4 (${summary.rated} of ${summary.total} rated)`;
+}
+
 function saveBestScore(itemId, summary) {
   if (!summary?.total) {
     return;
@@ -1144,6 +1297,20 @@ function render() {
 
   if (route === "history") {
     renderHistory();
+    renderAccountControls();
+    return;
+  }
+
+  if (route === "fluency") {
+    renderFluencyHome();
+    renderAccountControls();
+    return;
+  }
+
+  const fluencyRoute = getFluencyRoute(route);
+
+  if (fluencyRoute) {
+    renderFluencyLesson(fluencyRoute);
     renderAccountControls();
     return;
   }
@@ -1274,17 +1441,25 @@ function renderHome() {
           <h1 id="home-title">Read one small story at a time.</h1>
           <p>Move through the introduction, then unlock each lesson in order. Older lessons stay available in the Chronicle.</p>
         </section>
-        <button class="booklet ${isLocked ? "locked" : ""}" type="button" aria-label="Open ${currentItem.title}" ${isLocked ? "disabled" : ""}>
-          <span class="booklet-kicker">${currentItem.language}</span>
-          <span class="booklet-title">${currentItem.title}</span>
-          <span class="booklet-footer">${getItemStatusLabel(currentItem)}</span>
-        </button>
+        <div class="home-actions">
+          <button class="booklet ${isLocked ? "locked" : ""}" type="button" aria-label="Open ${currentItem.title}" ${isLocked ? "disabled" : ""}>
+            <span class="booklet-kicker">${currentItem.language}</span>
+            <span class="booklet-title">${currentItem.title}</span>
+            <span class="booklet-footer">${getItemStatusLabel(currentItem)}</span>
+          </button>
+          <button class="home-section-card" type="button" data-fluency-home>
+            <span class="booklet-kicker">Listening</span>
+            <span class="home-section-title">Fluency Review</span>
+            <span class="booklet-footer">Audio first, reveal text, rate each sentence</span>
+          </button>
+        </div>
       </div>
     </section>
   `;
 
   app.querySelector("[data-history]").addEventListener("click", () => setRoute("history"));
   app.querySelector(".booklet").addEventListener("click", () => setRoute(currentItem.id));
+  app.querySelector("[data-fluency-home]").addEventListener("click", () => setRoute("fluency"));
 }
 
 function getItemStatusLabel(item) {
@@ -1301,6 +1476,187 @@ function getItemStatusLabel(item) {
   }
 
   return item.lines.length ? `${item.lines.length} story lines` : "Empty for now";
+}
+
+function getFluencyRoute(route) {
+  if (!route.startsWith("fluency-")) {
+    return null;
+  }
+
+  const lessonId = route.replace("fluency-", "");
+  return lessons.find((lesson) => lesson.id === lessonId) || null;
+}
+
+function renderFluencyHome() {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <header class="lesson-header">
+        <h1>Fluency Review</h1>
+        <p class="lesson-lede">Listen before reading, reveal the French, then reveal the English and save your fluency rating.</p>
+      </header>
+      <section class="fluency-chapter-list" aria-label="Fluency review chapters">
+        ${getFluencyChapters().map(createFluencyChapter).join("")}
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelectorAll("[data-open-fluency]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`fluency-${button.dataset.openFluency}`));
+  });
+}
+
+function createFluencyChapter(chapter) {
+  const summary = getChapterFluencySummary(chapter);
+  const complete = summary.total && summary.rated === summary.total;
+  const chapterClass = complete ? "perfect" : summary.rated ? "passing" : "current";
+
+  return `
+    <section class="fluency-chapter ${chapterClass}" aria-labelledby="fluency-chapter-${chapter.number}">
+      <div class="fluency-chapter-header">
+        <div>
+          <p class="history-kicker">Lessons ${getChapterLessonRange(chapter)}</p>
+          <h2 id="fluency-chapter-${chapter.number}">Chapter ${chapter.number}</h2>
+          <p>${getChapterFluencyLabel(chapter)}</p>
+        </div>
+        ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 4</div>` : ""}
+      </div>
+      <div class="history-list">
+        ${chapter.lessons.map(createFluencyLessonItem).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function createFluencyLessonItem(lesson) {
+  const summary = getLessonFluencySummary(lesson);
+  const className = summary.rated === summary.total && summary.total ? "perfect" : summary.rated ? "passing" : "current";
+
+  return `
+    <article class="history-item ${className}">
+      <div>
+        <p class="history-kicker">${lesson.language}</p>
+        <h2>${lesson.title}</h2>
+        <p>${getFluencySummaryLabel(lesson)}</p>
+      </div>
+      <button class="text-button" type="button" data-open-fluency="${lesson.id}" ${lesson.lines.length ? "" : "disabled"}>Open</button>
+    </article>
+  `;
+}
+
+function renderFluencyLesson(lesson) {
+  const summary = getLessonFluencySummary(lesson);
+
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        <div class="brand">Personal Language Reader</div>
+        <button class="back-link" type="button">Fluency</button>
+      </div>
+      <header class="lesson-header">
+        <h1>${lesson.title}</h1>
+        <p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>
+        ${summary.rated ? `<div class="fluency-meter" aria-label="Average fluency ${formatScore(summary.average)} out of 4"><span style="width: ${(summary.average / 4) * 100}%"></span></div>` : ""}
+      </header>
+      <section class="story-list fluency-list" aria-label="${lesson.title} fluency sentences">
+        ${lesson.lines.length ? lesson.lines.map((line, index) => createFluencyLine(lesson, line, index)).join("") : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`}
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute("fluency"));
+  app.querySelectorAll("[data-listening-audio]").forEach((button) => {
+    button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFrenchReveal(button)));
+  });
+  app.querySelectorAll("[data-reveal-french]").forEach((button) => {
+    button.addEventListener("click", () => revealFluencyFrench(button));
+  });
+  app.querySelectorAll("[data-reveal-english]").forEach((button) => {
+    button.addEventListener("click", () => revealFluencyEnglish(button));
+  });
+  app.querySelectorAll("[data-hide-fluency-line]").forEach((button) => {
+    button.addEventListener("click", () => hideFluencyLine(button));
+  });
+  app.querySelectorAll("[data-fluency-rating]").forEach((button) => {
+    button.addEventListener("click", () => {
+      saveFluencyRating(lesson.id, button.dataset.lineIndex, Number(button.dataset.fluencyRating));
+      renderFluencyLesson(lesson);
+    });
+  });
+}
+
+function createFluencyLine(lesson, line, index) {
+  const rating = Number(getLessonFluencyRatings(lesson.id)[index]) || 0;
+  const reveal = getLineFluencyReveal(lesson.id, index);
+  const canRevealFrench = Boolean(reveal.french || rating || !line.audio);
+  const hasAudio = Boolean(line.audio);
+
+  return `
+    <article class="story-line fluency-line">
+      <div class="fluency-line-main">
+        <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
+        <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">▶</button>
+        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRevealFrench ? "" : "disabled"}>Reveal French</button>
+        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" disabled>Reveal English</button>
+      </div>
+      <p class="fluency-hidden-text french" id="fluency-french-${index}">${line.french}</p>
+      <p class="fluency-hidden-text translation" id="fluency-english-${index}">${line.english}</p>
+      <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
+        ${[1, 2, 3, 4].map((value) => `<button class="rating-button rating-${value} ${rating === value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${value}" ${canRevealFrench ? "" : "disabled"}>${value}</button>`).join("")}
+        <button class="text-button hide-line-button" type="button" data-hide-fluency-line disabled>Hide</button>
+        <span>${rating ? `Saved: ${rating} / 4` : "Not rated"}</span>
+      </div>
+    </article>
+  `;
+}
+
+function unlockFrenchReveal(audioButton) {
+  const revealButton = audioButton.closest(".fluency-line").querySelector("[data-reveal-french]");
+
+  if (revealButton) {
+    revealButton.disabled = false;
+  }
+}
+
+function revealFluencyFrench(button) {
+  const line = button.closest(".fluency-line");
+  const french = line.querySelector(`#${button.dataset.revealFrench}`);
+  const englishButton = line.querySelector("[data-reveal-english]");
+
+  saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "french");
+  french.classList.add("visible");
+  button.textContent = "French Revealed";
+  englishButton.disabled = false;
+  line.querySelectorAll("[data-fluency-rating]").forEach((ratingButton) => {
+    ratingButton.disabled = false;
+  });
+  line.querySelector("[data-hide-fluency-line]").disabled = false;
+}
+
+function revealFluencyEnglish(button) {
+  const english = button.closest(".fluency-line").querySelector(`#${button.dataset.revealEnglish}`);
+
+  saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "english");
+  english.classList.add("visible");
+  button.textContent = "English Revealed";
+  button.closest(".fluency-line").querySelector("[data-hide-fluency-line]").disabled = false;
+}
+
+function hideFluencyLine(button) {
+  const line = button.closest(".fluency-line");
+  const englishButton = line.querySelector("[data-reveal-english]");
+
+  line.querySelectorAll(".fluency-hidden-text.visible").forEach((text) => {
+    text.classList.remove("visible");
+  });
+  line.querySelector("[data-reveal-french]").textContent = "Reveal French";
+  englishButton.textContent = "Reveal English";
+  englishButton.disabled = true;
+  line.querySelector("[data-hide-fluency-line]").disabled = true;
 }
 
 function renderHistory() {
@@ -2781,9 +3137,67 @@ function playLineAudio(button, lesson) {
   });
 }
 
+function toggleListeningAudio(button, onEnded) {
+  const source = button.dataset.listeningAudio;
+
+  if (!source) {
+    return;
+  }
+
+  if (currentAudio && currentAudioButton === button) {
+    if (currentAudio.paused) {
+      currentAudio.play().then(() => {
+        button.textContent = "❚❚";
+      }).catch(() => {});
+    } else {
+      currentAudio.pause();
+      button.textContent = "▶";
+    }
+    return;
+  }
+
+  stopCurrentAudio();
+  const audio = new Audio(source);
+  currentAudio = audio;
+  currentAudioButton = button;
+  button.textContent = "❚❚";
+
+  audio.addEventListener("ended", () => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    button.textContent = "▶";
+    onEnded();
+  });
+  audio.addEventListener("error", () => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    button.textContent = "▶";
+  });
+  audio.play().catch(() => {
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    button.textContent = "▶";
+  });
+}
+
 function resetAudioButton(button = currentAudioButton) {
   if (button) {
     button.disabled = false;
+    if (button.dataset.listeningAudio) {
+      button.textContent = "▶";
+    }
   }
 }
 
