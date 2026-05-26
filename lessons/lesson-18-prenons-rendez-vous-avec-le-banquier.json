@@ -1,0 +1,83 @@
+{
+  "id": "lesson-18",
+  "type": "lesson",
+  "title": "Lesson 18: Prenons rendez-vous avec le banquier",
+  "titleAudio": "audio/L018-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Let's make an appointment with the banker",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 18 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour Monsieur Castille. Nous voulons prendre un rendez-vous avec vous.",
+      "english": "Hello Mr. Castille. We would like to make an appointment with you.",
+      "audio": "audio/L018-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que vous pouvez venir le mardi vingt-deux mars ?",
+      "english": "Can you come on Tuesday, March twenty-second?",
+      "audio": "audio/L018-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Je suis libre entre neuf heures et onze heures, ou plus tard dans la journée.",
+      "english": "I am free between nine and eleven o'clock, or later in the day.",
+      "audio": "audio/L018-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Non, nous sommes pris toute la semaine, du lundi vingt et un au vendredi vingt-cinq.",
+      "english": "No, we are busy all week, from Monday the twenty-first to Friday the twenty-fifth.",
+      "audio": "audio/L018-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Avez-vous une autre date ? En mai, par exemple ?",
+      "english": "Do you have another date? In May, for example?",
+      "audio": "audio/L018-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je regrette : mai n’est pas possible, à cause des ponts.",
+      "english": "I'm sorry: May is not possible, because of the long weekends.",
+      "audio": "audio/L018-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Je ne peux pas vous voir avant le mercredi trente juin. Mon emploi du temps est très chargé.",
+      "english": "I can't see you before Wednesday, June thirtieth. My schedule is very full.",
+      "audio": "audio/L018-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Mais nous, nous sommes en voyage en juin et juillet.",
+      "english": "But we are traveling in June and July.",
+      "audio": "audio/L018-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Moi, je suis en vacances au mois d’août. Je prends l’avion le jeudi douze pour aller aux États-Unis.",
+      "english": "As for me, I am on vacation in August. I am taking the plane on Thursday the twelfth to go to the United States.",
+      "audio": "audio/L018-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Septembre est hors de question à cause de la rentrée scolaire.",
+      "english": "September is out of the question because of the start of the school year.",
+      "audio": "audio/L018-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Et en octobre j’ai déjà trois conférences et un stage de formation. Novembre ?",
+      "english": "And in October I already have three conferences and a training course. November?",
+      "audio": "audio/L018-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Ce n’est pas un bon mois : mes parents passent trois semaines chez nous.",
+      "english": "That is not a good month: my parents are spending three weeks at our place.",
+      "audio": "audio/L018-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Attendez : je peux vous proposer le samedi vingt-cinq décembre ou le dimanche vingt-six.",
+      "english": "Wait: I can suggest Saturday, December twenty-fifth, or Sunday the twenty-sixth.",
+      "audio": "audio/L018-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Mon agenda est enfin vide !",
+      "english": "My calendar is finally empty!",
+      "audio": "audio/L018-French ASSIMIL/S14.mp3"
+    }
+  ],
+  "tests": []
+}

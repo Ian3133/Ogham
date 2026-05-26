@@ -450,6 +450,11 @@ h1 {
   padding-bottom: 0;
 }
 
+.fluency-chapter.collapsed .history-list,
+.history-list[hidden] {
+  display: none;
+}
+
 .fluency-chapter-header h2 {
   color: var(--accent-dark);
   font-size: clamp(1.5rem, 3vw, 2.25rem);

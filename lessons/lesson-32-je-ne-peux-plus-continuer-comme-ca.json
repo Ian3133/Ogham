@@ -1,0 +1,93 @@
+{
+  "id": "lesson-32",
+  "type": "lesson",
+  "title": "Lesson 32: Je ne peux plus continuer comme ça",
+  "titleAudio": "audio/L032-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I can't go on like this anymore",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 32 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Pourquoi est-ce que vous êtes si fatigué quand vous rentrez chez vous le soir ?",
+      "english": "Why are you so tired when you come home in the evening?",
+      "audio": "audio/L032-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Mon travail est vraiment épuisant, vous savez.",
+      "english": "My work is really exhausting, you know.",
+      "audio": "audio/L032-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Je suis responsable d’une équipe d’une dizaine de personnes",
+      "english": "I am responsible for a team of about ten people",
+      "audio": "audio/L032-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "dans le service commercial d’une petite entreprise, Gagner Plus.",
+      "english": "in the sales department of a small company, Gagner Plus.",
+      "audio": "audio/L032-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je connais cette société. Qu’est-ce que vous y faites ?",
+      "english": "I know that company. What do you do there?",
+      "audio": "audio/L032-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Nous répondons aux mails des clients : nous en recevons des centaines chaque jour.",
+      "english": "We answer customers' emails: we receive hundreds of them every day.",
+      "audio": "audio/L032-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "En principe, nous devons les lire systématiquement, mais ce n’est pas toujours possible.",
+      "english": "In principle, we have to read them systematically, but that is not always possible.",
+      "audio": "audio/L032-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Bien sûr, nous ne pouvons pas répondre à chacun d’entre eux, même si nous faisons de notre mieux.",
+      "english": "Of course, we cannot answer each one of them, even though we do our best.",
+      "audio": "audio/L032-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Nous savons que nous faisons quelque chose de très important.",
+      "english": "We know that we are doing something very important.",
+      "audio": "audio/L032-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Je ne refuse jamais d’aider mes collègues : je jette un coup d’œil à leur travail",
+      "english": "I never refuse to help my colleagues: I take a look at their work",
+      "audio": "audio/L032-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "et je leur donne un coup de main quand je peux.",
+      "english": "and I give them a hand when I can.",
+      "audio": "audio/L032-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "À la fin de la journée, j’ai mal aux yeux et souvent des maux de tête.",
+      "english": "At the end of the day, my eyes hurt and I often have headaches.",
+      "audio": "audio/L032-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Je ne peux plus regarder la télé, même quand il y a quelque chose qui me plaît.",
+      "english": "I can't watch TV anymore, even when there is something I like.",
+      "audio": "audio/L032-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Demain je vais voir le directeur et lui dire que je ne peux plus continuer comme ça.",
+      "english": "Tomorrow I'm going to see the director and tell him that I can't go on like this anymore.",
+      "audio": "audio/L032-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Ah, vous n’êtes pas au courant ? Vous ne pouvez plus lui parler :",
+      "english": "Ah, you haven't heard? You can't speak to him anymore:",
+      "audio": "audio/L032-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "il vient de démissionner - à cause de la fatigue.",
+      "english": "he has just resigned - because of fatigue.",
+      "audio": "audio/L032-French ASSIMIL/S16.mp3"
+    }
+  ],
+  "tests": []
+}

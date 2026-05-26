@@ -1,0 +1,63 @@
+{
+  "id": "lesson-16",
+  "type": "lesson",
+  "title": "Lesson 16: Un tour dans Paris (Deuxième partie)",
+  "titleAudio": "audio/L016-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A tour of Paris (Part two)",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 16 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Comparé à d’autres capitales, comme Moscou ou Pékin, Paris n’est pas très grand.",
+      "english": "Compared with other capitals, like Moscow or Beijing, Paris is not very big.",
+      "audio": "audio/L016-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Mais la région parisienne, c’est-à-dire la ville et sa banlieue, est grande comme Londres.",
+      "english": "But the Paris region, that is, the city and its suburbs, is as big as London.",
+      "audio": "audio/L016-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "On l’appelle La Ville Lumière, avec ses grands monuments et ses longues avenues,",
+      "english": "It is called the City of Light, with its great monuments and its long avenues,",
+      "audio": "audio/L016-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "ses grandes églises et ses vieilles rues.",
+      "english": "its large churches and its old streets.",
+      "audio": "audio/L016-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Regardez là-bas : ce bâtiment superbe est l’Opéra,",
+      "english": "Look over there: that superb building is the Opera,",
+      "audio": "audio/L016-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "construit par le grand architecte Charles Garnier.",
+      "english": "built by the great architect Charles Garnier.",
+      "audio": "audio/L016-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Derrière, vous avez les grands magasins, et, en face, on voit le Café de la Paix.",
+      "english": "Behind it, you have the department stores, and opposite, you can see the Café de la Paix.",
+      "audio": "audio/L016-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "C’est un bon endroit pour une photo, et la lumière est bonne aujourd’hui.",
+      "english": "It's a good place for a photo, and the light is good today.",
+      "audio": "audio/L016-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Vous pouvez faire beaucoup de belles images.",
+      "english": "You can take a lot of beautiful pictures.",
+      "audio": "audio/L016-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Si vous voulez, vous pouvez descendre du bus ici, à côté de l’arrêt.",
+      "english": "If you want, you can get off the bus here, next to the stop.",
+      "audio": "audio/L016-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

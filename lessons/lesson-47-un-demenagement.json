@@ -1,0 +1,103 @@
+{
+  "id": "lesson-47",
+  "type": "lesson",
+  "title": "Lesson 47: Un déménagement",
+  "titleAudio": "audio/L047-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A move",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 47 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "J’ai un service à te demander : peux-tu nous aider à déménager samedi et dimanche prochains ?",
+      "english": "I have a favor to ask you: can you help us move next Saturday and Sunday?",
+      "audio": "audio/L047-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je vais aussi demander à Stéphane et à Olivier : plus on est nombreux, plus on s’amuse.",
+      "english": "I'm also going to ask Stéphane and Olivier: the more people there are, the more fun it is.",
+      "audio": "audio/L047-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Tu vas leur demander de travailler un samedi ? Bonne chance ! Ce sont de gros paresseux.",
+      "english": "You're going to ask them to work on a Saturday? Good luck! They are big lazybones.",
+      "audio": "audio/L047-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Tu pourrais éventuellement parler à Didier, mon beau-frère : il a une entreprise de déménagement.",
+      "english": "You could possibly talk to Didier, my brother-in-law: he has a moving company.",
+      "audio": "audio/L047-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Est-ce que tu peux lui parler, toi ? Je ne le connais pas. Tu penses qu’il peut le faire gratuitement ?",
+      "english": "Can you talk to him? I don't know him. Do you think he can do it for free?",
+      "audio": "audio/L047-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "J’en doute, car ses affaires vont mal, mais je peux toujours essayer. Je te tiens au courant.",
+      "english": "I doubt it, because his business is doing badly, but I can always try. I'll keep you posted.",
+      "audio": "audio/L047-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Mon beau-frère est d’accord pour t’aider. Je lui ai dit que tu es un de mes meilleurs amis.",
+      "english": "My brother-in-law agrees to help you. I told him that you are one of my best friends.",
+      "audio": "audio/L047-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "En plus, il est aimable : il te facture seulement la location du camion et une demi-journée de travail.",
+      "english": "Besides, he is kind: he is only charging you for the truck rental and half a day's work.",
+      "audio": "audio/L047-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "En gros, cela te fait quelques centaines d’euros, au lieu de mille ou plus, son tarif normal.",
+      "english": "Basically, that comes to a few hundred euros, instead of a thousand or more, his normal rate.",
+      "audio": "audio/L047-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Il est très bien, ce Didier ! C’est très gentil de sa part. Tu peux le remercier ?",
+      "english": "This Didier is great! That's very kind of him. Can you thank him?",
+      "audio": "audio/L047-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Tu peux lui dire toi-même : il arrive dans une heure et demie avec un collègue. On va les attendre.",
+      "english": "You can tell him yourself: he'll arrive in an hour and a half with a colleague. We'll wait for them.",
+      "audio": "audio/L047-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Maintenant, au boulot. Tout ce qui est gros et lourd va dans le camion de Didier :",
+      "english": "Now, to work. Everything big and heavy goes in Didier's truck:",
+      "audio": "audio/L047-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "le canapé, les fauteuils, les lits, les armoires, la machine à laver, le lave-vaisselle et la cuisinière.",
+      "english": "the sofa, the armchairs, the beds, the wardrobes, the washing machine, the dishwasher, and the stove.",
+      "audio": "audio/L047-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Le reste - la vaisselle, les tableaux, la télé, le linge, les rideaux,",
+      "english": "The rest - the dishes, the paintings, the TV, the linens, the curtains,",
+      "audio": "audio/L047-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "les cartons dans l’escalier et les piles de bouquins contre le mur -",
+      "english": "the boxes in the stairwell and the piles of books against the wall -",
+      "audio": "audio/L047-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "on le prend avec nous dans la camionnette. Je vais la chercher tout de suite.",
+      "english": "we'll take it with us in the van. I'll go get it right away.",
+      "audio": "audio/L047-French ASSIMIL/S16.mp3"
+    },
+    {
+      "french": "Bon courage à tout le monde : on a une longue journée devant nous.",
+      "english": "Good luck everyone: we have a long day ahead of us.",
+      "audio": "audio/L047-French ASSIMIL/S17.mp3"
+    },
+    {
+      "french": "Plus vite on finit, plus vite on peut se coucher.",
+      "english": "The faster we finish, the sooner we can go to bed.",
+      "audio": "audio/L047-French ASSIMIL/S18.mp3"
+    }
+  ],
+  "tests": []
+}

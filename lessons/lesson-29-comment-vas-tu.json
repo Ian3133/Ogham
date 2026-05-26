@@ -1,0 +1,88 @@
+{
+  "id": "lesson-29",
+  "type": "lesson",
+  "title": "Lesson 29: Comment vas-tu ?",
+  "titleAudio": "audio/L029-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "How are you?",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 29 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Salut, Louis ! Comment vas-tu ?",
+      "english": "Hi, Louis! How are you?",
+      "audio": "audio/L029-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je vais très bien. Et toi, Manon ? La forme ?",
+      "english": "I'm very well. And you, Manon? Feeling good?",
+      "audio": "audio/L029-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Ça va, merci. Qu’est-ce que tu fais ici ?",
+      "english": "I'm fine, thanks. What are you doing here?",
+      "audio": "audio/L029-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Mes courses. Je cherche une pâtisserie pour acheter une tarte ou un gâteau.",
+      "english": "My shopping. I'm looking for a bakery to buy a tart or a cake.",
+      "audio": "audio/L029-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Les Mercier viennent dîner ce soir et je sais que Clément adore les pâtisseries.",
+      "english": "The Merciers are coming to dinner tonight and I know that Clément loves pastries.",
+      "audio": "audio/L029-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je dois aussi trouver un cadeau à leur offrir",
+      "english": "I also have to find a gift to give them",
+      "audio": "audio/L029-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "parce que c’est leur anniversaire de mariage samedi prochain.",
+      "english": "because it is their wedding anniversary next Saturday.",
+      "audio": "audio/L029-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Mais je n’ai pas d’idées précises. Je ne connais pas leurs goûts.",
+      "english": "But I don't have any specific ideas. I don't know their tastes.",
+      "audio": "audio/L029-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Est-ce que tu sais où je peux acheter quelque chose d’original ?",
+      "english": "Do you know where I can buy something original?",
+      "audio": "audio/L029-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Il y a un centre commercial là-bas, près du bureau de poste. Tu le vois ?",
+      "english": "There is a shopping center over there, near the post office. Do you see it?",
+      "audio": "audio/L029-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Dedans, tu as une superbe pâtisserie qui vend des tartes délicieuses pour le dessert,",
+      "english": "Inside, there is a superb bakery that sells delicious tarts for dessert,",
+      "audio": "audio/L029-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "et des gâteaux délicieux avec des noix, des morceaux de chocolat et de la chantilly.",
+      "english": "and delicious cakes with nuts, pieces of chocolate, and whipped cream.",
+      "audio": "audio/L029-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Excellente idée ! Je sais que nos amis sont très gourmands.",
+      "english": "Excellent idea! I know that our friends have a real sweet tooth.",
+      "audio": "audio/L029-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Et pour le cadeau, qu’est-ce tu penses d’un tableau ?",
+      "english": "And for the gift, what do you think of a painting?",
+      "audio": "audio/L029-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Plutôt des tisanes, pour faciliter la digestion !",
+      "english": "Herbal teas instead, to help with digestion!",
+      "audio": "audio/L029-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

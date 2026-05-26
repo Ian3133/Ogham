@@ -1,0 +1,93 @@
+{
+  "id": "lesson-36",
+  "type": "lesson",
+  "title": "Lesson 36: J’espère que je n’ai rien oublié…",
+  "titleAudio": "audio/L036-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I hope I haven't forgotten anything...",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 36 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Ça y est. J’ai commandé le taxi. On peut partir à l’aéroport dans cinq minutes.",
+      "english": "That's it. I ordered the taxi. We can leave for the airport in five minutes.",
+      "audio": "audio/L036-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que tu as fermé toutes les fenêtres et tous les volets ?",
+      "english": "Did you close all the windows and all the shutters?",
+      "audio": "audio/L036-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Oui, j’ai tout vérifié, même le grenier. Tout est verrouillé.",
+      "english": "Yes, I checked everything, even the attic. Everything is locked.",
+      "audio": "audio/L036-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "J’ai vidé le réfrigérateur et le congélateur tout à l’heure",
+      "english": "I emptied the refrigerator and the freezer earlier",
+      "audio": "audio/L036-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "et j’ai fermé la porte de la cave.",
+      "english": "and I closed the cellar door.",
+      "audio": "audio/L036-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Est-ce que tu as vidé les poubelles de la cuisine et la salle de bains ?",
+      "english": "Did you empty the trash cans in the kitchen and bathroom?",
+      "audio": "audio/L036-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Mais oui ! Et la corbeille à papier. Ne t’inquiète pas.",
+      "english": "Yes, of course! And the wastepaper basket. Don't worry.",
+      "audio": "audio/L036-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Est-ce que tu as caché mes bagues et mes colliers ?",
+      "english": "Did you hide my rings and necklaces?",
+      "audio": "audio/L036-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "J’ai fait tout ce que tu m’as demandé.",
+      "english": "I did everything you asked me.",
+      "audio": "audio/L036-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Hier, j’ai fait aussi des copies de nos passeports et déposé tout sur notre coffre en ligne.",
+      "english": "Yesterday, I also made copies of our passports and put everything in our online safe.",
+      "audio": "audio/L036-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "J’ai demandé à notre voisine de vérifier notre boîte à lettres et de la vider de temps en temps.",
+      "english": "I asked our neighbor to check our mailbox and empty it from time to time.",
+      "audio": "audio/L036-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Moi, j’ai changé les draps, nettoyé la cuisine et lavé la vaisselle.",
+      "english": "I changed the sheets, cleaned the kitchen, and washed the dishes.",
+      "audio": "audio/L036-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "J’ai arrosé les plantes et débranché le four et tous les autres appareils électriques.",
+      "english": "I watered the plants and unplugged the oven and all the other electrical appliances.",
+      "audio": "audio/L036-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Heureusement, j’ai pensé à tout et je n’ai rien oublié.",
+      "english": "Fortunately, I thought of everything and I haven't forgotten anything.",
+      "audio": "audio/L036-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Bonjour, vos passeports et billets d’avion, s’il vous plaît.",
+      "english": "Hello, your passports and plane tickets, please.",
+      "audio": "audio/L036-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "Oh non ! J’ai laissé mon sac à main sur la table du salon !",
+      "english": "Oh no! I left my handbag on the living room table!",
+      "audio": "audio/L036-French ASSIMIL/S16.mp3"
+    }
+  ],
+  "tests": []
+}

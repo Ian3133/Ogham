@@ -1,0 +1,68 @@
+{
+  "id": "lesson-35",
+  "type": "lesson",
+  "title": "Lesson 35: Dialogue de révision",
+  "titleAudio": "audio/L035-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 35 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Demain est l’anniversaire de ma sœur et elle organise une fête.",
+      "english": "Tomorrow is my sister's birthday and she is organizing a party.",
+      "audio": "audio/L035-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je vais acheter des cadeaux. Et je vais aussi prendre quelques gâteaux.",
+      "english": "I'm going to buy some gifts. And I'm also going to pick up a few cakes.",
+      "audio": "audio/L035-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Est-ce qu’on peut venir avec toi, s’il te plaît ?",
+      "english": "Can we come with you, please?",
+      "audio": "audio/L035-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Bien sûr, mais mettez vos manteaux : il fait froid dehors.",
+      "english": "Of course, but put on your coats: it's cold outside.",
+      "audio": "audio/L035-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Tu vas à quelle pâtisserie ?",
+      "english": "Which bakery are you going to?",
+      "audio": "audio/L035-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Celle à côté de la poste. C’est celle que je préfère.",
+      "english": "The one next to the post office. It's the one I prefer.",
+      "audio": "audio/L035-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Mais leurs gâteaux sont hors de prix ! Chacun coûte au moins trente euros.",
+      "english": "But their cakes are outrageously expensive! Each one costs at least thirty euros.",
+      "audio": "audio/L035-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Tant pis : c’est son anniversaire et je vais lui acheter un truc sympa.",
+      "english": "Too bad: it's her birthday and I'm going to buy her something nice.",
+      "audio": "audio/L035-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Les sandwichs sont là-bas, monsieur. Ceux-ci sont très bons, et ceux-là aussi. En fait, tout est bon chez nous.",
+      "english": "The sandwiches are over there, sir. These are very good, and those are too. In fact, everything is good here.",
+      "audio": "audio/L035-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Où sont les sandwichs au jambon ? Je ne les vois pas.",
+      "english": "Where are the ham sandwiches? I don't see them.",
+      "audio": "audio/L035-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Il n’y en a plus. Mais je peux en commander si vous voulez.",
+      "english": "There aren't any left. But I can order some if you want.",
+      "audio": "audio/L035-French ASSIMIL/S12.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,78 @@
+{
+  "id": "lesson-25",
+  "type": "lesson",
+  "title": "Lesson 25: Déjeunons ensemble",
+  "titleAudio": "audio/L025-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Let's have lunch together",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 25 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Il est déjà midi ! J’ai faim, et vous ?",
+      "english": "It's already noon! I'm hungry, and you?",
+      "audio": "audio/L025-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Un petit peu, mais je vous accompagne avec plaisir.",
+      "english": "A little bit, but I'll gladly come with you.",
+      "audio": "audio/L025-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Je connais plusieurs restaurants dans le quartier :",
+      "english": "I know several restaurants in the neighborhood:",
+      "audio": "audio/L025-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "il y a une pizzéria près d’ici, une crêperie dans la rue à gauche, ou une brasserie à droite de l’église.",
+      "english": "there is a pizzeria near here, a crepe restaurant in the street on the left, or a brasserie to the right of the church.",
+      "audio": "audio/L025-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Laquelle est-ce que vous préférez ?",
+      "english": "Which one do you prefer?",
+      "audio": "audio/L025-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Ça m’est égal. Et vous ?",
+      "english": "It doesn't matter to me. And you?",
+      "audio": "audio/L025-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "La crêperie : elle est excellente et pas chère. Ça vous dit ?",
+      "english": "The crepe restaurant: it's excellent and not expensive. How does that sound?",
+      "audio": "audio/L025-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Où est-ce que c’est ? J’espère que ce n’est pas trop loin.",
+      "english": "Where is it? I hope it's not too far.",
+      "audio": "audio/L025-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Je suis assez pressé parce que j’ai un rendez-vous à quatorze heures.",
+      "english": "I'm in quite a hurry because I have an appointment at two p.m.",
+      "audio": "audio/L025-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Non, elle est à trois cents mètres d’ici. À seulement cinq minutes à pied.",
+      "english": "No, it's three hundred meters from here. Only five minutes on foot.",
+      "audio": "audio/L025-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "On va tout droit puis à droite et ensuite c’est la troisième rue à gauche.",
+      "english": "We go straight ahead, then right, and then it's the third street on the left.",
+      "audio": "audio/L025-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Mais je viens de penser à quelque chose : elle est fermée le lundi.",
+      "english": "But I just thought of something: it's closed on Mondays.",
+      "audio": "audio/L025-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Allons à la brasserie, alors. Mais faisons vite.",
+      "english": "Let's go to the brasserie, then. But let's be quick.",
+      "audio": "audio/L025-French ASSIMIL/S13.mp3"
+    }
+  ],
+  "tests": []
+}

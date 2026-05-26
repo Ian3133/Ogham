@@ -1,0 +1,73 @@
+{
+  "id": "lesson-17",
+  "type": "lesson",
+  "title": "Lesson 17: Quels sont vos projets ?",
+  "titleAudio": "audio/L017-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "What are your plans?",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 17 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Dites-moi, quels sont vos projets pour demain ?",
+      "english": "Tell me, what are your plans for tomorrow?",
+      "audio": "audio/L017-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Il y a une nouvelle exposition à La Piscine que j’ai très envie de voir.",
+      "english": "There is a new exhibition at La Piscine that I really want to see.",
+      "audio": "audio/L017-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Vous voulez venir avec moi ?",
+      "english": "Do you want to come with me?",
+      "audio": "audio/L017-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Je ne suis pas sûr : je dois aller chez le médecin cet après-midi.",
+      "english": "I'm not sure: I have to go to the doctor's this afternoon.",
+      "audio": "audio/L017-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "À quelle heure est votre rendez-vous ?",
+      "english": "What time is your appointment?",
+      "audio": "audio/L017-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Assez tard : vers seize ou dix-sept heures. Ça ne laisse pas beaucoup de temps.",
+      "english": "Quite late: around four or five o'clock. That doesn't leave much time.",
+      "audio": "audio/L017-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Mais on peut y aller aujourd’hui si vous voulez.",
+      "english": "But we can go there today if you want.",
+      "audio": "audio/L017-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Pourquoi pas ? Quelle heure est-il maintenant ?",
+      "english": "Why not? What time is it now?",
+      "audio": "audio/L017-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Il est presque treize heures : très précisément, midi quarante-cinq.",
+      "english": "It is almost one p.m.: very precisely, twelve forty-five.",
+      "audio": "audio/L017-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Donc nous avons le temps : l’expo ferme à dix-huit heures.",
+      "english": "So we have time: the exhibition closes at six p.m.",
+      "audio": "audio/L017-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Quelles sont les choses à voir ? Et quel est le titre de cette exposition ?",
+      "english": "What things are there to see? And what is the title of this exhibition?",
+      "audio": "audio/L017-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "\"Le Sujet, l’objet et l’eau\". Très profond, mais pas très clair !",
+      "english": "\"The Subject, the Object, and the Water.\" Very deep, but not very clear!",
+      "audio": "audio/L017-French ASSIMIL/S12.mp3"
+    }
+  ],
+  "tests": []
+}

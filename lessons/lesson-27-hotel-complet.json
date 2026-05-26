@@ -1,0 +1,88 @@
+{
+  "id": "lesson-27",
+  "type": "lesson",
+  "title": "Lesson 27: Hôtel complet",
+  "titleAudio": "audio/L027-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Hotel full",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 27 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Quels hôtels sont situés à proximité de l’aéroport ?",
+      "english": "Which hotels are located near the airport?",
+      "audio": "audio/L027-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Mon vol part très tôt le samedi matin et je n’ai pas envie de le rater.",
+      "english": "My flight leaves very early Saturday morning and I don't want to miss it.",
+      "audio": "audio/L027-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Pourquoi ne pas faire une recherche sur Internet ?",
+      "english": "Why not do a search on the Internet?",
+      "audio": "audio/L027-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Bonne idée ! Je me connecte.",
+      "english": "Good idea! I'm logging on.",
+      "audio": "audio/L027-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Il y a un hôtel trois étoiles juste à côté du terminal et un autre à deux kilomètres.",
+      "english": "There is a three-star hotel right next to the terminal and another two kilometers away.",
+      "audio": "audio/L027-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Regardons celui qui est le plus près. Il s’appelle l’Hôtel des voyageurs.",
+      "english": "Let's look at the one that is closest. It's called the Travelers' Hotel.",
+      "audio": "audio/L027-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Voici une chambre supérieure : qu’est-ce que vous en pensez ?",
+      "english": "Here is a superior room: what do you think of it?",
+      "audio": "audio/L027-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Je préfère celles au premier étage : elles ont l’air plus confortables.",
+      "english": "I prefer the ones on the first floor: they look more comfortable.",
+      "audio": "audio/L027-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Celle qui est à côté de l’ascenseur est moins chère que les autres,",
+      "english": "The one next to the elevator is less expensive than the others,",
+      "audio": "audio/L027-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "mais je parie qu’elle est plus bruyante.",
+      "english": "but I bet it's noisier.",
+      "audio": "audio/L027-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Celles au rez-de-chaussée sont petites, à mon avis,",
+      "english": "The ones on the ground floor are small, in my opinion,",
+      "audio": "audio/L027-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "mais les équipements sont identiques à ceux des chambres supérieures",
+      "english": "but the amenities are identical to those of the superior rooms",
+      "audio": "audio/L027-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "et les tarifs ne sont pas les mêmes. C’est beaucoup moins cher.",
+      "english": "and the rates are not the same. It's much cheaper.",
+      "audio": "audio/L027-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Est-ce qu’il y a des chambres disponibles pour le vendredi soir ?",
+      "english": "Are there rooms available for Friday night?",
+      "audio": "audio/L027-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Mince alors ! Tout est complet. Je vais regarder le deuxième hôtel.",
+      "english": "Oh no! Everything is full. I'm going to look at the second hotel.",
+      "audio": "audio/L027-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

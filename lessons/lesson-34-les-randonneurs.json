@@ -1,0 +1,88 @@
+{
+  "id": "lesson-34",
+  "type": "lesson",
+  "title": "Lesson 34: Les randonneurs",
+  "titleAudio": "audio/L034-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "The hikers",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 34 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Je ne cours plus parce que j’ai trop mal aux genoux - je souffre énormément,",
+      "english": "I don't run anymore because my knees hurt too much - I suffer enormously,",
+      "audio": "audio/L034-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "mais je ne peux pas rester sans rien faire.",
+      "english": "but I can't stay doing nothing.",
+      "audio": "audio/L034-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Cette année, je fais une marche de soixante-dix kilomètres",
+      "english": "This year, I'm doing a seventy-kilometer walk",
+      "audio": "audio/L034-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "entre les villes de Colmar et Strasbourg, en Alsace.",
+      "english": "between the cities of Colmar and Strasbourg, in Alsace.",
+      "audio": "audio/L034-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je pars bien avant le soleil de midi, et j’arrive le lendemain vers vingt heures.",
+      "english": "I leave well before the midday sun, and I arrive the next day around eight p.m.",
+      "audio": "audio/L034-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je m’arrête à mi-chemin, près de Sélestat, pour manger et dormir.",
+      "english": "I stop halfway, near Sélestat, to eat and sleep.",
+      "audio": "audio/L034-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "J’y passe la nuit et repars après le petit-déjeuner.",
+      "english": "I spend the night there and set off again after breakfast.",
+      "audio": "audio/L034-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Vous faites cette randonnée tout seul, ou avec d’autres gens ?",
+      "english": "Are you doing this hike all alone, or with other people?",
+      "audio": "audio/L034-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Avec des copains. Ils l’organisent quatre fois par an, y compris en automne et en hiver.",
+      "english": "With friends. They organize it four times a year, including in autumn and winter.",
+      "audio": "audio/L034-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Le temps est souvent pluvieux et il peut faire très froid, mais ce n’est pas grave.",
+      "english": "The weather is often rainy and it can be very cold, but that doesn't matter.",
+      "audio": "audio/L034-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Tu veux dire qu’il pleut ou il neige tout le temps ? Moi, je ne mets pas le nez dehors.",
+      "english": "You mean it rains or snows all the time? I don't set foot outside.",
+      "audio": "audio/L034-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Oui, mais la pluie ne me gêne pas, et je ne sens pas le froid.",
+      "english": "Yes, but the rain doesn't bother me, and I don't feel the cold.",
+      "audio": "audio/L034-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Moi, mon moment préféré, c’est l’arrivée. On va tout de suite au café.",
+      "english": "My favorite moment is the arrival. We go straight to the café.",
+      "audio": "audio/L034-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Le patron ouvre la porte et nous dit :",
+      "english": "The owner opens the door and says to us:",
+      "audio": "audio/L034-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "\"C’est moi qui offre la tournée : qu’est-ce que je vous sers ?\".",
+      "english": "\"The round is on me: what can I get you?\"",
+      "audio": "audio/L034-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

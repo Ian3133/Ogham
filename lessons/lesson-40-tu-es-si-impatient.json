@@ -1,0 +1,93 @@
+{
+  "id": "lesson-40",
+  "type": "lesson",
+  "title": "Lesson 40: Tu es si impatient !",
+  "titleAudio": "audio/L040-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "You are so impatient!",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 40 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Tu veux venir avec moi au ciné ce soir ? Il y a plein de nouveautés à voir cette semaine.",
+      "english": "Do you want to come to the movies with me tonight? There are lots of new releases to see this week.",
+      "audio": "audio/L040-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Où est-ce que j’ai mis le guide des spectacles ? Je l’ai perdu ? Non, le voici.",
+      "english": "Where did I put the entertainment guide? Did I lose it? No, here it is.",
+      "audio": "audio/L040-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Regarde : \"L’Etranger du nord\", c’est le dernier film avec l’acteur russe que tu aimes bien.",
+      "english": "Look: \"The Stranger from the North\" is the latest film with the Russian actor you like.",
+      "audio": "audio/L040-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Bof, j’ai vu la bande-annonce. Je déteste les films d’action et, en réalité, je n’aime pas trop cet acteur.",
+      "english": "Meh, I saw the trailer. I hate action films and, actually, I don't like that actor very much.",
+      "audio": "audio/L040-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Fais un effort ! Bois ton café et aide-moi à choisir quelque chose.",
+      "english": "Make an effort! Drink your coffee and help me choose something.",
+      "audio": "audio/L040-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je l’ai bu. En fait, j’en ai déjà pris trois ce matin. As-tu une autre proposition de film ?",
+      "english": "I drank it. In fact, I've already had three this morning. Do you have another film suggestion?",
+      "audio": "audio/L040-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "\"Le Vieux port\". L’action a lieu dans le sud de la France. J’ai entendu de bonnes critiques.",
+      "english": "\"The Old Port.\" The action takes place in the south of France. I've heard good reviews.",
+      "audio": "audio/L040-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Ah non, il est nul ce film ! Autre chose ?",
+      "english": "Oh no, that film is awful! Something else?",
+      "audio": "audio/L040-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Une comédie musicale ? Non, ce n’est pas vraiment ton truc.",
+      "english": "A musical? No, that's not really your thing.",
+      "audio": "audio/L040-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Si, si. J’en ai vu une - \"Entre l’est et l’ouest\" -, et elle m’a plu.",
+      "english": "Yes, yes. I saw one - \"Between East and West\" - and I liked it.",
+      "audio": "audio/L040-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "À quelle heure sont les séances au multiplexe du centre commercial ?",
+      "english": "What time are the showings at the shopping center multiplex?",
+      "audio": "audio/L040-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Dans quelle salle passe le film ? Il y en a une douzaine.",
+      "english": "Which theater is the film playing in? There are about a dozen.",
+      "audio": "audio/L040-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Il faut d’abord faire la queue ici pour avoir le tarif étudiant.",
+      "english": "First you have to line up here to get the student rate.",
+      "audio": "audio/L040-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Comment, tu n’as pas pris les billets à la billetterie en ligne ?",
+      "english": "What, you didn't get the tickets at the online box office?",
+      "audio": "audio/L040-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Non, je suis bête. Je n’y ai pas pensé.",
+      "english": "No, I'm silly. I didn't think of it.",
+      "audio": "audio/L040-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "J’ai horreur d’attendre. Allons prendre un verre quelque part.",
+      "english": "I hate waiting. Let's go have a drink somewhere.",
+      "audio": "audio/L040-French ASSIMIL/S16.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,78 @@
+{
+  "id": "lesson-49",
+  "type": "lesson",
+  "title": "Lesson 49: Dialogue de révision",
+  "titleAudio": "audio/L049-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 49 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Quel est le monument le plus visité de France ?",
+      "english": "What is the most visited monument in France?",
+      "audio": "audio/L049-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Nous avons cherché sur Internet, mais il y a pas mal de réponses différentes,",
+      "english": "We searched on the Internet, but there are quite a few different answers,",
+      "audio": "audio/L049-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "ce qui nous fait penser que notre question est mal posée.",
+      "english": "which makes us think that our question is badly worded.",
+      "audio": "audio/L049-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "En effet, ce n’est pas la bonne question. Vous n’avez pas assez réfléchi.",
+      "english": "Indeed, that's not the right question. You haven't thought enough.",
+      "audio": "audio/L049-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Ce qu’il faut chercher est \"quel est le monument le plus visité cette année ?\".",
+      "english": "What you need to search for is \"what is the most visited monument this year?\"",
+      "audio": "audio/L049-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Regardez l’écran : \"Le Louvre reçoit plus de visiteurs que la Tour Eiffel\"",
+      "english": "Look at the screen: \"The Louvre receives more visitors than the Eiffel Tower\"",
+      "audio": "audio/L049-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Et juste en-dessous \"Le monument préféré des Français est le Château de Fontainebleau\".",
+      "english": "And just below, \"The French people's favorite monument is the Château de Fontainebleau.\"",
+      "audio": "audio/L049-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Je suis aussi surprise que vous par Fontainebleau. À mon avis, c’est certainement le Louvre.",
+      "english": "I am as surprised as you by Fontainebleau. In my opinion, it's certainly the Louvre.",
+      "audio": "audio/L049-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Moi, le musée que j’aime le plus est Orsay. Il a la meilleure collection de tableaux impressionnistes du monde.",
+      "english": "For me, the museum I like most is Orsay. It has the best collection of Impressionist paintings in the world.",
+      "audio": "audio/L049-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Peut-être, mais le Louvre est plus grand et plus intéressant. Plus je le visite, plus je le trouve superbe.",
+      "english": "Perhaps, but the Louvre is bigger and more interesting. The more I visit it, the more superb I find it.",
+      "audio": "audio/L049-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Et la Tour Eiffel ? À mon avis, c’est elle qui reçoit le plus grand nombre de visiteurs. Même moi, j’y suis allé !",
+      "english": "And the Eiffel Tower? In my opinion, it is the one that receives the greatest number of visitors. Even I went there!",
+      "audio": "audio/L049-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Eh non, désolée. J’ai trouvé les dernières informations qui circulent. Le gagnant est... Le Louvre !",
+      "english": "Well no, sorry. I found the latest information going around. The winner is... the Louvre!",
+      "audio": "audio/L049-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Bien sûr. Nous, les Français, nous apprécions les artistes plutôt que les ingénieurs.",
+      "english": "Of course. We French appreciate artists rather than engineers.",
+      "audio": "audio/L049-French ASSIMIL/S13.mp3"
+    }
+  ],
+  "tests": []
+}

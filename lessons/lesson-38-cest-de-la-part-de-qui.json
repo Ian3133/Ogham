@@ -1,0 +1,98 @@
+{
+  "id": "lesson-38",
+  "type": "lesson",
+  "title": "Lesson 38: C’est de la part de qui ?",
+  "titleAudio": "audio/L038-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Who's calling?",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 38 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour, j’essaie de joindre Alain Bolland. Est-il au bureau aujourd’hui ?",
+      "english": "Hello, I'm trying to reach Alain Bolland. Is he at the office today?",
+      "audio": "audio/L038-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je ne sais pas, je vais vérifier. C’est de la part de qui ?",
+      "english": "I don't know, I'll check. Who is calling?",
+      "audio": "audio/L038-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Dites-lui que Madame Lacroix veut lui parler.",
+      "english": "Tell him that Madame Lacroix wants to speak to him.",
+      "audio": "audio/L038-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Je l’ai rencontré au Salon de l’automobile et j’ai pris sa carte de visite.",
+      "english": "I met him at the motor show and took his business card.",
+      "audio": "audio/L038-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "J’ai appris qu’il est le nouveau directeur commercial pour l’Île de France.",
+      "english": "I learned that he is the new sales director for Île-de-France.",
+      "audio": "audio/L038-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Il m’a dit de l’appeler en début de semaine pour organiser une visite de vos locaux.",
+      "english": "He told me to call him at the beginning of the week to organize a visit to your premises.",
+      "audio": "audio/L038-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Je vous mets en attente. Ne quittez pas je vous prie.",
+      "english": "I'll put you on hold. Please don't hang up.",
+      "audio": "audio/L038-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Je regrette, mais son poste ne répond pas. Il doit être à l’extérieur.",
+      "english": "I'm sorry, but his extension is not answering. He must be out.",
+      "audio": "audio/L038-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Je ne suis pas surpris parce que nous avons plein de travail en ce moment et l’agenda de Monsieur Bolland est plein.",
+      "english": "I'm not surprised because we have lots of work at the moment and Mr. Bolland's schedule is full.",
+      "audio": "audio/L038-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Voulez-vous laisser un message ?",
+      "english": "Would you like to leave a message?",
+      "audio": "audio/L038-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Pouvez-vous lui demander de me recontacter plus tard dans la journée ?",
+      "english": "Can you ask him to contact me again later today?",
+      "audio": "audio/L038-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Entendu. Il a vos coordonnées, je présume ?",
+      "english": "Understood. He has your contact details, I presume?",
+      "audio": "audio/L038-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Normalement oui, mais je vais vous donner un numéro où il peut me trouver à tout moment.",
+      "english": "Normally yes, but I'll give you a number where he can reach me at any time.",
+      "audio": "audio/L038-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "C’est le 07 28 91 12. Attendez, excusez-moi, c’est le 02 à la fin.",
+      "english": "It's 07 28 91 12. Wait, excuse me, it's 02 at the end.",
+      "audio": "audio/L038-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Si je ne réponds pas c’est parce que je suis en réunion.",
+      "english": "If I don't answer, it's because I'm in a meeting.",
+      "audio": "audio/L038-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "J’ai compris. Je lui laisse votre message. Au revoir et merci de votre appel.",
+      "english": "I understand. I'll leave him your message. Goodbye and thank you for your call.",
+      "audio": "audio/L038-French ASSIMIL/S16.mp3"
+    },
+    {
+      "french": "Un grand merci pour votre coopération.",
+      "english": "Many thanks for your cooperation.",
+      "audio": "audio/L038-French ASSIMIL/S17.mp3"
+    }
+  ],
+  "tests": []
+}

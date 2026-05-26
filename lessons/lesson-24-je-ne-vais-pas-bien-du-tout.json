@@ -1,0 +1,83 @@
+{
+  "id": "lesson-24",
+  "type": "lesson",
+  "title": "Lesson 24: Je ne vais pas bien du tout",
+  "titleAudio": "audio/L024-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I don't feel well at all",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 24 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Asseyez-vous, mademoiselle. Qu’est-ce qui ne va pas ?",
+      "english": "Sit down, miss. What's wrong?",
+      "audio": "audio/L024-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je ne vais pas bien du tout, docteur.",
+      "english": "I don't feel well at all, doctor.",
+      "audio": "audio/L024-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "J’ai mal à la tête, mal aux oreilles et mal au genou droit,",
+      "english": "I have a headache, earache, and pain in my right knee,",
+      "audio": "audio/L024-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "et j’ai aussi de la fièvre. Est-ce que c’est grave ?",
+      "english": "and I also have a fever. Is it serious?",
+      "audio": "audio/L024-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "En effet, vous avez l’air fatiguée. Vous n’êtes pas en forme.",
+      "english": "Indeed, you look tired. You are not in good shape.",
+      "audio": "audio/L024-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je vais prendre votre température. Mm, vous avez trente-huit.",
+      "english": "I'm going to take your temperature. Mm, you have thirty-eight.",
+      "audio": "audio/L024-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "C’est un peu élevé. Maintenant, ouvrez la bouche. Fermez.",
+      "english": "That's a little high. Now, open your mouth. Close it.",
+      "audio": "audio/L024-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Je vais vérifier votre tension et écouter votre cœur. Respirez.",
+      "english": "I'm going to check your blood pressure and listen to your heart. Breathe.",
+      "audio": "audio/L024-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Vous avez une bonne vieille grippe, c’est tout.",
+      "english": "You have a good old-fashioned flu, that's all.",
+      "audio": "audio/L024-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Je vous donne trois médicaments, que vous devez prendre pendant huit jours.",
+      "english": "I'm giving you three medicines that you must take for eight days.",
+      "audio": "audio/L024-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "D’abord, un sirop. Vous le prenez trois fois par jour : le matin, le midi et le soir.",
+      "english": "First, a syrup. You take it three times a day: in the morning, at noon, and in the evening.",
+      "audio": "audio/L024-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Ensuite, des comprimés. Il faut les avaler avec un grand verre d’eau.",
+      "english": "Next, tablets. You must swallow them with a large glass of water.",
+      "audio": "audio/L024-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Et enfin, il y a une gélule par jour. Vous la prenez avant le dîner.",
+      "english": "And finally, there is one capsule per day. You take it before dinner.",
+      "audio": "audio/L024-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Voici votre ordonnance et une feuille de maladie.",
+      "english": "Here is your prescription and a sick-leave form.",
+      "audio": "audio/L024-French ASSIMIL/S14.mp3"
+    }
+  ],
+  "tests": []
+}

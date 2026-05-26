@@ -1,0 +1,103 @@
+{
+  "id": "lesson-41",
+  "type": "lesson",
+  "title": "Lesson 41: Un accueil désagréable",
+  "titleAudio": "audio/L041-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "An unpleasant reception",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 41 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Allô, bonjour. Je suis bien au restaurant \"La Fleur d’Argent\" ?",
+      "english": "Hello, good day. Am I speaking to the restaurant \"La Fleur d'Argent\"?",
+      "audio": "audio/L041-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Oui monsieur. Vous y êtes.",
+      "english": "Yes sir. You are.",
+      "audio": "audio/L041-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "J’essaie de vous joindre depuis deux jours. Ça sonne toujours occupé.",
+      "english": "I've been trying to reach you for two days. It's always busy.",
+      "audio": "audio/L041-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "J’en suis conscient. Mais depuis que nous sommes dans le guide touristique,",
+      "english": "I am aware of that. But since we are in the tourist guide,",
+      "audio": "audio/L041-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "le téléphone n’arrête pas de sonner et nous sommes complets presque tous les soirs.",
+      "english": "the phone does not stop ringing and we are full almost every evening.",
+      "audio": "audio/L041-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Vous pouvez toujours essayer de réserver avec l’application MaTable.fr. C’est plus sûr.",
+      "english": "You can always try to book with the MaTable.fr app. It's safer.",
+      "audio": "audio/L041-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Oui, je connais cette appli, mais je préfère avoir une voix humaine au bout du fil.",
+      "english": "Yes, I know that app, but I prefer to have a human voice on the other end of the line.",
+      "audio": "audio/L041-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Comme vous voulez. Combien êtes-vous et à quelle heure souhaitez-vous dîner ?",
+      "english": "As you wish. How many are you and what time would you like to dine?",
+      "audio": "audio/L041-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Vers vingt heures trente, pour quatre couverts. À la terrasse si possible.",
+      "english": "Around eight-thirty, for four place settings. On the terrace if possible.",
+      "audio": "audio/L041-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Huit heures et demie, dites-vous ? Oui, il me reste une petite table pour quatre.",
+      "english": "Eight-thirty, you say? Yes, I have one small table for four left.",
+      "audio": "audio/L041-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Mais à l’intérieur, car toutes les tables dehors sont prises. Cela vous convient-il ?",
+      "english": "But inside, because all the tables outside are taken. Does that suit you?",
+      "audio": "audio/L041-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Si vous n’avez rien d’autre.",
+      "english": "If you don't have anything else.",
+      "audio": "audio/L041-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Alors je note. C’est à quel nom ?",
+      "english": "Then I'll write it down. Under what name?",
+      "audio": "audio/L041-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Ferré, comme le chanteur. Mais rassurez-vous : je ne chanterai pas.",
+      "english": "Ferré, like the singer. But don't worry: I won't sing.",
+      "audio": "audio/L041-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Très drôle... J’ai besoin d’un numéro de portable",
+      "english": "Very funny... I need a mobile number",
+      "audio": "audio/L041-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "ainsi que les détails de votre carte bancaire, pour éviter une annulation de dernière minute.",
+      "english": "as well as your bank card details, to avoid a last-minute cancellation.",
+      "audio": "audio/L041-French ASSIMIL/S16.mp3"
+    },
+    {
+      "french": "Vous voulez aussi mon chéquier, ou mes empreintes digitales peut-être ?",
+      "english": "Do you also want my checkbook, or my fingerprints perhaps?",
+      "audio": "audio/L041-French ASSIMIL/S17.mp3"
+    },
+    {
+      "french": "C’est bien ça. Vous pouvez me les envoyer par texto.",
+      "english": "That's right. You can send them to me by text message.",
+      "audio": "audio/L041-French ASSIMIL/S18.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,108 @@
+{
+  "id": "lesson-44",
+  "type": "lesson",
+  "title": "Lesson 44: Perturbations dans les transports...",
+  "titleAudio": "audio/L044-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Disruptions in transport...",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 44 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Si vous n’avez pas un titre de transport électronique, madame,",
+      "english": "If you don't have an electronic travel pass, madam,",
+      "audio": "audio/L044-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "vous pouvez acheter votre billet dans le distributeur automatique au bout du quai.",
+      "english": "you can buy your ticket from the vending machine at the end of the platform.",
+      "audio": "audio/L044-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Merci, mais il m’en faut deux : un aller simple pour moi et un aller-retour pour mon cousin.",
+      "english": "Thank you, but I need two: a one-way ticket for me and a round-trip ticket for my cousin.",
+      "audio": "audio/L044-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Dans ce cas, la billetterie est là-bas, vers les consignes et les Objets trouvés.",
+      "english": "In that case, the ticket office is over there, near the lockers and lost property.",
+      "audio": "audio/L044-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Vous voyez les deux files d’attente devant les guichets ?",
+      "english": "Do you see the two lines in front of the ticket windows?",
+      "audio": "audio/L044-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Prenez celle de gauche : elle avance plus vite que l’autre... enfin, moins lentement.",
+      "english": "Take the one on the left: it moves faster than the other... well, less slowly.",
+      "audio": "audio/L044-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "C’est bon, Jules, j’ai les billets. Je vais les composter.",
+      "english": "It's good, Jules, I have the tickets. I'm going to validate them.",
+      "audio": "audio/L044-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Fais attention à ne pas les mettre dans le mauvais sens dans la machine !",
+      "english": "Be careful not to put them in the machine the wrong way!",
+      "audio": "audio/L044-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "C’est énervant ! On affiche partout \"Le compostage est obligatoire\",",
+      "english": "It's irritating! Everywhere there are signs saying \"Validation is mandatory,\"",
+      "audio": "audio/L044-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "mais toutes les machines sont hors service et je n’ai pas pu valider les billets.",
+      "english": "but all the machines are out of order and I couldn't validate the tickets.",
+      "audio": "audio/L044-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "À ce moment-là, il faut le signaler au contrôleur à bord du train.",
+      "english": "In that case, you have to tell the conductor on board the train.",
+      "audio": "audio/L044-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Veux-tu de l’aide pour porter ton sac ? Il a l’air très lourd.",
+      "english": "Do you want help carrying your bag? It looks very heavy.",
+      "audio": "audio/L044-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Non merci, il est grand mais en réalité il est assez léger.",
+      "english": "No thank you, it's big but actually quite light.",
+      "audio": "audio/L044-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Attends une minute, je regarde le tableau d’affichage des trains de grandes lignes :",
+      "english": "Wait a minute, I'm looking at the departures board for mainline trains:",
+      "audio": "audio/L044-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "\"Circulation perturbée : Nancy : Train en panne ; Colmar : Retard ; Mulhouse : Annulé\".",
+      "english": "\"Traffic disrupted: Nancy: train broken down; Colmar: delayed; Mulhouse: canceled.\"",
+      "audio": "audio/L044-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "Il n’y a même pas de trains omnibus ! C’est toujours la même chose et j’en ai marre !",
+      "english": "There aren't even any local trains! It's always the same thing and I'm fed up!",
+      "audio": "audio/L044-French ASSIMIL/S16.mp3"
+    },
+    {
+      "french": "À chaque fois il y a des soucis avec ces lignes, vrai ou faux ?",
+      "english": "Every time there are problems with these lines, true or false?",
+      "audio": "audio/L044-French ASSIMIL/S17.mp3"
+    },
+    {
+      "french": "Je suis d’accord, mais il vaut mieux prendre notre mal en patience.",
+      "english": "I agree, but we'd better be patient.",
+      "audio": "audio/L044-French ASSIMIL/S18.mp3"
+    },
+    {
+      "french": "Il n’en est pas question. Je vais plutôt prendre le car !",
+      "english": "No way. I'm going to take the coach instead!",
+      "audio": "audio/L044-French ASSIMIL/S19.mp3"
+    }
+  ],
+  "tests": []
+}

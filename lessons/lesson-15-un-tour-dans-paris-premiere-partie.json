@@ -1,0 +1,58 @@
+{
+  "id": "lesson-15",
+  "type": "lesson",
+  "title": "Lesson 15: Un tour dans Paris (Première partie)",
+  "titleAudio": "audio/L015-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A tour of Paris (Part one)",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 15 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour mesdames, bonjour mesdemoiselles, bonjour messieurs.",
+      "english": "Hello ladies, hello young ladies, hello gentlemen.",
+      "audio": "audio/L015-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Mon nom est Michèle Laroche et je suis votre guide ce matin.",
+      "english": "My name is Michèle Laroche and I am your guide this morning.",
+      "audio": "audio/L015-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Nous traversons actuellement la place de la Concorde.",
+      "english": "We are currently crossing the Place de la Concorde.",
+      "audio": "audio/L015-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Devant vous, vous pouvez voir le Louvre et, à droite, la Tour Eiffel.",
+      "english": "In front of you, you can see the Louvre and, on the right, the Eiffel Tower.",
+      "audio": "audio/L015-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "S’il vous plaît madame, où sont... ?",
+      "english": "Excuse me madam, where are...?",
+      "audio": "audio/L015-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Un instant. Laissez-moi terminer, s’il vous plaît.",
+      "english": "One moment. Let me finish, please.",
+      "audio": "audio/L015-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Mais c’est très important : je ne peux pas attendre cet après-midi.",
+      "english": "But it's very important: I can't wait until this afternoon.",
+      "audio": "audio/L015-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Eh bien, qu’est-ce que vous voulez savoir ?",
+      "english": "Well then, what do you want to know?",
+      "audio": "audio/L015-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Où sont les toilettes ?",
+      "english": "Where are the restrooms?",
+      "audio": "audio/L015-French ASSIMIL/S09.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,73 @@
+{
+  "id": "lesson-42",
+  "type": "lesson",
+  "title": "Lesson 42: Dialogue de révision",
+  "titleAudio": "audio/L042-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 42 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Est-ce que vous avez vidé la corbeille à papier ce matin ?",
+      "english": "Did you empty the wastepaper basket this morning?",
+      "audio": "audio/L042-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Oui. Pourquoi ? Avez-vous perdu quelque chose ?",
+      "english": "Yes. Why? Have you lost something?",
+      "audio": "audio/L042-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Je ne trouve pas mon chéquier, mais je l’ai peut-être oublié à la maison ce matin.",
+      "english": "I can't find my checkbook, but perhaps I forgot it at home this morning.",
+      "audio": "audio/L042-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Je suis sûr que je l’ai vu quelque part. Sur votre bureau, peut-être ?",
+      "english": "I'm sure I saw it somewhere. On your desk, perhaps?",
+      "audio": "audio/L042-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Non, j’ai regardé mais il n’y est pas. Mais où est-ce que je l’ai mis ?",
+      "english": "No, I looked but it's not there. But where did I put it?",
+      "audio": "audio/L042-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Mais attendez, je suis bête ! Je l’ai laissé à l’accueil tout à l’heure.",
+      "english": "Wait, I'm silly! I left it at reception earlier.",
+      "audio": "audio/L042-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Heureusement que vous l’avez trouvé !",
+      "english": "Good thing you found it!",
+      "audio": "audio/L042-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "J’ai oublié de vous dire que Cécile Durieux, la comédienne, a appelé tout à l’heure.",
+      "english": "I forgot to tell you that Cécile Durieux, the actress, called earlier.",
+      "audio": "audio/L042-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Ah bon ? Je suis étonné. Qu’est-ce qu’elle veut ?",
+      "english": "Really? I'm surprised. What does she want?",
+      "audio": "audio/L042-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Elle dit qu’elle essaie de vous joindre depuis quelques jours.",
+      "english": "She says she has been trying to reach you for a few days.",
+      "audio": "audio/L042-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Depuis mardi dernier, précisément. Elle a laissé plusieurs messages.",
+      "english": "Since last Tuesday, precisely. She left several messages.",
+      "audio": "audio/L042-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Pouvez-vous la rappeler ? Son numéro est le 07 70 80 90.",
+      "english": "Can you call her back? Her number is 07 70 80 90.",
+      "audio": "audio/L042-French ASSIMIL/S12.mp3"
+    }
+  ],
+  "tests": []
+}

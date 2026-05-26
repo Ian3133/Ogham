@@ -1,0 +1,88 @@
+{
+  "id": "lesson-22",
+  "type": "lesson",
+  "title": "Lesson 22: Réfléchissez, choisissez, jouez",
+  "titleAudio": "audio/L022-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Think, choose, play",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 22 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Je n’aime pas les jeux de hasard, parce qu’ils sont tous risqués. Et vous ?",
+      "english": "I don't like games of chance because they are all risky. And you?",
+      "audio": "audio/L022-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je suis comme vous. Mais il y a un jeu que j’aime bien.",
+      "english": "I am like you. But there is one game that I like.",
+      "audio": "audio/L022-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Vraiment ? Lequel ? Les machines à sous ?",
+      "english": "Really? Which one? Slot machines?",
+      "audio": "audio/L022-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Mais non ! Ce sont les courses de chevaux.",
+      "english": "Of course not! It's horse racing.",
+      "audio": "audio/L022-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je regarde tous les journaux spécialisés, surtout un journal intitulé Mille gagnants,",
+      "english": "I look at all the specialist newspapers, especially a paper called One Thousand Winners,",
+      "audio": "audio/L022-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "et j’établis une petite liste.",
+      "english": "and I make a short list.",
+      "audio": "audio/L022-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Je réfléchis pendant quelques secondes, et quand je suis prêt,",
+      "english": "I think for a few seconds, and when I am ready,",
+      "audio": "audio/L022-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "je choisis le cheval qui a une bonne chance de finir en premier.",
+      "english": "I choose the horse that has a good chance of finishing first.",
+      "audio": "audio/L022-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Puis je remplis la grille de jeu... et je croise les doigts.",
+      "english": "Then I fill in the betting slip... and I cross my fingers.",
+      "audio": "audio/L022-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Au fait, comment est-ce que vous choisissez vos chevaux ?",
+      "english": "By the way, how do you choose your horses?",
+      "audio": "audio/L022-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Qu’est-ce que vous espérez ?",
+      "english": "What are you hoping for?",
+      "audio": "audio/L022-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Je suis comme tous les joueurs ; nous avons tous la même idée :",
+      "english": "I am like all gamblers; we all have the same idea:",
+      "audio": "audio/L022-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "gagner beaucoup d’argent et devenir très riche.",
+      "english": "to win a lot of money and become very rich.",
+      "audio": "audio/L022-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Au fait, est-ce que vous pouvez me prêter cinquante euros ?",
+      "english": "By the way, can you lend me fifty euros?",
+      "audio": "audio/L022-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Je n’ai pas un sou.",
+      "english": "I don't have a penny.",
+      "audio": "audio/L022-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,83 @@
+{
+  "id": "lesson-23",
+  "type": "lesson",
+  "title": "Lesson 23: Comment réussir au loto",
+  "titleAudio": "audio/L023-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "How to succeed at the lottery",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 23 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour, qu’est-ce que je vous sers ?",
+      "english": "Hello, what can I get for you?",
+      "audio": "audio/L023-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je veux un café crème, un croque-monsieur et deux billets de loto, s’il vous plaît.",
+      "english": "I want a coffee with cream, a croque-monsieur, and two lottery tickets, please.",
+      "audio": "audio/L023-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Vous pouvez jouer au loto en ligne, vous savez. C’est très simple.",
+      "english": "You can play the lottery online, you know. It's very simple.",
+      "audio": "audio/L023-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Et il n’y a pas de queues au comptoir, comme ce matin.",
+      "english": "And there are no lines at the counter, like this morning.",
+      "audio": "audio/L023-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je sais, mais je préfère venir ici : l’ambiance est sympa.",
+      "english": "I know, but I prefer coming here: the atmosphere is nice.",
+      "audio": "audio/L023-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je saisis l’occasion pour quitter mon appartement et voir d’autres gens.",
+      "english": "I take the opportunity to leave my apartment and see other people.",
+      "audio": "audio/L023-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "J’ai des clients qui viennent jouer tous les jours.",
+      "english": "I have customers who come to play every day.",
+      "audio": "audio/L023-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Dites-moi : avez-vous un secret pour le loto ?",
+      "english": "Tell me: do you have a secret for the lottery?",
+      "audio": "audio/L023-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Tout à fait. Je joue toujours les mêmes numéros :",
+      "english": "Absolutely. I always play the same numbers:",
+      "audio": "audio/L023-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "tous ceux finissant par quatre, plus le soixante-deux, le quarante-trois, le dix-sept, et le cinquante-cinq,",
+      "english": "all the ones ending in four, plus sixty-two, forty-three, seventeen, and fifty-five,",
+      "audio": "audio/L023-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "ma date de naissance : le vingt-trois, douze, soixante-neuf,",
+      "english": "my date of birth: twenty-three, twelve, sixty-nine,",
+      "audio": "audio/L023-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "et, évidemment, le treize, mon chiffre préféré.",
+      "english": "and, obviously, thirteen, my favorite number.",
+      "audio": "audio/L023-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Avec ça, vous réussissez à gagner ? Je vous applaudis !",
+      "english": "With that, do you manage to win? I applaud you!",
+      "audio": "audio/L023-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Non, pas vraiment, mais j’investis pour l’avenir. Je vais gagner un de ces jours !",
+      "english": "No, not really, but I'm investing for the future. I'm going to win one of these days!",
+      "audio": "audio/L023-French ASSIMIL/S14.mp3"
+    }
+  ],
+  "tests": []
+}

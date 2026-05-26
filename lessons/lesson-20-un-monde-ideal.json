@@ -1,0 +1,73 @@
+{
+  "id": "lesson-20",
+  "type": "lesson",
+  "title": "Lesson 20: Un monde idéal",
+  "titleAudio": "audio/L020-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "An ideal world",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 20 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Le sujet de l’émission Carte blanche cette semaine est \"Un monde idéal\".",
+      "english": "The subject of the program Carte blanche this week is \"An ideal world.\"",
+      "audio": "audio/L020-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Nous avons posé la question suivante aux ambassadeurs de quatre pays :",
+      "english": "We asked the following question to the ambassadors of four countries:",
+      "audio": "audio/L020-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "le Japon, l’Inde, les États-Unis et la France.",
+      "english": "Japan, India, the United States, and France.",
+      "audio": "audio/L020-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "\"Que voulez-vous pour Noël, Monsieur l’Ambassadeur ?\"",
+      "english": "\"What do you want for Christmas, Mr. Ambassador?\"",
+      "audio": "audio/L020-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Voici leurs réponses, dans l’ordre.",
+      "english": "Here are their answers, in order.",
+      "audio": "audio/L020-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "L’ambassadeur japonais veut \"du bonheur, de la paix et des droits humains\".",
+      "english": "The Japanese ambassador wants \"happiness, peace, and human rights.\"",
+      "audio": "audio/L020-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Son collègue indien veut \"de la santé et de l’éducation pour tout le monde\".",
+      "english": "His Indian colleague wants \"health and education for everyone.\"",
+      "audio": "audio/L020-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "L’Américain veut \"des emplois, de l’argent et du bien-être\" pour son pays.",
+      "english": "The American wants \"jobs, money, and well-being\" for his country.",
+      "audio": "audio/L020-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Mais la réponse de l’ambassadeur français est la plus intéressante.",
+      "english": "But the French ambassador's answer is the most interesting.",
+      "audio": "audio/L020-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Ah bon ? Qu’est-ce qu’il veut ?",
+      "english": "Really? What does he want?",
+      "audio": "audio/L020-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "\"Des chocolats, du vin blanc et de la crème fraîche.\"",
+      "english": "\"Chocolates, white wine, and crème fraîche.\"",
+      "audio": "audio/L020-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Ce n’est pas vrai ! Il est honnête, au moins !",
+      "english": "That's not true! He is honest, at least!",
+      "audio": "audio/L020-French ASSIMIL/S12.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,88 @@
+{
+  "id": "lesson-30",
+  "type": "lesson",
+  "title": "Lesson 30: J’ai un truc à te demander...",
+  "titleAudio": "audio/L030-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I have something to ask you...",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 30 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Excuse-moi un instant, Juliette. Je dois répondre au téléphone.",
+      "english": "Excuse me for a moment, Juliette. I have to answer the phone.",
+      "audio": "audio/L030-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Allô ? Ah, c’est toi, Antoine. Je t’entends très mal.",
+      "english": "Hello? Ah, it's you, Antoine. I can barely hear you.",
+      "audio": "audio/L030-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Je perds le signal. Attends, ne quitte pas.",
+      "english": "I'm losing the signal. Wait, don't hang up.",
+      "audio": "audio/L030-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Reste où tu es. Je vais descendre au premier étage.",
+      "english": "Stay where you are. I'm going down to the first floor.",
+      "audio": "audio/L030-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Tu sais que nous sommes au milieu de la campagne, sans antenne de téléphone !",
+      "english": "You know we are in the middle of the countryside, without a phone antenna!",
+      "audio": "audio/L030-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Voilà : est-ce que tu entends ma voix ? Je mets le haut-parleur.",
+      "english": "There: can you hear my voice? I'm putting it on speaker.",
+      "audio": "audio/L030-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Oui, c’est bien. J’ai un truc à te demander, Stéphane.",
+      "english": "Yes, that's good. I have something to ask you, Stéphane.",
+      "audio": "audio/L030-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Vas-y. Qu’est-ce que je peux faire pour toi ?",
+      "english": "Go ahead. What can I do for you?",
+      "audio": "audio/L030-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Peux-tu me prêter ton aspirateur ? J’en ai besoin pour nettoyer ma piscine.",
+      "english": "Can you lend me your vacuum cleaner? I need it to clean my pool.",
+      "audio": "audio/L030-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Le magasin dans notre village n’en vend pas.",
+      "english": "The store in our village doesn't sell any.",
+      "audio": "audio/L030-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Je promets de ne pas le perdre ! Tu peux me faire confiance.",
+      "english": "I promise not to lose it! You can trust me.",
+      "audio": "audio/L030-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Écoute, je veux bien mais ça ne dépend pas entièrement de moi.",
+      "english": "Listen, I'm willing, but it doesn't depend entirely on me.",
+      "audio": "audio/L030-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Je vais demander à Juliette si elle en a besoin. [...]",
+      "english": "I'm going to ask Juliette if she needs it. [...]",
+      "audio": "audio/L030-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Bon, c’est d’accord si tu nous le rends avant la fin de la semaine.",
+      "english": "All right, it's okay if you return it to us before the end of the week.",
+      "audio": "audio/L030-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Merci. Je te le rends après-demain. À tout à l’heure.",
+      "english": "Thank you. I'll return it to you the day after tomorrow. See you later.",
+      "audio": "audio/L030-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

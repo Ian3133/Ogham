@@ -1,0 +1,78 @@
+{
+  "id": "lesson-19",
+  "type": "lesson",
+  "title": "Lesson 19: Un bel endroit pour une fête",
+  "titleAudio": "audio/L019-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A beautiful place for a party",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 19 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Hôtel Sacré Cœur. Comment est-ce que je peux vous aider ?",
+      "english": "Sacré Cœur Hotel. How can I help you?",
+      "audio": "audio/L019-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "J’organise une fête pour mon anniversaire et je veux louer une salle.",
+      "english": "I am organizing a party for my birthday and I want to rent a room.",
+      "audio": "audio/L019-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Pour combien de personnes ?",
+      "english": "For how many people?",
+      "audio": "audio/L019-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Une trentaine : il y a la famille, la belle-famille, des copains.",
+      "english": "About thirty: there is family, in-laws, friends.",
+      "audio": "audio/L019-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je veux quelque chose de beau et pas trop cher.",
+      "english": "I want something beautiful and not too expensive.",
+      "audio": "audio/L019-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "C’est pour quand, cette fête ? Pas à la fin de l’année, j’espère ?",
+      "english": "When is this party for? Not at the end of the year, I hope?",
+      "audio": "audio/L019-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Nous fermons entre Noël et le Nouvel An.",
+      "english": "We close between Christmas and New Year's.",
+      "audio": "audio/L019-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Pas de problème : c’est pour la soirée du trente juin, jusqu’à minuit.",
+      "english": "No problem: it's for the evening of June thirtieth, until midnight.",
+      "audio": "audio/L019-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Voyons : j’ai une belle salle pour une cinquantaine de personnes.",
+      "english": "Let's see: I have a beautiful room for about fifty people.",
+      "audio": "audio/L019-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "C’est un bel endroit pour une fête.",
+      "english": "It's a beautiful place for a party.",
+      "audio": "audio/L019-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Ça coûte combien ? Je n’ai pas un gros budget.",
+      "english": "How much does it cost? I don't have a big budget.",
+      "audio": "audio/L019-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Alors j’ai quelque chose de plus petit et moins cher :",
+      "english": "Then I have something smaller and less expensive:",
+      "audio": "audio/L019-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "le placard à balais : c’est gratuit !",
+      "english": "the broom closet: it's free!",
+      "audio": "audio/L019-French ASSIMIL/S13.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,63 @@
+{
+  "id": "lesson-21",
+  "type": "lesson",
+  "title": "Lesson 21: Dialogue de révision",
+  "titleAudio": "audio/L021-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 21 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Je veux descendre du bus à la place de la Concorde.",
+      "english": "I want to get off the bus at the Place de la Concorde.",
+      "audio": "audio/L021-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "C’est un bel endroit pour faire une belle photo de ce beau bâtiment et, en face, de cette grande église.",
+      "english": "It's a beautiful place to take a beautiful photo of this beautiful building and, opposite, of this large church.",
+      "audio": "audio/L021-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Mais nous n’avons pas beaucoup de temps.",
+      "english": "But we don't have much time.",
+      "audio": "audio/L021-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Pourquoi ? Quelle heure est-il maintenant ?",
+      "english": "Why? What time is it now?",
+      "audio": "audio/L021-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Il est déjà cinq heures et quart, presque cinq heures et demie.",
+      "english": "It is already a quarter past five, almost half past five.",
+      "audio": "audio/L021-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Dix-sept heures quinze ! Ce n’est pas vrai !",
+      "english": "Seventeen fifteen! That can't be true!",
+      "audio": "audio/L021-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Nous devons attendre demain matin, je pense.",
+      "english": "We have to wait until tomorrow morning, I think.",
+      "audio": "audio/L021-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Nous avons la soirée libre.",
+      "english": "We have the evening free.",
+      "audio": "audio/L021-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Qu’est-ce que vous voulez faire maintenant ?",
+      "english": "What do you want to do now?",
+      "audio": "audio/L021-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "On peut aller regarder la Tour Eiffel : c’est gratuit !",
+      "english": "We can go look at the Eiffel Tower: it's free!",
+      "audio": "audio/L021-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

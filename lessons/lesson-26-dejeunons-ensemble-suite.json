@@ -1,0 +1,88 @@
+{
+  "id": "lesson-26",
+  "type": "lesson",
+  "title": "Lesson 26: Déjeunons ensemble (suite)",
+  "titleAudio": "audio/L026-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Let's have lunch together (continued)",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 26 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Avez-vous une table pour deux s’il vous plaît ?",
+      "english": "Do you have a table for two, please?",
+      "audio": "audio/L026-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Si vous voulez bien me suivre. Est-ce que cette table vous convient ?",
+      "english": "If you would follow me. Does this table suit you?",
+      "audio": "audio/L026-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Non. Je veux être près de la fenêtre parce que j’ai chaud.",
+      "english": "No. I want to be near the window because I'm hot.",
+      "audio": "audio/L026-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Asseyez-vous ici. Je vous apporte le menu et la carte des vins.",
+      "english": "Sit here. I'll bring you the menu and the wine list.",
+      "audio": "audio/L026-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "J’arrive tout de suite... Alors, vous êtes prêts ?",
+      "english": "I'll be right there... So, are you ready?",
+      "audio": "audio/L026-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Quel menu prenez-vous : celui à vingt euros ou celui à quarante ?",
+      "english": "Which menu will you take: the one at twenty euros or the one at forty?",
+      "audio": "audio/L026-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Le menu à vingt. Quel est le plat du jour ? Sinon, quelles sont les spécialités ?",
+      "english": "The twenty-euro menu. What is the dish of the day? Otherwise, what are the specialties?",
+      "audio": "audio/L026-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Il n’y en a pas. Je vous conseille de prendre l’entrecôte ou le saumon froid.",
+      "english": "There aren't any. I advise you to take the rib steak or the cold salmon.",
+      "audio": "audio/L026-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Dans ce cas, deux entrecôtes s’il vous plaît.",
+      "english": "In that case, two rib steaks, please.",
+      "audio": "audio/L026-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Quelle cuisson pour la viande, et avec quels légumes ?",
+      "english": "How would you like the meat cooked, and with which vegetables?",
+      "audio": "audio/L026-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Saignante pour tous les deux, avec des frites.",
+      "english": "Rare for both, with fries.",
+      "audio": "audio/L026-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Voulez-vous boire quelque chose ? Du vin ou de la bière ?",
+      "english": "Would you like something to drink? Wine or beer?",
+      "audio": "audio/L026-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Juste une bouteille d’eau minérale. Nous avons soif.",
+      "english": "Just a bottle of mineral water. We are thirsty.",
+      "audio": "audio/L026-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "L’addition s’il vous plaît. Est-ce que le service est compris ?",
+      "english": "The bill, please. Is service included?",
+      "audio": "audio/L026-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Oui, mais pas le pourboire.",
+      "english": "Yes, but not the tip.",
+      "audio": "audio/L026-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}

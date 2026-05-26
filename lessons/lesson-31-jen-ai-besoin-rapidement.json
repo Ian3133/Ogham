@@ -1,0 +1,93 @@
+{
+  "id": "lesson-31",
+  "type": "lesson",
+  "title": "Lesson 31: J’en ai besoin rapidement",
+  "titleAudio": "audio/L031-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I need one quickly",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 31 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Que puis-je faire pour vous, madame ?",
+      "english": "What can I do for you, madam?",
+      "audio": "audio/L031-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que vous avez des bouilloires électriques ?",
+      "english": "Do you have electric kettles?",
+      "audio": "audio/L031-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "J’en ai deux : celle-ci, à moins de cent euros,",
+      "english": "I have two: this one, for less than one hundred euros,",
+      "audio": "audio/L031-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "et celle-là, qui est à quatre cents euros.",
+      "english": "and that one, which is four hundred euros.",
+      "audio": "audio/L031-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Mais c’est hors de prix ! Elle est en argent ?",
+      "english": "But that's outrageously expensive! Is it made of silver?",
+      "audio": "audio/L031-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Bien sûr que non. C’est un appareil très sophistiqué : il est même connecté à Internet !",
+      "english": "Of course not. It's a very sophisticated device: it's even connected to the Internet!",
+      "audio": "audio/L031-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Tout le monde en parle, et j’en vends beaucoup.",
+      "english": "Everyone is talking about it, and I sell a lot of them.",
+      "audio": "audio/L031-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Mais celle à cent euros marche très bien aussi, je vous assure.",
+      "english": "But the one for one hundred euros works very well too, I assure you.",
+      "audio": "audio/L031-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Est-ce que vous en êtes sûr ?",
+      "english": "Are you sure of that?",
+      "audio": "audio/L031-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Oui, j’en suis certain. Tous mes clients en sont contents, enfin, presque tous...",
+      "english": "Yes, I'm certain. All my customers are happy with them, well, almost all...",
+      "audio": "audio/L031-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Bon, d’accord. Donnez-moi celle à quatre cents.",
+      "english": "Fine, all right. Give me the one for four hundred.",
+      "audio": "audio/L031-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Excellent choix. Je regarde sur mon ordinateur...",
+      "english": "Excellent choice. I'm checking on my computer...",
+      "audio": "audio/L031-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Ah, excusez-moi : nous n’en avons plus.",
+      "english": "Ah, excuse me: we don't have any left.",
+      "audio": "audio/L031-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Vous en avez besoin aujourd’hui ? Sinon, je peux en commander une pour demain.",
+      "english": "Do you need one today? Otherwise, I can order one for tomorrow.",
+      "audio": "audio/L031-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Non, j’en ai vraiment besoin rapidement. Tant pis. Merci pour votre aide.",
+      "english": "No, I really need one quickly. Too bad. Thank you for your help.",
+      "audio": "audio/L031-French ASSIMIL/S15.mp3"
+    },
+    {
+      "french": "Je vous en prie. Merci de votre visite.",
+      "english": "You're welcome. Thank you for your visit.",
+      "audio": "audio/L031-French ASSIMIL/S16.mp3"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,68 @@
+{
+  "id": "lesson-28",
+  "type": "lesson",
+  "title": "Lesson 28: Dialogue de révision",
+  "titleAudio": "audio/L028-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 28 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "André joue à la loterie chaque semaine pour devenir très riche.",
+      "english": "André plays the lottery every week to become very rich.",
+      "audio": "audio/L028-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Il me dit qu’il lit le journal et réfléchit pendant quelques minutes.",
+      "english": "He tells me that he reads the newspaper and thinks for a few minutes.",
+      "audio": "audio/L028-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Ensuite il choisit ses numéros - mais ce sont toujours les mêmes !",
+      "english": "Then he chooses his numbers - but they are always the same!",
+      "audio": "audio/L028-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Et vous, comment est-ce que vous les choisissez ?",
+      "english": "And you, how do you choose them?",
+      "audio": "audio/L028-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Je joue les dates des anniversaires : celui de ma femme - je ne l’oublie pas - et ceux de mes deux fils.",
+      "english": "I play birthday dates: my wife's - I don't forget it - and those of my two sons.",
+      "audio": "audio/L028-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je choisis aussi des dates de mariage : celui de ma fille et celui de ma mère.",
+      "english": "I also choose wedding dates: my daughter's and my mother's.",
+      "audio": "audio/L028-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Attendez : je finis de remplir la grille de jeu. Voilà.",
+      "english": "Wait: I'm finishing filling out the lottery slip. There.",
+      "audio": "audio/L028-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Maintenant j’ai faim et j’ai soif : allons déjeuner ensemble.",
+      "english": "Now I'm hungry and thirsty: let's have lunch together.",
+      "audio": "audio/L028-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Je connais une bonne pizzéria et aussi un restaurant breton dans le quartier : lequel préférez-vous ?",
+      "english": "I know a good pizzeria and also a Breton restaurant in the neighborhood: which do you prefer?",
+      "audio": "audio/L028-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Ça m’est égal. Disons celui qui ne me donne pas mal au ventre.",
+      "english": "It doesn't matter to me. Let's say the one that doesn't give me a stomachache.",
+      "audio": "audio/L028-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Je suis tout à fait d’accord avec vous.",
+      "english": "I completely agree with you.",
+      "audio": "audio/L028-French ASSIMIL/S11.mp3"
+    }
+  ],
+  "tests": []
+}

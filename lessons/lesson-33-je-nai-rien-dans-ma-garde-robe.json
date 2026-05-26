@@ -1,0 +1,88 @@
+{
+  "id": "lesson-33",
+  "type": "lesson",
+  "title": "Lesson 33: Je n’ai rien dans ma garde-robe",
+  "titleAudio": "audio/L033-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "I have nothing in my wardrobe",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 33 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Ah, c’est toi, Margot. Entre et assieds-toi.",
+      "english": "Ah, it's you, Margot. Come in and sit down.",
+      "audio": "audio/L033-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Je ne vous dérange pas ? Je peux revenir si vous voulez.",
+      "english": "Am I disturbing you? I can come back if you want.",
+      "audio": "audio/L033-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Tu ne nous déranges pas du tout. Qu’est-ce que tu veux ?",
+      "english": "You're not disturbing us at all. What do you want?",
+      "audio": "audio/L033-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "J’ai besoin d’une nouvelle robe d’été : aidez-moi à la choisir.",
+      "english": "I need a new summer dress: help me choose it.",
+      "audio": "audio/L033-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Tu en as besoin, ou tu en as envie ? Ce n’est pas la même chose !",
+      "english": "Do you need one, or do you want one? It's not the same thing!",
+      "audio": "audio/L033-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Je sais bien, mais quelle importance ? Je veux en acheter une.",
+      "english": "I know, but what does it matter? I want to buy one.",
+      "audio": "audio/L033-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Je n’ai rien dans ma garde-robe. Tous mes vêtements sont vieux.",
+      "english": "I have nothing in my wardrobe. All my clothes are old.",
+      "audio": "audio/L033-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Bien, regardons en ligne. Tu connais ce site, mode.fr ?",
+      "english": "Fine, let's look online. Do you know this site, mode.fr?",
+      "audio": "audio/L033-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "\"Choisissez parmi des milliers de modèles pour trouver le vêtement de vos rêves\".",
+      "english": "\"Choose from thousands of styles to find the garment of your dreams.\"",
+      "audio": "audio/L033-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "C’est génial. Tu trouves tout : des robes, des jupes, des pulls, des manteaux.",
+      "english": "It's great. You can find everything: dresses, skirts, sweaters, coats.",
+      "audio": "audio/L033-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Ce n’est pas vraiment bon marché mais les prix sont raisonnables.",
+      "english": "It's not really cheap, but the prices are reasonable.",
+      "audio": "audio/L033-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Regarde : ce chemisier est joli, n’est-ce pas ? Il existe en rouge, en bleu et en orange.",
+      "english": "Look: this blouse is pretty, isn't it? It comes in red, blue, and orange.",
+      "audio": "audio/L033-French ASSIMIL/S12.mp3"
+    },
+    {
+      "french": "Je cherche une robe verte, noire ou bleue, pas un chemisier orange ou jaune !",
+      "english": "I'm looking for a green, black, or blue dress, not an orange or yellow blouse!",
+      "audio": "audio/L033-French ASSIMIL/S13.mp3"
+    },
+    {
+      "french": "Et celle-là ? Qu’est-ce que tu en penses ? C’est très chic.",
+      "english": "And that one? What do you think of it? It's very chic.",
+      "audio": "audio/L033-French ASSIMIL/S14.mp3"
+    },
+    {
+      "french": "Non, je ne vois rien qui m’intéresse. Mais merci quand même ! À demain.",
+      "english": "No, I don't see anything that interests me. But thanks anyway! See you tomorrow.",
+      "audio": "audio/L033-French ASSIMIL/S15.mp3"
+    }
+  ],
+  "tests": []
+}
