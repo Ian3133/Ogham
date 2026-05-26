@@ -1,0 +1,73 @@
+{
+  "id": "lesson-13",
+  "type": "lesson",
+  "title": "Lesson 13: Un cadeau",
+  "titleAudio": "audio/L013-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A gift",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 13 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Louise, Lucas ! Venez voir mon cadeau d’anniversaire !",
+      "english": "Louise, Lucas! Come see my birthday present!",
+      "audio": "audio/L013-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Qu’est-ce que c’est ?",
+      "english": "What is it?",
+      "audio": "audio/L013-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Vous ne savez pas ?",
+      "english": "You don't know?",
+      "audio": "audio/L013-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "C’est un nouveau téléphone.",
+      "english": "It's a new phone.",
+      "audio": "audio/L013-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Il fait absolument tout.",
+      "english": "It does absolutely everything.",
+      "audio": "audio/L013-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Vous pouvez envoyer des messages, commander un repas,",
+      "english": "You can send messages, order a meal,",
+      "audio": "audio/L013-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "payer vos courses, écouter la musique, regarder des vidéos...",
+      "english": "pay for your shopping, listen to music, watch videos...",
+      "audio": "audio/L013-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "et vous pouvez même parler à quelqu’un.",
+      "english": "and you can even talk to someone.",
+      "audio": "audio/L013-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Est-ce que je peux l’essayer ?",
+      "english": "Can I try it?",
+      "audio": "audio/L013-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Non, malheureusement. Ce n’est pas possible.",
+      "english": "No, unfortunately. That's not possible.",
+      "audio": "audio/L013-French ASSIMIL/S10.mp3"
+    },
+    {
+      "french": "Il ne marche pas ?",
+      "english": "It doesn't work?",
+      "audio": "audio/L013-French ASSIMIL/S11.mp3"
+    },
+    {
+      "french": "Je ne connais pas le code secret.",
+      "english": "I don't know the passcode.",
+      "audio": "audio/L013-French ASSIMIL/S12.mp3"
+    }
+  ],
+  "tests": []
+}

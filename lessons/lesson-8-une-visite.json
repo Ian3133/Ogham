@@ -1,0 +1,63 @@
+{
+  "id": "lesson-8",
+  "type": "lesson",
+  "title": "Lesson 8: Une visite",
+  "titleAudio": "audio/L008-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "A visit",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 8 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour mademoiselle, est-ce que votre père est à la maison ?",
+      "english": "Hello miss, is your father at home?",
+      "audio": "audio/L008-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Non, monsieur ; il est au bureau aujourd’hui.",
+      "english": "No, sir; he is at the office today.",
+      "audio": "audio/L008-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "À quelle heure est-ce qu’il rentre après le travail ?",
+      "english": "What time does he come home after work?",
+      "audio": "audio/L008-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Oh, pas avant huit heures normalement.",
+      "english": "Oh, not before eight o'clock normally.",
+      "audio": "audio/L008-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Vous voulez l’adresse de son bureau ?",
+      "english": "Do you want the address of his office?",
+      "audio": "audio/L008-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Oui, s’il vous plaît.",
+      "english": "Yes, please.",
+      "audio": "audio/L008-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Attendez un moment, je cherche mon carnet d'adresses.",
+      "english": "Wait a moment, I'm looking for my address book.",
+      "audio": "audio/L008-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Voilà. Sept rue Marbeuf, dans le huitième.",
+      "english": "Here it is. Seven rue Marbeuf, in the eighth arrondissement.",
+      "audio": "audio/L008-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Merci beaucoup, mademoiselle. Au revoir.",
+      "english": "Thank you very much, miss. Goodbye.",
+      "audio": "audio/L008-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "De rien, monsieur. Au revoir.",
+      "english": "You're welcome, sir. Goodbye.",
+      "audio": "audio/L008-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

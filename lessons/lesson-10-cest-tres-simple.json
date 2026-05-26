@@ -1,0 +1,63 @@
+{
+  "id": "lesson-10",
+  "type": "lesson",
+  "title": "Lesson 10: C’est très simple !",
+  "titleAudio": "audio/L010-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "It's very simple!",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 10 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "D’accord. Je fais mon travail, c’est tout.",
+      "english": "All right. I'm doing my job, that's all.",
+      "audio": "audio/L010-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que vous avez le formulaire B-52 ?",
+      "english": "Do you have form B-52?",
+      "audio": "audio/L010-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Oui monsieur, nous l’avons.",
+      "english": "Yes sir, we have it.",
+      "audio": "audio/L010-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Et l’imprimé A-65 ?",
+      "english": "And form A-65?",
+      "audio": "audio/L010-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Ça aussi, nous l’avons.",
+      "english": "That too, we have it.",
+      "audio": "audio/L010-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Ah bon ? Mais est-ce que vous avez son passeport ?",
+      "english": "Really? But do you have his passport?",
+      "audio": "audio/L010-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Bien sûr. Nous avons même sa photo.",
+      "english": "Of course. We even have his photo.",
+      "audio": "audio/L010-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Très bien. Alors je vous fais la carte. Voilà.",
+      "english": "Very good. Then I'll make the card for you. There you go.",
+      "audio": "audio/L010-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Réglez à la caisse, s’il vous plaît.",
+      "english": "Please pay at the register.",
+      "audio": "audio/L010-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Zut ! Je ne trouve pas mon portefeuille !",
+      "english": "Darn! I can't find my wallet!",
+      "audio": "audio/L010-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

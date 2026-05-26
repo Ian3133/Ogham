@@ -1,0 +1,63 @@
+{
+  "id": "lesson-14",
+  "type": "lesson",
+  "title": "Lesson 14: Dialogue de révision",
+  "titleAudio": "audio/L014-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "Review dialogue",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 14 review dialogue audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Bonjour. Qu’est-ce que je peux faire pour vous ?",
+      "english": "Hello. What can I do for you?",
+      "audio": "audio/L014-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que votre père est à la maison aujourd’hui ?",
+      "english": "Is your father at home today?",
+      "audio": "audio/L014-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Non, il est au bureau toute la journée.",
+      "english": "No, he is at the office all day.",
+      "audio": "audio/L014-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Il rentre avant sept heures normalement.",
+      "english": "He usually comes home before seven o'clock.",
+      "audio": "audio/L014-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Est-ce que vous avez besoin de son adresse ?",
+      "english": "Do you need his address?",
+      "audio": "audio/L014-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Non merci, je la connais.",
+      "english": "No thanks, I know it.",
+      "audio": "audio/L014-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Voici son cadeau d’anniversaire.",
+      "english": "Here is his birthday present.",
+      "audio": "audio/L014-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Qu’est que c’est ?",
+      "english": "What is it?",
+      "audio": "audio/L014-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "C’est un téléphone qui fait absolument tout.",
+      "english": "It's a phone that does absolutely everything.",
+      "audio": "audio/L014-French ASSIMIL/S09.mp3"
+    },
+    {
+      "french": "Très bien. Merci beaucoup !",
+      "english": "Very good. Thank you very much!",
+      "audio": "audio/L014-French ASSIMIL/S10.mp3"
+    }
+  ],
+  "tests": []
+}

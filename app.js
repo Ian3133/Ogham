@@ -540,6 +540,90 @@ let courseItems = [
     notes: {},
     lines: [],
     tests: []
+  },
+  {
+    id: "lesson-8",
+    type: "lesson",
+    title: "Lesson 8",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 8 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-9",
+    type: "lesson",
+    title: "Lesson 9",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 9 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-10",
+    type: "lesson",
+    title: "Lesson 10",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 10 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-11",
+    type: "lesson",
+    title: "Lesson 11",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 11 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-12",
+    type: "lesson",
+    title: "Lesson 12",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 12 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-13",
+    type: "lesson",
+    title: "Lesson 13",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 13 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
+  },
+  {
+    id: "lesson-14",
+    type: "lesson",
+    title: "Lesson 14",
+    titleAudio: "",
+    titleEnglish: "",
+    language: "French",
+    description: "Lesson 14 content will go here when you add the sentences, audio, notes, and tests.",
+    notes: {},
+    lines: [],
+    tests: []
   }
 ];
 let lessons = courseItems.filter((item) => item.type === "lesson");
@@ -548,6 +632,7 @@ const lessonAudioProgressKey = "ogham-lesson-audio-progress";
 const bestScoresKey = "ogham-best-scores";
 const fluencyRatingsKey = "ogham-fluency-ratings";
 const fluencyRevealsKey = "ogham-fluency-reveals";
+const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
 const authStateKey = "ogham-auth-state";
 const authVerifierKey = "ogham-auth-verifier";
 const authSessionKey = "ogham-auth-session";
@@ -563,7 +648,14 @@ const remoteLessonFiles = [
   "lessons/lesson-4-lheure.json",
   "lessons/lesson-5-je-cherche-le-metro.json",
   "lessons/lesson-6-a-lhotel.json",
-  "lessons/lesson-7-review.json"
+  "lessons/lesson-7-review.json",
+  "lessons/lesson-8-une-visite.json",
+  "lessons/lesson-9-a-la-mairie.json",
+  "lessons/lesson-10-cest-tres-simple.json",
+  "lessons/lesson-11-au-marche-premiere-partie.json",
+  "lessons/lesson-12-au-marche-deuxieme-partie.json",
+  "lessons/lesson-13-un-cadeau.json",
+  "lessons/lesson-14-dialogue-de-revision.json"
 ];
 
 const app = document.querySelector("#app");
@@ -1023,7 +1115,14 @@ function normalizeLessonAssetPath(lesson, path) {
     "lesson-4": "L004-French ASSIMIL",
     "lesson-5": "L005-French ASSIMIL",
     "lesson-6": "L006-French ASSIMIL",
-    "lesson-7": "L007-French ASSIMIL"
+    "lesson-7": "L007-French ASSIMIL",
+    "lesson-8": "L008-French ASSIMIL",
+    "lesson-9": "L009-French ASSIMIL",
+    "lesson-10": "L010-French ASSIMIL",
+    "lesson-11": "L011-French ASSIMIL",
+    "lesson-12": "L012-French ASSIMIL",
+    "lesson-13": "L013-French ASSIMIL",
+    "lesson-14": "L014-French ASSIMIL"
   };
   const folder = folderByLesson[lesson.id];
 
@@ -1091,6 +1190,27 @@ function getLessonFluencyReveals(lessonId) {
 
 function getLineFluencyReveal(lessonId, lineIndex) {
   return getLessonFluencyReveals(lessonId)[lineIndex] || {};
+}
+
+function getCollapsedFluencyChapters() {
+  return readStoredJson(fluencyCollapsedChaptersKey, {});
+}
+
+function isFluencyChapterCollapsed(chapterNumber) {
+  return Boolean(getCollapsedFluencyChapters()[chapterNumber]);
+}
+
+function toggleFluencyChapter(chapterNumber) {
+  const collapsedChapters = getCollapsedFluencyChapters();
+
+  if (collapsedChapters[chapterNumber]) {
+    delete collapsedChapters[chapterNumber];
+  } else {
+    collapsedChapters[chapterNumber] = true;
+  }
+
+  writeStoredJson(fluencyCollapsedChaptersKey, collapsedChapters);
+  renderFluencyHome();
 }
 
 function saveFluencyReveal(lessonId, lineIndex, revealType) {
@@ -1508,24 +1628,32 @@ function renderFluencyHome() {
   app.querySelectorAll("[data-open-fluency]").forEach((button) => {
     button.addEventListener("click", () => setRoute(`fluency-${button.dataset.openFluency}`));
   });
+  app.querySelectorAll("[data-toggle-fluency-chapter]").forEach((button) => {
+    button.addEventListener("click", () => toggleFluencyChapter(button.dataset.toggleFluencyChapter));
+  });
 }
 
 function createFluencyChapter(chapter) {
   const summary = getChapterFluencySummary(chapter);
   const complete = summary.total && summary.rated === summary.total;
   const chapterClass = complete ? "perfect" : summary.rated ? "passing" : "current";
+  const collapsed = isFluencyChapterCollapsed(chapter.number);
+  const lessonListId = `fluency-chapter-lessons-${chapter.number}`;
 
   return `
-    <section class="fluency-chapter ${chapterClass}" aria-labelledby="fluency-chapter-${chapter.number}">
+    <section class="fluency-chapter ${chapterClass} ${collapsed ? "collapsed" : ""}" aria-labelledby="fluency-chapter-${chapter.number}">
       <div class="fluency-chapter-header">
         <div>
           <p class="history-kicker">Lessons ${getChapterLessonRange(chapter)}</p>
           <h2 id="fluency-chapter-${chapter.number}">Chapter ${chapter.number}</h2>
           <p>${getChapterFluencyLabel(chapter)}</p>
         </div>
-        ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 4</div>` : ""}
+        <div class="fluency-chapter-actions">
+          ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 4</div>` : ""}
+          <button class="icon-button chapter-toggle-button" type="button" data-toggle-fluency-chapter="${chapter.number}" aria-controls="${lessonListId}" aria-expanded="${collapsed ? "false" : "true"}" title="${collapsed ? "Expand chapter" : "Collapse chapter"}" aria-label="${collapsed ? "Expand Chapter " + chapter.number : "Collapse Chapter " + chapter.number}">${collapsed ? "+" : "&minus;"}</button>
+        </div>
       </div>
-      <div class="history-list">
+      <div class="history-list" id="${lessonListId}" ${collapsed ? "hidden" : ""}>
         ${chapter.lessons.map(createFluencyLessonItem).join("")}
       </div>
     </section>

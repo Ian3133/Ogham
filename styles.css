@@ -444,6 +444,12 @@ h1 {
   padding-bottom: 14px;
 }
 
+.fluency-chapter.collapsed .fluency-chapter-header {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
 .fluency-chapter-header h2 {
   color: var(--accent-dark);
   font-size: clamp(1.5rem, 3vw, 2.25rem);
@@ -455,6 +461,19 @@ h1 {
   font-family: Arial, sans-serif;
   line-height: 1.45;
   margin-bottom: 0;
+}
+
+.fluency-chapter-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.chapter-toggle-button {
+  font-family: Arial, sans-serif;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .chapter-score {

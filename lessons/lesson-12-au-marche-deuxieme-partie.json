@@ -1,0 +1,58 @@
+{
+  "id": "lesson-12",
+  "type": "lesson",
+  "title": "Lesson 12: Au marché (Deuxième partie)",
+  "titleAudio": "audio/L012-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "At the market (Part two)",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 12 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Et avec ceci ? Vous voulez des fraises, peut-être ?",
+      "english": "And with that? Would you like some strawberries, perhaps?",
+      "audio": "audio/L012-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Est-ce que je peux les goûter ?",
+      "english": "May I taste them?",
+      "audio": "audio/L012-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Allez-y. N’hésitez pas ! Toutes mes fraises sont bio.",
+      "english": "Go ahead. Don't hesitate! All my strawberries are organic.",
+      "audio": "audio/L012-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Mm, c’est vrai, elles sont vraiment délicieuses. Elles sont à combien ?",
+      "english": "Mm, that's true, they are really delicious. How much are they?",
+      "audio": "audio/L012-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Le prix ? Elles ne sont pas chères. Seulement quinze euros le kilo.",
+      "english": "The price? They are not expensive. Only fifteen euros a kilo.",
+      "audio": "audio/L012-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Non, c’est trop cher. J’ai tout ce que je veux pour l’instant.",
+      "english": "No, that's too expensive. I have everything I want for now.",
+      "audio": "audio/L012-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Alors, ça vous fait vingt-six euros soixante s’il vous plaît.",
+      "english": "Then that comes to twenty-six euros sixty, please.",
+      "audio": "audio/L012-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Voilà trente.",
+      "english": "Here is thirty.",
+      "audio": "audio/L012-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "Et voici votre monnaie. Bonne journée.",
+      "english": "And here is your change. Have a good day.",
+      "audio": "audio/L012-French ASSIMIL/S09.mp3"
+    }
+  ],
+  "tests": []
+}

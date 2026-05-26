@@ -1,0 +1,53 @@
+{
+  "id": "lesson-9",
+  "type": "lesson",
+  "title": "Lesson 9: À la mairie",
+  "titleAudio": "audio/L009-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "At city hall",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 9 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Ce monsieur s’appelle Jérôme Laforge et cette dame est sa femme.",
+      "english": "This gentleman is called Jérôme Laforge and this lady is his wife.",
+      "audio": "audio/L009-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Ils sont à la mairie pour demander une nouvelle carte d’identité pour leur fils.",
+      "english": "They are at city hall to request a new identity card for their son.",
+      "audio": "audio/L009-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Quel âge a cet enfant ?",
+      "english": "How old is this child?",
+      "audio": "audio/L009-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "Il a huit ans, monsieur.",
+      "english": "He is eight years old, sir.",
+      "audio": "audio/L009-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Et il s’appelle Laforge ? Est-ce que c’est votre enfant ?",
+      "english": "And his name is Laforge? Is he your child?",
+      "audio": "audio/L009-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Oui, monsieur.",
+      "english": "Yes, sir.",
+      "audio": "audio/L009-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Bien. Et il habite chez vous ?",
+      "english": "Good. And does he live with you?",
+      "audio": "audio/L009-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "Mais évidemment, avec moi et sa mère !",
+      "english": "But of course, with me and his mother!",
+      "audio": "audio/L009-French ASSIMIL/S08.mp3"
+    }
+  ],
+  "tests": []
+}

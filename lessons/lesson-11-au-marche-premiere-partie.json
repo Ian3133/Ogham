@@ -1,0 +1,58 @@
+{
+  "id": "lesson-11",
+  "type": "lesson",
+  "title": "Lesson 11: Au marché (Première partie)",
+  "titleAudio": "audio/L011-French ASSIMIL/S00-TITLE.mp3",
+  "titleEnglish": "At the market (Part one)",
+  "language": "French",
+  "description": "A listening-first fluency review using the Lesson 11 story audio.",
+  "notes": {},
+  "lines": [
+    {
+      "french": "Pourquoi allons-nous au marché ? Il est trop cher.",
+      "english": "Why are we going to the market? It is too expensive.",
+      "audio": "audio/L011-French ASSIMIL/S01.mp3"
+    },
+    {
+      "french": "Parce que tous les placards sont vides !",
+      "english": "Because all the cupboards are empty!",
+      "audio": "audio/L011-French ASSIMIL/S02.mp3"
+    },
+    {
+      "french": "Nous avons besoin de tout : de fruits et de légumes,",
+      "english": "We need everything: fruit and vegetables,",
+      "audio": "audio/L011-French ASSIMIL/S03.mp3"
+    },
+    {
+      "french": "mais aussi de pain, de fromage, de beurre, de crème, de jambon, et...",
+      "english": "but also bread, cheese, butter, cream, ham, and...",
+      "audio": "audio/L011-French ASSIMIL/S04.mp3"
+    },
+    {
+      "french": "Bon, je comprends. Il n’y a rien à manger. Allons-y.",
+      "english": "Fine, I understand. There is nothing to eat. Let's go.",
+      "audio": "audio/L011-French ASSIMIL/S05.mp3"
+    },
+    {
+      "french": "Bonjour madame. Qu’est-ce que je peux faire pour vous ?",
+      "english": "Hello madam. What can I do for you?",
+      "audio": "audio/L011-French ASSIMIL/S06.mp3"
+    },
+    {
+      "french": "Je vais acheter une livre de cerises, un kilo de pommes,",
+      "english": "I'm going to buy a pound of cherries, a kilo of apples,",
+      "audio": "audio/L011-French ASSIMIL/S07.mp3"
+    },
+    {
+      "french": "trois cents grammes de champignons, s’ils ne sont pas trop chers,",
+      "english": "three hundred grams of mushrooms, if they are not too expensive,",
+      "audio": "audio/L011-French ASSIMIL/S08.mp3"
+    },
+    {
+      "french": "quelques bananes, deux kilos de pommes de terre et un peu de lait frais.",
+      "english": "a few bananas, two kilos of potatoes, and a little fresh milk.",
+      "audio": "audio/L011-French ASSIMIL/S09.mp3"
+    }
+  ],
+  "tests": []
+}
