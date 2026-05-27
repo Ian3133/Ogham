@@ -1118,6 +1118,14 @@ let currentAudio = null;
 let currentAudioButton = null;
 let currentDingContext = null;
 let playbackToken = 0;
+let storySequence = {
+  lessonId: null,
+  lineIndex: 0,
+  audio: null,
+  token: 0,
+  paused: false,
+  finished: true
+};
 let activeTest = {
   lesson: null,
   test: null,
@@ -2168,6 +2176,7 @@ function createFluencyLessonItem(lesson) {
 
 function renderFluencyLesson(lesson) {
   const summary = getLessonFluencySummary(lesson);
+  const playableLineCount = lesson.lines.filter((line) => line.audio).length;
 
   app.innerHTML = `
     <section class="shell">
@@ -2180,6 +2189,7 @@ function renderFluencyLesson(lesson) {
         <p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>
         ${summary.rated ? `<div class="fluency-meter" aria-label="Average fluency ${formatScore(summary.average)} out of 4"><span style="width: ${(summary.average / 4) * 100}%"></span></div>` : ""}
       </header>
+      ${playableLineCount ? createStoryPlayerControls(playableLineCount) : ""}
       <section class="story-list fluency-list" aria-label="${lesson.title} fluency sentences">
         ${lesson.lines.length ? lesson.lines.map((line, index) => createFluencyLine(lesson, line, index)).join("") : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`}
       </section>
@@ -2190,6 +2200,18 @@ function renderFluencyLesson(lesson) {
   app.querySelectorAll("[data-listening-audio]").forEach((button) => {
     button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFrenchReveal(button)));
   });
+  const storyPlayButton = app.querySelector("[data-story-sequence-play]");
+  if (storyPlayButton) {
+    storyPlayButton.addEventListener("click", () => toggleStorySequence(lesson));
+  }
+  const storyRepeatButton = app.querySelector("[data-story-sequence-repeat]");
+  if (storyRepeatButton) {
+    storyRepeatButton.addEventListener("click", () => repeatStorySequenceLine(lesson));
+  }
+  const storyNextButton = app.querySelector("[data-story-sequence-next]");
+  if (storyNextButton) {
+    storyNextButton.addEventListener("click", () => skipStorySequenceLine(lesson));
+  }
   app.querySelectorAll("[data-reveal-french]").forEach((button) => {
     button.addEventListener("click", () => revealFluencyFrench(button));
   });
@@ -2214,7 +2236,7 @@ function createFluencyLine(lesson, line, index) {
   const hasAudio = Boolean(line.audio);
 
   return `
-    <article class="story-line fluency-line">
+    <article class="story-line fluency-line" data-story-line-index="${index}">
       <div class="fluency-line-main">
         <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
         <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">▶</button>
@@ -2653,6 +2675,7 @@ function renderLesson(lesson) {
   const lineMarkup = lesson.lines.length
     ? lesson.lines.map((line, index) => createLine(line, index, lesson.notes)).join("")
     : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`;
+  const playableLineCount = lesson.lines.filter((line) => line.audio).length;
   const testUnlocked = isLessonTestUnlocked(lesson);
   const testMarkup = lesson.tests.length
     ? `<p data-test-lock-status>${testUnlocked ? "Practice with listening, sentence building, and fill-in review." : "Listen through the final story audio to unlock the test."}</p><button class="primary-button" type="button" data-test="${lesson.tests[0].id}" ${testUnlocked ? "" : "disabled"}>${testUnlocked ? "Start Test" : "Locked"}</button>`
@@ -2672,6 +2695,7 @@ function renderLesson(lesson) {
         ${lesson.titleEnglish ? `<p class="title-translation">${lesson.titleEnglish}</p>` : ""}
         <p class="lesson-lede">${lesson.description}</p>
       </header>
+      ${playableLineCount ? createStoryPlayerControls(playableLineCount) : ""}
       <section class="story-list" aria-label="${lesson.title} story lines">
         ${lineMarkup}
       </section>
@@ -2714,6 +2738,18 @@ function renderLesson(lesson) {
   app.querySelectorAll("[data-audio]").forEach((button) => {
     button.addEventListener("click", () => playLineAudio(button, lesson));
   });
+  const storyPlayButton = app.querySelector("[data-story-sequence-play]");
+  if (storyPlayButton) {
+    storyPlayButton.addEventListener("click", () => toggleStorySequence(lesson));
+  }
+  const storyRepeatButton = app.querySelector("[data-story-sequence-repeat]");
+  if (storyRepeatButton) {
+    storyRepeatButton.addEventListener("click", () => repeatStorySequenceLine(lesson));
+  }
+  const storyNextButton = app.querySelector("[data-story-sequence-next]");
+  if (storyNextButton) {
+    storyNextButton.addEventListener("click", () => skipStorySequenceLine(lesson));
+  }
   app.querySelectorAll("[data-note]").forEach((button) => {
     button.addEventListener("click", () => toggleNote(button, lesson.notes));
   });
@@ -2727,12 +2763,28 @@ function renderLesson(lesson) {
   }
 }
 
+function createStoryPlayerControls(playableLineCount) {
+  return `
+    <div class="story-player" aria-label="Sentence audio player">
+      <div class="story-player-main">
+        <button class="primary-button story-player-play" type="button" data-story-sequence-play aria-label="Play all sentences">
+          <span aria-hidden="true">&#9654;</span>
+          <span data-story-sequence-play-label>Play all</span>
+        </button>
+        <button class="icon-button story-player-icon" type="button" data-story-sequence-repeat title="Repeat current sentence" aria-label="Repeat current sentence">&#8635;</button>
+        <button class="icon-button story-player-icon" type="button" data-story-sequence-next title="Skip to next sentence" aria-label="Skip to next sentence">&#8594;</button>
+      </div>
+      <p class="story-player-status" data-story-sequence-status aria-live="polite">Ready for ${playableLineCount} sentences</p>
+    </div>
+  `;
+}
+
 function createLine(line, index, notes) {
   const translationId = `translation-${index + 1}`;
   const hasAudio = Boolean(line.audio);
 
   return `
-    <article class="story-line">
+    <article class="story-line" data-story-line-index="${index}">
       <div class="line-main">
         <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
         <p class="french">${createSentenceParts(line, notes)}</p>
@@ -3711,6 +3763,217 @@ function shuffleWords(words) {
     .map((item) => item.word);
 }
 
+function getPlayableStoryLines(lesson) {
+  return lesson.lines
+    .map((line, index) => ({ line, index }))
+    .filter((item) => item.line.audio);
+}
+
+function toggleStorySequence(lesson) {
+  if (storySequence.lessonId === lesson.id && storySequence.audio) {
+    if (storySequence.paused) {
+      storySequence.audio.play().then(() => {
+        storySequence.paused = false;
+        updateStorySequenceControls("playing", lesson);
+      }).catch(() => {});
+    } else {
+      storySequence.audio.pause();
+      storySequence.paused = true;
+      updateStorySequenceControls("paused", lesson);
+    }
+    return;
+  }
+
+  const startIndex = storySequence.lessonId === lesson.id && !storySequence.finished
+    ? storySequence.lineIndex
+    : 0;
+
+  startStorySequence(lesson, startIndex);
+}
+
+function repeatStorySequenceLine(lesson) {
+  const requestedIndex = storySequence.lessonId === lesson.id ? storySequence.lineIndex : 0;
+  startStorySequence(lesson, requestedIndex);
+}
+
+function skipStorySequenceLine(lesson) {
+  const playableLines = getPlayableStoryLines(lesson);
+
+  if (!playableLines.length) {
+    return;
+  }
+
+  const currentPlayableIndex = playableLines.findIndex((item) => item.index === storySequence.lineIndex);
+  const nextPlayableIndex = currentPlayableIndex >= 0 ? currentPlayableIndex + 1 : 0;
+
+  if (nextPlayableIndex >= playableLines.length) {
+    finishStorySequence(lesson);
+    return;
+  }
+
+  startStorySequence(lesson, playableLines[nextPlayableIndex].index);
+}
+
+function startStorySequence(lesson, requestedLineIndex = 0) {
+  const playableLines = getPlayableStoryLines(lesson);
+
+  if (!playableLines.length) {
+    return;
+  }
+
+  const requestedPlayableLine = playableLines.find((item) => item.index >= requestedLineIndex) || playableLines[0];
+
+  stopCurrentAudio();
+  storySequence.lessonId = lesson.id;
+  storySequence.lineIndex = requestedPlayableLine.index;
+  storySequence.token += 1;
+  storySequence.paused = false;
+  storySequence.finished = false;
+  playStorySequenceLine(lesson, requestedPlayableLine.index, storySequence.token);
+}
+
+function playStorySequenceLine(lesson, lineIndex, token) {
+  const line = lesson.lines[lineIndex];
+
+  if (!line || !line.audio || token !== storySequence.token) {
+    return;
+  }
+
+  const audio = new Audio(line.audio);
+  currentAudio = audio;
+  storySequence.audio = audio;
+  storySequence.lineIndex = lineIndex;
+  storySequence.paused = false;
+  storySequence.finished = false;
+  markStorySequenceLine(lineIndex);
+  enableLineReveal(lineIndex);
+  updateStorySequenceControls("playing", lesson);
+
+  audio.addEventListener("ended", () => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    storySequence.audio = null;
+    playNextStorySequenceLine(lesson, token);
+  });
+  audio.addEventListener("error", () => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    storySequence.audio = null;
+    updateStorySequenceControls("error", lesson);
+  });
+  audio.play().catch(() => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    storySequence.audio = null;
+    updateStorySequenceControls("error", lesson);
+  });
+}
+
+function playNextStorySequenceLine(lesson, token) {
+  const playableLines = getPlayableStoryLines(lesson);
+  const currentPlayableIndex = playableLines.findIndex((item) => item.index === storySequence.lineIndex);
+  const nextPlayableLine = playableLines[currentPlayableIndex + 1];
+
+  if (!nextPlayableLine) {
+    finishStorySequence(lesson);
+    return;
+  }
+
+  playStorySequenceLine(lesson, nextPlayableLine.index, token);
+}
+
+function finishStorySequence(lesson) {
+  if (storySequence.audio) {
+    storySequence.audio.pause();
+    storySequence.audio.currentTime = 0;
+    if (currentAudio === storySequence.audio) {
+      currentAudio = null;
+    }
+  }
+  storySequence.audio = null;
+  storySequence.paused = false;
+  storySequence.finished = true;
+  storySequence.token += 1;
+  clearStorySequenceHighlight();
+  updateStorySequenceControls("finished", lesson);
+  completeLessonAudio(lesson.id);
+  unlockLessonTestButton();
+}
+
+function markStorySequenceLine(lineIndex) {
+  clearStorySequenceHighlight();
+  const lineElement = app.querySelector(`[data-story-line-index="${lineIndex}"]`);
+
+  if (lineElement) {
+    lineElement.classList.add("story-line-active");
+    lineElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+function clearStorySequenceHighlight() {
+  app.querySelectorAll(".story-line-active").forEach((lineElement) => {
+    lineElement.classList.remove("story-line-active");
+  });
+}
+
+function enableLineReveal(lineIndex) {
+  const lineElement = app.querySelector(`[data-story-line-index="${lineIndex}"]`);
+  const revealButton = lineElement ? lineElement.querySelector("[data-reveal], [data-reveal-french]") : null;
+
+  if (revealButton) {
+    revealButton.disabled = false;
+  }
+}
+
+function updateStorySequenceControls(status, lesson) {
+  const playButton = app.querySelector("[data-story-sequence-play]");
+  const playLabel = app.querySelector("[data-story-sequence-play-label]");
+  const statusElement = app.querySelector("[data-story-sequence-status]");
+  const currentLineText = storySequence.lessonId === lesson.id && !storySequence.finished
+    ? `Sentence ${storySequence.lineIndex + 1} of ${lesson.lines.length}`
+    : "";
+
+  if (playButton && playLabel) {
+    if (status === "playing") {
+      playButton.setAttribute("aria-label", "Pause sentence audio");
+      playButton.querySelector("[aria-hidden='true']").innerHTML = "&#10074;&#10074;";
+      playLabel.textContent = "Pause";
+    } else {
+      playButton.setAttribute("aria-label", storySequence.paused ? "Resume sentence audio" : "Play all sentences");
+      playButton.querySelector("[aria-hidden='true']").innerHTML = "&#9654;";
+      playLabel.textContent = storySequence.paused ? "Resume" : "Play all";
+    }
+  }
+
+  if (!statusElement) {
+    return;
+  }
+
+  if (status === "playing") {
+    statusElement.textContent = `Playing ${currentLineText}`;
+  } else if (status === "paused") {
+    statusElement.textContent = `Paused on ${currentLineText}`;
+  } else if (status === "finished") {
+    statusElement.textContent = "Finished sentence audio";
+  } else if (status === "error") {
+    statusElement.textContent = "Audio could not play";
+  } else {
+    statusElement.textContent = `Ready for ${getPlayableStoryLines(lesson).length} sentences`;
+  }
+}
+
 function playLineAudio(button, lesson) {
   const source = button.dataset.audio;
 
@@ -3894,8 +4157,19 @@ function playCorrectDing(onEnded) {
   }, { once: true });
 }
 
-function stopCurrentAudio() {
+function stopCurrentAudio(options = {}) {
   playbackToken += 1;
+  if (!options.keepStorySequence) {
+    storySequence.token += 1;
+    storySequence.audio = null;
+    storySequence.paused = false;
+    storySequence.finished = true;
+    clearStorySequenceHighlight();
+    const activeLesson = lessons.find((lesson) => lesson.id === storySequence.lessonId);
+    if (activeLesson) {
+      updateStorySequenceControls("ready", activeLesson);
+    }
+  }
   resetAudioButton();
   currentAudioButton = null;
 
