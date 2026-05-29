@@ -593,12 +593,16 @@ h1 {
   transform: translateY(-1px);
 }
 
-.rating-1 {
+.rating-0 {
   background: #b64234;
 }
 
-.rating-2 {
+.rating-1 {
   background: #c56b3c;
+}
+
+.rating-2 {
+  background: #c89531;
 }
 
 .rating-3 {
@@ -606,6 +610,10 @@ h1 {
 }
 
 .rating-4 {
+  background: #278060;
+}
+
+.rating-5 {
   background: #176b3a;
 }
 

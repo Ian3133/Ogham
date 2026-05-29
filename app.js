@@ -1728,12 +1728,22 @@ function saveFluencyReveal(lessonId, lineIndex, revealType) {
 
 function saveFluencyRating(lessonId, lineIndex, rating) {
   const ratings = getFluencyRatings();
+  const reveals = getFluencyReveals();
+  const lessonReveals = reveals[lessonId] || {};
 
   ratings[lessonId] = {
     ...(ratings[lessonId] || {}),
     [lineIndex]: rating
   };
+  reveals[lessonId] = {
+    ...lessonReveals,
+    [lineIndex]: {
+      ...(lessonReveals[lineIndex] || {}),
+      french: true
+    }
+  };
   writeStoredJson(fluencyRatingsKey, ratings);
+  writeStoredJson(fluencyRevealsKey, reveals);
   flushCloudStateSave();
 }
 
@@ -1741,7 +1751,7 @@ function getLessonFluencySummary(lesson) {
   const lessonRatings = getLessonFluencyRatings(lesson.id);
   const values = lesson.lines
     .map((_, index) => Number(lessonRatings[index]))
-    .filter((rating) => rating >= 1 && rating <= 4);
+    .filter((rating) => rating >= 0 && rating <= 5);
 
   if (!values.length) {
     return {
@@ -1769,7 +1779,7 @@ function getFluencySummaryLabel(lesson) {
     return `${summary.total} sentences`;
   }
 
-  return `Fluency: ${formatScore(summary.average)} / 4 (${summary.rated} of ${summary.total} rated)`;
+  return `Fluency: ${formatScore(summary.average)} / 5 (${summary.rated} of ${summary.total} rated)`;
 }
 
 function getFluencyChapters() {
@@ -1827,7 +1837,7 @@ function getChapterFluencyLabel(chapter) {
     return `${summary.total} sentences`;
   }
 
-  return `Review average: ${formatScore(summary.average)} / 4 (${summary.rated} of ${summary.total} rated)`;
+  return `Review average: ${formatScore(summary.average)} / 5 (${summary.rated} of ${summary.total} rated)`;
 }
 
 function saveBestScore(itemId, summary) {
@@ -2114,7 +2124,7 @@ function renderFluencyHome() {
       </div>
       <header class="lesson-header">
         <h1>Fluency Review</h1>
-        <p class="lesson-lede">Listen before reading, reveal the French, then reveal the English and save your fluency rating.</p>
+        <p class="lesson-lede">Listen first, rate your understanding, then check the French and English.</p>
       </header>
       <section class="fluency-chapter-list" aria-label="Fluency review chapters">
         ${getFluencyChapters().map(createFluencyChapter).join("")}
@@ -2147,7 +2157,7 @@ function createFluencyChapter(chapter) {
           <p>${getChapterFluencyLabel(chapter)}</p>
         </div>
         <div class="fluency-chapter-actions">
-          ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 4</div>` : ""}
+          ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 5</div>` : ""}
           <button class="icon-button chapter-toggle-button" type="button" data-toggle-fluency-chapter="${chapter.number}" aria-controls="${lessonListId}" aria-expanded="${collapsed ? "false" : "true"}" title="${collapsed ? "Expand chapter" : "Collapse chapter"}" aria-label="${collapsed ? "Expand Chapter " + chapter.number : "Collapse Chapter " + chapter.number}">${collapsed ? "+" : "&minus;"}</button>
         </div>
       </div>
@@ -2187,7 +2197,7 @@ function renderFluencyLesson(lesson) {
       <header class="lesson-header">
         <h1>${lesson.title}</h1>
         <p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>
-        ${summary.rated ? `<div class="fluency-meter" aria-label="Average fluency ${formatScore(summary.average)} out of 4"><span style="width: ${(summary.average / 4) * 100}%"></span></div>` : ""}
+        ${summary.rated ? `<div class="fluency-meter" aria-label="Average fluency ${formatScore(summary.average)} out of 5"><span style="width: ${(summary.average / 5) * 100}%"></span></div>` : ""}
       </header>
       ${playableLineCount ? createStoryPlayerControls(playableLineCount) : ""}
       <section class="story-list fluency-list" aria-label="${lesson.title} fluency sentences">
@@ -2198,7 +2208,7 @@ function renderFluencyLesson(lesson) {
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute("fluency"));
   app.querySelectorAll("[data-listening-audio]").forEach((button) => {
-    button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFrenchReveal(button)));
+    button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFluencyRating(button)));
   });
   const storyPlayButton = app.querySelector("[data-story-sequence-play]");
   if (storyPlayButton) {
@@ -2230,36 +2240,60 @@ function renderFluencyLesson(lesson) {
 }
 
 function createFluencyLine(lesson, line, index) {
-  const rating = Number(getLessonFluencyRatings(lesson.id)[index]) || 0;
+  const savedRating = getLessonFluencyRatings(lesson.id)[index];
+  const hasSavedRating = savedRating !== undefined && savedRating !== null && savedRating !== "";
+  const rating = hasSavedRating ? Number(savedRating) : null;
   const reveal = getLineFluencyReveal(lesson.id, index);
-  const canRevealFrench = Boolean(reveal.french || rating || !line.audio);
+  const canRate = Boolean(reveal.listened || reveal.french || hasSavedRating || !line.audio);
+  const frenchVisible = Boolean(reveal.french || hasSavedRating);
+  const englishVisible = Boolean(reveal.english);
   const hasAudio = Boolean(line.audio);
 
   return `
     <article class="story-line fluency-line" data-story-line-index="${index}">
       <div class="fluency-line-main">
         <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
-        <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">▶</button>
-        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRevealFrench ? "" : "disabled"}>Reveal French</button>
-        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" disabled>Reveal English</button>
+        <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-lesson-id="${lesson.id}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">▶</button>
+        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRate ? "" : "disabled"}>${frenchVisible ? "French Revealed" : "Reveal French"}</button>
+        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" ${frenchVisible ? "" : "disabled"}>${englishVisible ? "English Revealed" : "Reveal English"}</button>
       </div>
-      <p class="fluency-hidden-text french" id="fluency-french-${index}">${line.french}</p>
-      <p class="fluency-hidden-text translation" id="fluency-english-${index}">${line.english}</p>
+      <p class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${line.french}</p>
+      <p class="fluency-hidden-text translation ${englishVisible ? "visible" : ""}" id="fluency-english-${index}">${line.english}</p>
       <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
-        ${[1, 2, 3, 4].map((value) => `<button class="rating-button rating-${value} ${rating === value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${value}" ${canRevealFrench ? "" : "disabled"}>${value}</button>`).join("")}
-        <button class="text-button hide-line-button" type="button" data-hide-fluency-line disabled>Hide</button>
-        <span>${rating ? `Saved: ${rating} / 4` : "Not rated"}</span>
+        ${[0, 1, 2, 3, 4, 5].map((value) => `<button class="rating-button rating-${value} ${rating === value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${value}" title="${getFluencyRatingLabel(value)}" aria-label="${getFluencyRatingLabel(value)}" ${canRate ? "" : "disabled"}>${value}</button>`).join("")}
+        <button class="text-button hide-line-button" type="button" data-hide-fluency-line ${frenchVisible || englishVisible ? "" : "disabled"}>Hide</button>
+        <span>${hasSavedRating ? `Saved: ${rating} / 5` : "Not rated"}</span>
       </div>
     </article>
   `;
 }
 
-function unlockFrenchReveal(audioButton) {
-  const revealButton = audioButton.closest(".fluency-line").querySelector("[data-reveal-french]");
+function getFluencyRatingLabel(value) {
+  const labels = {
+    0: "0 - understand nothing",
+    1: "1 - barely understand",
+    2: "2 - partly understand",
+    3: "3 - understand",
+    4: "4 - understand well",
+    5: "5 - completely understand"
+  };
+
+  return labels[value];
+}
+
+function unlockFluencyRating(audioButton) {
+  const line = audioButton.closest(".fluency-line");
+  const revealButton = line.querySelector("[data-reveal-french]");
 
   if (revealButton) {
     revealButton.disabled = false;
   }
+
+  line.querySelectorAll("[data-fluency-rating]").forEach((ratingButton) => {
+    ratingButton.disabled = false;
+  });
+
+  saveFluencyReveal(audioButton.dataset.lessonId, audioButton.dataset.lineIndex, "listened");
 }
 
 function revealFluencyFrench(button) {
@@ -3243,6 +3277,7 @@ function goToNextTestItem() {
 
 function renderPartOneComplete(lesson, test, attempts) {
   const summary = getScoreSummary(test.items.length, attempts);
+  const nextItem = getNextItem(lesson.id);
   window.sessionStorage.setItem(`${lesson.id}-part-1-score`, JSON.stringify(summary));
 
   app.innerHTML = `
@@ -3257,12 +3292,17 @@ function renderPartOneComplete(lesson, test, attempts) {
         <p class="lesson-lede">You rebuilt every sentence from the audio.</p>
         ${createScoreBreakdown("Part 1", summary)}
         <button class="primary-button" type="button" data-start-part-2>Continue to Part 2</button>
+        ${nextItem ? `<button class="primary-button" type="button" data-next-audio-lesson>Next Lesson</button>` : ""}
       </section>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(lesson.id));
   app.querySelector("[data-start-part-2]").addEventListener("click", () => renderFillIntro(lesson, lesson.tests[1], summary));
+  const nextAudioButton = app.querySelector("[data-next-audio-lesson]");
+  if (nextAudioButton) {
+    nextAudioButton.addEventListener("click", () => setRoute(nextItem.id));
+  }
 }
 
 function getTestWordDisplay(word) {
@@ -3934,6 +3974,13 @@ function enableLineReveal(lineIndex) {
 
   if (revealButton) {
     revealButton.disabled = false;
+  }
+
+  if (revealButton?.dataset.revealFrench) {
+    lineElement.querySelectorAll("[data-fluency-rating]").forEach((ratingButton) => {
+      ratingButton.disabled = false;
+    });
+    saveFluencyReveal(revealButton.dataset.lessonId, revealButton.dataset.lineIndex, "listened");
   }
 }
 
