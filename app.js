@@ -1145,6 +1145,7 @@ const scorePenalty = 0.25;
 const passingRatio = 0.7;
 let cloudSaveTimer = null;
 let isApplyingCloudState = false;
+let cloudStateReady = false;
 let cloudSaveStatus = "";
 
 function getAuthSession() {
@@ -1342,13 +1343,18 @@ async function loadCloudState() {
 
     if (!state) {
       applyCloudState(getEmptyUserState());
+      cloudStateReady = true;
       await saveCloudStateNow();
       return;
     }
 
     applyCloudState(state);
+    cloudStateReady = true;
   } catch (error) {
     console.warn("Cloud progress could not be loaded. Using local progress for now.", error);
+    cloudStateReady = false;
+    cloudSaveStatus = "Cloud load failed";
+    updateAccountSyncStatus();
   }
 }
 
@@ -1410,6 +1416,12 @@ function queueCloudStateSave(route) {
     return;
   }
 
+  if (!cloudStateReady) {
+    cloudSaveStatus = "Cloud load failed";
+    updateAccountSyncStatus();
+    return;
+  }
+
   cloudSaveStatus = "Saving...";
   updateAccountSyncStatus();
   window.clearTimeout(cloudSaveTimer);
@@ -1423,6 +1435,12 @@ function queueCloudStateSave(route) {
 }
 
 function flushCloudStateSave(route) {
+  if (!cloudStateReady) {
+    cloudSaveStatus = "Cloud load failed";
+    updateAccountSyncStatus();
+    return;
+  }
+
   window.clearTimeout(cloudSaveTimer);
   cloudSaveStatus = "Saving...";
   updateAccountSyncStatus();
@@ -1438,6 +1456,10 @@ async function saveCloudStateNow(route, options = {}) {
 
   if (!session?.idToken) {
     return;
+  }
+
+  if (!cloudStateReady) {
+    throw new Error("Cloud state was not loaded, so saving is paused to protect existing progress.");
   }
 
   const response = await fetch(`${userStateApiUrl}/state`, {
@@ -1512,13 +1534,13 @@ function renderLoading() {
 async function loadRemoteLessons() {
   const remoteLessons = await Promise.all(remoteLessonFiles.map(async (file) => {
     try {
-      return await loadLessonFile(getContentUrl(file));
+      return await loadLessonFile(file);
     } catch (error) {
-      console.warn(`Remote lesson ${file} could not load. Trying local copy.`, error);
+      console.warn(`Local lesson ${file} could not load. Trying remote copy.`, error);
     }
 
     try {
-      return await loadLessonFile(file);
+      return await loadLessonFile(getContentUrl(file));
     } catch (error) {
       console.warn(`Using embedded lesson because ${file} could not load.`, error);
     }
