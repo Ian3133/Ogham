@@ -1053,6 +1053,9 @@ const bestScoresKey = "ogham-best-scores";
 const fluencyRatingsKey = "ogham-fluency-ratings";
 const fluencyRevealsKey = "ogham-fluency-reveals";
 const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
+const homeGraphModeKey = "odrerir-home-graph-mode";
+const fluencyRatingProgressPrefix = "fluency-rating|";
+const fluencyRevealProgressPrefix = "fluency-reveal|";
 const authStateKey = "ogham-auth-state";
 const authVerifierKey = "ogham-auth-verifier";
 const authSessionKey = "ogham-auth-session";
@@ -1061,6 +1064,7 @@ const cognitoClientId = "7ifahuq15bidifgdm57t3389e5";
 const cognitoRedirectUri = `${window.location.origin}/`;
 const userStateApiUrl = "https://4ei4w1egn9.execute-api.us-east-1.amazonaws.com";
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
+const appBrandName = "Odrerir";
 const remoteLessonFiles = [
   "lessons/lesson-1-comment-allez-vous.json",
   "lessons/lesson-2-le-cafe.json",
@@ -1312,7 +1316,7 @@ function clearAuthCallbackState() {
 function getStateSnapshot(route = window.location.hash.replace("#", "")) {
   return {
     currentRoute: route,
-    progress: getProgress(),
+    progress: getProgressWithFluencyCompatibility(),
     lessonAudioProgress: getLessonAudioProgress(),
     bestScores: getBestScores(),
     fluencyRatings: getFluencyRatings(),
@@ -1340,17 +1344,20 @@ async function loadCloudState() {
 
     const payload = await response.json();
     const state = payload.state;
+    const localState = getStateSnapshot();
 
     if (!state) {
-      applyCloudState(getEmptyUserState());
+      applyCloudState(localState);
       cloudStateReady = true;
       await saveCloudStateNow();
       return;
     }
 
-    applyCloudState(state);
+    const mergedState = mergeCloudStateWithLocalState(state, localState);
+    const shouldBackfillCloud = JSON.stringify(mergedState) !== JSON.stringify(state);
+    applyCloudState(mergedState);
     cloudStateReady = true;
-    if (isCloudStateMissingCurrentFields(state)) {
+    if (shouldBackfillCloud) {
       await saveCloudStateNow();
     }
   } catch (error) {
@@ -1361,12 +1368,54 @@ async function loadCloudState() {
   }
 }
 
-function isCloudStateMissingCurrentFields(state) {
-  return !state
-    || !Object.hasOwn(state, "lessonAudioProgress")
-    || !Object.hasOwn(state, "bestScores")
-    || !Object.hasOwn(state, "fluencyRatings")
-    || !Object.hasOwn(state, "fluencyReveals");
+function mergeCloudStateWithLocalState(cloudState, localState) {
+  const mergedState = {
+    ...getEmptyUserState(),
+    ...cloudState
+  };
+  mergedState.progress = mergeProgressCompleted(cloudState.progress, localState.progress);
+
+  ["lessonAudioProgress", "bestScores", "fluencyRatings", "fluencyReveals"].forEach((key) => {
+    if (isEmptyStateValue(mergedState[key]) && !isEmptyStateValue(localState[key])) {
+      mergedState[key] = localState[key];
+    }
+  });
+
+  if (!mergedState.currentRoute && localState.currentRoute) {
+    mergedState.currentRoute = localState.currentRoute;
+  }
+
+  return mergedState;
+}
+
+function mergeProgressCompleted(cloudProgress = {}, localProgress = {}) {
+  return {
+    ...cloudProgress,
+    completed: Array.from(new Set([
+      ...(Array.isArray(cloudProgress.completed) ? cloudProgress.completed : []),
+      ...(Array.isArray(localProgress.completed) ? localProgress.completed : [])
+    ]))
+  };
+}
+
+function isEmptyStateValue(value) {
+  if (!value) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  if (typeof value === "object") {
+    if (Array.isArray(value.completed)) {
+      return value.completed.length === 0;
+    }
+
+    return Object.keys(value).length === 0;
+  }
+
+  return false;
 }
 
 function getEmptyUserState() {
@@ -1382,6 +1431,9 @@ function getEmptyUserState() {
 
 function applyCloudState(state) {
   isApplyingCloudState = true;
+  const fluencyFromProgress = decodeFluencyProgressEntries(state.progress);
+  const mergedFluencyRatings = mergeFluencyRatings(fluencyFromProgress.ratings, state.fluencyRatings || {});
+  const mergedFluencyReveals = mergeFluencyReveals(fluencyFromProgress.reveals, state.fluencyReveals || {});
 
   if (state.progress) {
     writeStoredJson(progressKey, state.progress);
@@ -1395,12 +1447,12 @@ function applyCloudState(state) {
     writeStoredJson(bestScoresKey, state.bestScores);
   }
 
-  if (state.fluencyRatings) {
-    writeStoredJson(fluencyRatingsKey, state.fluencyRatings);
+  if (Object.hasOwn(state, "fluencyRatings") || Object.keys(fluencyFromProgress.ratings).length) {
+    writeStoredJson(fluencyRatingsKey, mergedFluencyRatings);
   }
 
-  if (state.fluencyReveals) {
-    writeStoredJson(fluencyRevealsKey, state.fluencyReveals);
+  if (Object.hasOwn(state, "fluencyReveals") || Object.keys(fluencyFromProgress.reveals).length) {
+    writeStoredJson(fluencyRevealsKey, mergedFluencyReveals);
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1524,21 +1576,30 @@ function decodeJwt(token) {
 
 function setRoute(route) {
   stopCurrentAudio();
-  queueCloudStateSave(route);
   window.location.hash = route;
+  flushCloudStateSave(route);
 }
 
 function renderLoading() {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
       </div>
       <section class="complete-panel">
         <p class="correct-kicker">Loading</p>
         <h1>Preparing lessons...</h1>
       </section>
     </section>
+  `;
+}
+
+function createBrandMarkup() {
+  return `
+    <div class="brand" aria-label="${appBrandName}">
+      <span class="brand-vase" aria-hidden="true"></span>
+      <span>${appBrandName}</span>
+    </div>
   `;
 }
 
@@ -1695,6 +1756,141 @@ function saveProgress(progress) {
   queueCloudStateSave();
 }
 
+function getProgressWithFluencyCompatibility() {
+  const progress = getProgress();
+  const completed = Array.isArray(progress.completed) ? [...progress.completed] : [];
+  const ratings = getFluencyRatings();
+  const reveals = getFluencyReveals();
+
+  Object.entries(ratings).forEach(([lessonId, lessonRatings]) => {
+    Object.entries(lessonRatings || {}).forEach(([lineIndex, rating]) => {
+      const entry = getFluencyRatingProgressEntry(lessonId, lineIndex, rating);
+
+      if (!completed.includes(entry)) {
+        completed.push(entry);
+      }
+    });
+  });
+
+  Object.entries(reveals).forEach(([lessonId, lessonReveals]) => {
+    Object.entries(lessonReveals || {}).forEach(([lineIndex, lineReveals]) => {
+      Object.entries(lineReveals || {}).forEach(([revealType, revealed]) => {
+        if (!revealed) {
+          return;
+        }
+
+        const entry = getFluencyRevealProgressEntry(lessonId, lineIndex, revealType);
+
+        if (!completed.includes(entry)) {
+          completed.push(entry);
+        }
+      });
+    });
+  });
+
+  return {
+    ...progress,
+    completed
+  };
+}
+
+function saveFluencyProgressCompatibilityEntry(entry, stalePrefix = "") {
+  const progress = getProgress();
+  const completed = Array.isArray(progress.completed) ? [...progress.completed] : [];
+  const keptCompleted = stalePrefix
+    ? completed.filter((item) => !item.startsWith(stalePrefix))
+    : completed;
+
+  if (!keptCompleted.includes(entry)) {
+    keptCompleted.push(entry);
+  }
+
+  writeStoredJson(progressKey, {
+    ...progress,
+    completed: keptCompleted
+  });
+}
+
+function getFluencyRatingProgressEntry(lessonId, lineIndex, rating) {
+  return `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|${rating}`;
+}
+
+function getFluencyRevealProgressEntry(lessonId, lineIndex, revealType) {
+  return `${fluencyRevealProgressPrefix}${lessonId}|${lineIndex}|${revealType}`;
+}
+
+function decodeFluencyProgressEntries(progress = {}) {
+  const ratings = {};
+  const reveals = {};
+  const completed = Array.isArray(progress.completed) ? progress.completed : [];
+
+  completed.forEach((item) => {
+    if (typeof item !== "string") {
+      return;
+    }
+
+    if (item.startsWith(fluencyRatingProgressPrefix)) {
+      const [lessonId, lineIndex, rating] = item.slice(fluencyRatingProgressPrefix.length).split("|");
+      const numericRating = Number(rating);
+
+      if (lessonId && lineIndex !== undefined && numericRating >= 0 && numericRating <= 5) {
+        ratings[lessonId] = {
+          ...(ratings[lessonId] || {}),
+          [lineIndex]: numericRating
+        };
+      }
+      return;
+    }
+
+    if (item.startsWith(fluencyRevealProgressPrefix)) {
+      const [lessonId, lineIndex, revealType] = item.slice(fluencyRevealProgressPrefix.length).split("|");
+
+      if (lessonId && lineIndex !== undefined && revealType) {
+        reveals[lessonId] = {
+          ...(reveals[lessonId] || {}),
+          [lineIndex]: {
+            ...((reveals[lessonId] || {})[lineIndex] || {}),
+            [revealType]: true
+          }
+        };
+      }
+    }
+  });
+
+  return { ratings, reveals };
+}
+
+function mergeFluencyRatings(...ratingSets) {
+  return ratingSets.reduce((merged, ratings) => {
+    Object.entries(ratings || {}).forEach(([lessonId, lessonRatings]) => {
+      merged[lessonId] = {
+        ...(merged[lessonId] || {}),
+        ...(lessonRatings || {})
+      };
+    });
+
+    return merged;
+  }, {});
+}
+
+function mergeFluencyReveals(...revealSets) {
+  return revealSets.reduce((merged, reveals) => {
+    Object.entries(reveals || {}).forEach(([lessonId, lessonReveals]) => {
+      Object.entries(lessonReveals || {}).forEach(([lineIndex, lineReveals]) => {
+        merged[lessonId] = {
+          ...(merged[lessonId] || {}),
+          [lineIndex]: {
+            ...((merged[lessonId] || {})[lineIndex] || {}),
+            ...(lineReveals || {})
+          }
+        };
+      });
+    });
+
+    return merged;
+  }, {});
+}
+
 function getBestScores() {
   return readStoredJson(bestScoresKey, {});
 }
@@ -1756,17 +1952,19 @@ function saveFluencyReveal(lessonId, lineIndex, revealType) {
     }
   };
   writeStoredJson(fluencyRevealsKey, reveals);
-  queueCloudStateSave();
+  saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, revealType));
+  flushCloudStateSave();
 }
 
 function saveFluencyRating(lessonId, lineIndex, rating) {
   const ratings = getFluencyRatings();
   const reveals = getFluencyReveals();
   const lessonReveals = reveals[lessonId] || {};
+  const normalizedRating = normalizeFluencyRating(rating);
 
   ratings[lessonId] = {
     ...(ratings[lessonId] || {}),
-    [lineIndex]: rating
+    [lineIndex]: normalizedRating
   };
   reveals[lessonId] = {
     ...lessonReveals,
@@ -1777,27 +1975,41 @@ function saveFluencyRating(lessonId, lineIndex, rating) {
   };
   writeStoredJson(fluencyRatingsKey, ratings);
   writeStoredJson(fluencyRevealsKey, reveals);
+  saveFluencyProgressCompatibilityEntry(
+    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating),
+    `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|`
+  );
+  saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "french"));
   flushCloudStateSave();
 }
 
 function getLessonFluencySummary(lesson) {
   const lessonRatings = getLessonFluencyRatings(lesson.id);
   const values = lesson.lines
-    .map((_, index) => Number(lessonRatings[index]))
-    .filter((rating) => rating >= 0 && rating <= 5);
+    .map((_, index) => normalizeFluencyRating(lessonRatings[index]))
+    .filter((rating) => rating !== null);
+  const counts = getFluencyRatingCounts(values);
 
   if (!values.length) {
     return {
       average: 0,
       rated: 0,
-      total: lesson.lines.length
+      total: lesson.lines.length,
+      counts,
+      passed: 0,
+      complete: false,
+      outcome: "incomplete"
     };
   }
 
   return {
     average: values.reduce((total, rating) => total + rating, 0) / values.length,
     rated: values.length,
-    total: lesson.lines.length
+    total: lesson.lines.length,
+    counts,
+    passed: counts[3] + counts[5],
+    complete: values.length === lesson.lines.length,
+    outcome: getFluencyOutcome(values, lesson.lines.length)
   };
 }
 
@@ -1808,11 +2020,11 @@ function getFluencySummaryLabel(lesson) {
     return "No sentences yet";
   }
 
-  if (!summary.rated) {
-    return `${summary.total} sentences`;
+  if (!summary.complete) {
+    return `${summary.passed}/${summary.total}`;
   }
 
-  return `Fluency: ${formatScore(summary.average)} / 5 (${summary.rated} of ${summary.total} rated)`;
+  return getFluencyOutcomeLabel(summary.outcome);
 }
 
 function getFluencyChapters() {
@@ -1836,14 +2048,22 @@ function getChapterFluencySummary(chapter) {
     return {
       score: summary.score + (lessonSummary.average * lessonSummary.rated),
       rated: summary.rated + lessonSummary.rated,
-      total: summary.total + lessonSummary.total
+      total: summary.total + lessonSummary.total,
+      values: [
+        ...summary.values,
+        ...getLessonFluencyValues(lesson)
+      ]
     };
-  }, { score: 0, rated: 0, total: 0 });
+  }, { score: 0, rated: 0, total: 0, values: [] });
 
   return {
     average: totals.rated ? totals.score / totals.rated : 0,
     rated: totals.rated,
-    total: totals.total
+    total: totals.total,
+    counts: getFluencyRatingCounts(totals.values),
+    passed: totals.values.filter((rating) => rating === 3 || rating === 5).length,
+    complete: totals.total > 0 && totals.rated === totals.total,
+    outcome: getFluencyOutcome(totals.values, totals.total)
   };
 }
 
@@ -1866,11 +2086,90 @@ function getLessonNumber(lesson) {
 function getChapterFluencyLabel(chapter) {
   const summary = getChapterFluencySummary(chapter);
 
-  if (!summary.rated) {
-    return `${summary.total} sentences`;
+  if (!summary.complete) {
+    return `${summary.passed}/${summary.total}`;
   }
 
-  return `Review average: ${formatScore(summary.average)} / 5 (${summary.rated} of ${summary.total} rated)`;
+  return getFluencyOutcomeLabel(summary.outcome);
+}
+
+function getLessonFluencyValues(lesson) {
+  const lessonRatings = getLessonFluencyRatings(lesson.id);
+
+  return lesson.lines
+    .map((_, index) => normalizeFluencyRating(lessonRatings[index]))
+    .filter((rating) => rating !== null);
+}
+
+function normalizeFluencyRating(rating) {
+  const value = Number(rating);
+
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  if (value <= 0) {
+    return 0;
+  }
+
+  if (value < 3) {
+    return 2;
+  }
+
+  if (value === 3) {
+    return 3;
+  }
+
+  return 5;
+}
+
+function getFluencyRatingCounts(values) {
+  return values.reduce((counts, rating) => {
+    counts[normalizeFluencyRating(rating)] += 1;
+    return counts;
+  }, { 0: 0, 2: 0, 3: 0, 5: 0 });
+}
+
+function getFluencyOutcome(values, total) {
+  const counts = getFluencyRatingCounts(values);
+
+  if (!total || values.length !== total) {
+    return "incomplete";
+  }
+
+  if (counts[0] > total / 4) {
+    return "red";
+  }
+
+  if (counts[2] > total / 2) {
+    return "orange";
+  }
+
+  if (counts[0] > 0) {
+    return "yellow";
+  }
+
+  if (counts[2] > 0) {
+    return "lime";
+  }
+
+  return "green";
+}
+
+function getFluencyOutcomeClass(summary) {
+  return summary.complete ? `fluency-${summary.outcome}` : "current";
+}
+
+function getFluencyOutcomeLabel(outcome) {
+  const labels = {
+    green: "Complete: understood",
+    lime: "Complete: light review",
+    yellow: "Complete: missed a few",
+    orange: "Complete: needs review",
+    red: "Complete: repeat this"
+  };
+
+  return labels[outcome] || "In progress";
 }
 
 function saveBestScore(itemId, summary) {
@@ -1968,6 +2267,13 @@ function render() {
     return;
   }
 
+  const toolRoute = getToolRoute(route);
+  if (toolRoute) {
+    renderToolPlaceholder(toolRoute);
+    renderAccountControls();
+    return;
+  }
+
   const fluencyRoute = getFluencyRoute(route);
 
   if (fluencyRoute) {
@@ -2020,10 +2326,10 @@ function renderAuthGate(message = "") {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
       </div>
       <section class="auth-panel" aria-labelledby="auth-title">
-        <p class="correct-kicker">Ogham account</p>
+        <p class="correct-kicker">${appBrandName} account</p>
         <h1 id="auth-title">Sign in to continue.</h1>
         <p class="lesson-lede">Use your email to save lesson progress under your account.</p>
         ${message ? `<p class="auth-error">${message}</p>` : ""}
@@ -2048,18 +2354,12 @@ function renderAccountControls() {
   controls.innerHTML = `
     <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
     <span class="account-email">${user.email}</span>
-    <button class="back-link" type="button" data-reset-account>Reset progress</button>
+    <button class="back-link" type="button" data-master-control>Master Control</button>
     <button class="back-link" type="button" data-logout>Log out</button>
   `;
 
   topbar.appendChild(controls);
-  controls.querySelector("[data-reset-account]").addEventListener("click", () => {
-    resetCurrentAccountState().catch((error) => {
-      console.warn("Account progress could not be reset.", error);
-      cloudSaveStatus = "Reset failed";
-      updateAccountSyncStatus();
-    });
-  });
+  controls.querySelector("[data-master-control]").addEventListener("click", showMasterControl);
   controls.querySelector("[data-logout]").addEventListener("click", logout);
 }
 
@@ -2069,6 +2369,163 @@ function updateAccountSyncStatus() {
   if (status) {
     status.textContent = cloudSaveStatus;
   }
+}
+
+function showMasterControl() {
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <section class="correct-modal master-modal" role="dialog" aria-modal="true" aria-labelledby="master-title">
+      <p class="correct-kicker">Account Tools</p>
+      <h2 id="master-title">Master Control</h2>
+      <div class="master-grid">
+        <label class="master-field">
+          <span>Mark lessons complete through</span>
+          <input type="number" min="0" max="${lessons.length}" value="0" data-master-lesson-through>
+        </label>
+        <label class="master-field">
+          <span>Set fluency through lesson</span>
+          <select data-master-fluency-lesson>
+            <option value="through">Use lesson number above</option>
+            <option value="all">All lessons</option>
+            ${lessons.map((lesson) => `<option value="${lesson.id}">${lesson.title}</option>`).join("")}
+          </select>
+        </label>
+        <label class="master-field">
+          <span>Fluency value</span>
+          <select data-master-fluency-rating>
+            <option value="skip">Leave unchanged</option>
+            ${getFluencyRatingOptions().map((option) => `<option value="${option.value}">${option.symbol.replace("&#10003;", "✓")} ${option.label}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <div class="master-actions">
+        <button class="text-button" type="button" data-master-reset>Reset Account</button>
+        <button class="text-button" type="button" data-master-close>Cancel</button>
+        <button class="primary-button" type="button" data-master-apply>Apply + Save</button>
+      </div>
+      <p class="sync-status" data-master-status></p>
+    </section>
+  `;
+
+  app.appendChild(modal);
+  modal.querySelector("[data-master-close]").addEventListener("click", () => modal.remove());
+  modal.querySelector("[data-master-apply]").addEventListener("click", (event) => applyMasterControl(modal, event.currentTarget));
+  modal.querySelector("[data-master-reset]").addEventListener("click", () => {
+    resetCurrentAccountState().then(() => modal.remove()).catch((error) => {
+      console.warn("Account progress could not be reset.", error);
+      modal.querySelector("[data-master-status]").textContent = "Reset failed";
+    });
+  });
+}
+
+async function applyMasterControl(modal, button) {
+  const status = modal.querySelector("[data-master-status]");
+  const lessonThrough = Number(modal.querySelector("[data-master-lesson-through]").value || 0);
+  const fluencyLessonId = modal.querySelector("[data-master-fluency-lesson]").value;
+  const fluencyRatingValue = modal.querySelector("[data-master-fluency-rating]").value;
+
+  button.disabled = true;
+  button.textContent = "Saving...";
+  status.textContent = "";
+
+  try {
+    applyLessonCompletionThrough(lessonThrough);
+    if (fluencyRatingValue !== "skip") {
+      if (fluencyLessonId === "through") {
+        applyBulkFluencyRatingThrough(lessonThrough, Number(fluencyRatingValue));
+      } else {
+        applyBulkFluencyRating(fluencyLessonId, Number(fluencyRatingValue));
+      }
+    }
+    await saveCloudStateNow();
+    cloudSaveStatus = "Saved";
+    updateAccountSyncStatus();
+    modal.remove();
+    render();
+  } catch (error) {
+    console.warn("Master control changes could not be saved.", error);
+    status.textContent = "Save failed";
+    button.disabled = false;
+    button.textContent = "Apply + Save";
+  }
+}
+
+function applyLessonCompletionThrough(lessonNumber) {
+  const clampedLessonNumber = Math.max(0, Math.min(lessons.length, lessonNumber));
+  const progress = getProgress();
+  const completed = Array.isArray(progress.completed) ? [...progress.completed] : [];
+
+  lessons.slice(0, clampedLessonNumber).forEach((lesson) => {
+    if (!completed.includes(lesson.id)) {
+      completed.push(lesson.id);
+    }
+  });
+
+  writeStoredJson(progressKey, {
+    ...progress,
+    completed
+  });
+}
+
+function applyBulkFluencyRating(lessonId, rating) {
+  const targetLessons = lessonId === "all" ? lessons : lessons.filter((lesson) => lesson.id === lessonId);
+
+  targetLessons.forEach((lesson) => {
+    applyLessonFluencyRatingBlanks(lesson, rating);
+  });
+}
+
+function applyBulkFluencyRatingThrough(lessonNumber, rating) {
+  const clampedLessonNumber = Math.max(0, Math.min(lessons.length, lessonNumber));
+
+  lessons.slice(0, clampedLessonNumber).forEach((lesson) => {
+    applyLessonFluencyRatingBlanks(lesson, rating);
+  });
+}
+
+function applyLessonFluencyRatingBlanks(lesson, rating) {
+  const lessonRatings = getLessonFluencyRatings(lesson.id);
+
+  lesson.lines.forEach((line, index) => {
+      if (!line.audio) {
+        return;
+      }
+
+      if (lessonRatings[index] !== undefined && lessonRatings[index] !== null && lessonRatings[index] !== "") {
+        return;
+      }
+
+      saveFluencyRatingLocalOnly(lesson.id, index, rating);
+  });
+}
+
+function saveFluencyRatingLocalOnly(lessonId, lineIndex, rating) {
+  const ratings = getFluencyRatings();
+  const reveals = getFluencyReveals();
+  const lessonReveals = reveals[lessonId] || {};
+  const normalizedRating = normalizeFluencyRating(rating);
+
+  ratings[lessonId] = {
+    ...(ratings[lessonId] || {}),
+    [lineIndex]: normalizedRating
+  };
+  reveals[lessonId] = {
+    ...lessonReveals,
+    [lineIndex]: {
+      ...(lessonReveals[lineIndex] || {}),
+      listened: true,
+      french: true
+    }
+  };
+  writeStoredJson(fluencyRatingsKey, ratings);
+  writeStoredJson(fluencyRevealsKey, reveals);
+  saveFluencyProgressCompatibilityEntry(
+    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating),
+    `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|`
+  );
+  saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "listened"));
+  saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "french"));
 }
 
 function getTestRoute(route) {
@@ -2090,28 +2547,59 @@ function getTestRoute(route) {
 function renderHome() {
   const currentItem = getNextAvailableItem();
   const isLocked = !isItemUnlocked(currentItem.id);
+  const currentLesson = currentItem.type === "lesson" ? currentItem : lessons.find((lesson) => !isItemCompleted(lesson.id)) || lessons[0];
+  const graphMode = getHomeGraphMode();
 
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
-        <button class="back-link" type="button" data-history>Chronicle</button>
+        ${createBrandMarkup()}
       </div>
-      <div class="home-grid">
-        <section class="intro" aria-labelledby="home-title">
-          <h1 id="home-title">Read one small story at a time.</h1>
-          <p>Move through the introduction, then unlock each lesson in order. Older lessons stay available in the Chronicle.</p>
+      <div class="home-dashboard">
+        <section class="home-progress-panel" aria-labelledby="home-progress-title">
+          <div>
+            <p class="booklet-kicker">${graphMode === "fluency" ? "Fluency Progress" : "Lesson Progress"}</p>
+            <h1 id="home-progress-title">${getHomeProgressHeadline(graphMode, currentLesson)}</h1>
+            <div class="home-progress-tabs" aria-label="Graph mode">
+              <button class="${graphMode === "lessons" ? "active" : ""}" type="button" data-home-graph-mode="lessons">Lessons</button>
+              <button class="${graphMode === "fluency" ? "active" : ""}" type="button" data-home-graph-mode="fluency">Fluency</button>
+            </div>
+          </div>
+          ${createHomeProgressGraph(graphMode)}
+          <div class="home-progress-stats">
+            ${createHomeProgressStats(graphMode)}
+          </div>
         </section>
+        <div class="home-ai-actions">
+          <button class="home-section-card compact" type="button" data-tool="ai-live">
+            <span class="booklet-kicker">Speaking</span>
+            <span class="home-section-title">AI Chat</span>
+          </button>
+          <button class="home-section-card compact" type="button" data-tool="ai-story">
+            <span class="booklet-kicker">Writing</span>
+            <span class="home-section-title">AI Story Gen</span>
+          </button>
+        </div>
         <div class="home-actions">
+          <div class="home-tool-grid">
+            <button class="home-section-card compact" type="button" data-tool="dictionary">
+              <span class="booklet-kicker">Words</span>
+              <span class="home-section-title">Dictionary</span>
+            </button>
+            <button class="home-section-card compact" type="button" data-history>
+              <span class="booklet-kicker">Archive</span>
+              <span class="home-section-title">Chronicle</span>
+            </button>
+            <button class="home-section-card home-section-card-large" type="button" data-fluency-home>
+              <span class="booklet-kicker">Listening</span>
+              <span class="home-section-title">Fluency Review</span>
+              <span class="booklet-footer">${getCurrentFluencyLocationLabel()}</span>
+            </button>
+          </div>
           <button class="booklet ${isLocked ? "locked" : ""}" type="button" aria-label="Open ${currentItem.title}" ${isLocked ? "disabled" : ""}>
             <span class="booklet-kicker">${currentItem.language}</span>
             <span class="booklet-title">${currentItem.title}</span>
             <span class="booklet-footer">${getItemStatusLabel(currentItem)}</span>
-          </button>
-          <button class="home-section-card" type="button" data-fluency-home>
-            <span class="booklet-kicker">Listening</span>
-            <span class="home-section-title">Fluency Review</span>
-            <span class="booklet-footer">Audio first, reveal text, rate each sentence</span>
           </button>
         </div>
       </div>
@@ -2121,6 +2609,16 @@ function renderHome() {
   app.querySelector("[data-history]").addEventListener("click", () => setRoute("history"));
   app.querySelector(".booklet").addEventListener("click", () => setRoute(currentItem.id));
   app.querySelector("[data-fluency-home]").addEventListener("click", () => setRoute("fluency"));
+  app.querySelectorAll("[data-home-graph-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.localStorage.setItem(homeGraphModeKey, button.dataset.homeGraphMode);
+      renderHome();
+      renderAccountControls();
+    });
+  });
+  app.querySelectorAll("[data-tool]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(button.dataset.tool));
+  });
 }
 
 function getItemStatusLabel(item) {
@@ -2139,6 +2637,154 @@ function getItemStatusLabel(item) {
   return item.lines.length ? `${item.lines.length} story lines` : "Empty for now";
 }
 
+function getCompletedLessonCount() {
+  return lessons.filter((lesson) => isItemCompleted(lesson.id)).length;
+}
+
+function getFluencySentenceCount() {
+  return lessons.reduce((total, lesson) => total + lesson.lines.length, 0);
+}
+
+function getFluencyPassedCount() {
+  return lessons.reduce((total, lesson) => total + getLessonFluencySummary(lesson).passed, 0);
+}
+
+function getHomeGraphMode() {
+  const mode = window.localStorage.getItem(homeGraphModeKey);
+  return mode === "fluency" ? "fluency" : "lessons";
+}
+
+function getHomeProgressHeadline(mode, currentLesson) {
+  if (mode === "fluency") {
+    const lesson = getCurrentFluencyLesson();
+    return lesson ? `Lesson ${getLessonNumber(lesson)}` : "Fluency";
+  }
+
+  if (!currentLesson) {
+    return "Begin";
+  }
+
+  return `Lesson ${getLessonNumber(currentLesson)}`;
+}
+
+function createHomeProgressStats(mode) {
+  const completed = getCompletedLessonCount();
+  const fluencyPassed = getFluencyPassedCount();
+  const fluencyTotal = getFluencySentenceCount();
+
+  if (mode === "fluency") {
+    return `
+      <span>${fluencyPassed}/${fluencyTotal} sentences</span>
+      <span>${getCurrentFluencyLocationLabel()}</span>
+    `;
+  }
+
+  return `
+    <span>${completed}/${lessons.length} lessons</span>
+    <span>${fluencyPassed}/${fluencyTotal} fluency</span>
+  `;
+}
+
+function createHomeProgressGraph(mode = "lessons") {
+  const completed = getCompletedLessonCount();
+  const fluencyPassed = getFluencyPassedCount();
+  const fluencyTotal = Math.max(getFluencySentenceCount(), 1);
+  const lessonPercent = lessons.length ? completed / lessons.length : 0;
+  const fluencyPercent = fluencyPassed / fluencyTotal;
+  const currentFluencyLesson = getCurrentFluencyLesson();
+  const currentFluencyPercent = currentFluencyLesson
+    ? (getLessonNumber(currentFluencyLesson) - 1) / Math.max(lessons.length - 1, 1)
+    : 0;
+  const graphPercent = mode === "fluency" ? fluencyPercent : Math.max(lessonPercent, fluencyPercent);
+  const positionPercent = mode === "fluency" ? currentFluencyPercent : lessonPercent;
+  const points = mode === "fluency"
+    ? [
+        [8, 76],
+        [28, 72 - fluencyPercent * 12],
+        [50, 62 - fluencyPercent * 22],
+        [72, 48 - fluencyPercent * 28],
+        [94, 34 - fluencyPercent * 34]
+      ]
+    : [
+        [8, 76],
+        [30, 68 - lessonPercent * 20],
+        [54, 58 - fluencyPercent * 24],
+        [78, 40 - Math.max(lessonPercent, fluencyPercent) * 22],
+        [94, 24 - Math.min(0.16, (lessonPercent + fluencyPercent) / 2) * 20]
+      ];
+  const polyline = points.map(([x, y]) => `${x},${Math.max(12, y)}`).join(" ");
+  const currentX = 8 + positionPercent * 86;
+  const currentY = 76 - graphPercent * 44;
+
+  return `
+    <svg class="home-progress-graph ${mode === "fluency" ? "fluency-graph" : ""}" viewBox="0 0 100 90" role="img" aria-label="${mode === "fluency" ? "Fluency review progress graph" : "Learning progress graph"}">
+      <path d="M8 80 H96" />
+      <path d="M8 80 V12" />
+      <polyline points="${polyline}" />
+      <circle cx="${currentX}" cy="${Math.max(14, currentY)}" r="4" />
+    </svg>
+  `;
+}
+
+function getCurrentFluencyLesson() {
+  return lessons.find((item) => {
+    const summary = getLessonFluencySummary(item);
+    return summary.total && !summary.complete;
+  }) || lessons[lessons.length - 1];
+}
+
+function getCurrentFluencyLocationLabel() {
+  const lesson = getCurrentFluencyLesson();
+
+  if (!lesson) {
+    return "No lessons yet";
+  }
+
+  const lessonNumber = getLessonNumber(lesson);
+  return `Chapter ${Math.ceil(lessonNumber / 7)} &middot; Lesson ${lessonNumber}`;
+  return `Chapter ${chapterNumber} · Lesson ${getLessonNumber(lesson)}`;
+}
+
+function getToolRoute(route) {
+  const tools = {
+    dictionary: {
+      title: "Dictionary",
+      kicker: "Words",
+      body: "A personal word bank will live here. Later we can add saved vocabulary, search, examples, and review prompts."
+    },
+    "ai-live": {
+      title: "AI Chat",
+      kicker: "Speaking",
+      body: "Practice talking live will live here. Later we can connect this to a speaking partner flow for conversation practice."
+    },
+    "ai-story": {
+      title: "AI Story Gen",
+      kicker: "Writing",
+      body: "AI story generation will live here. Later we can generate short stories around your current lesson and vocabulary."
+    }
+  };
+
+  return tools[route] || null;
+}
+
+function renderToolPlaceholder(tool) {
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <section class="complete-panel placeholder-panel">
+        <p class="correct-kicker">${tool.kicker}</p>
+        <h1>${tool.title}</h1>
+        <p class="lesson-lede">${tool.body}</p>
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+}
+
 function getFluencyRoute(route) {
   if (!route.startsWith("fluency-")) {
     return null;
@@ -2152,12 +2798,13 @@ function renderFluencyHome() {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back home</button>
       </div>
       <header class="lesson-header">
         <h1>Fluency Review</h1>
         <p class="lesson-lede">Listen first, rate your understanding, then check the French and English.</p>
+        <button class="primary-button" type="button" data-save-fluency>Save Review</button>
       </header>
       <section class="fluency-chapter-list" aria-label="Fluency review chapters">
         ${getFluencyChapters().map(createFluencyChapter).join("")}
@@ -2166,6 +2813,7 @@ function renderFluencyHome() {
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelector("[data-save-fluency]").addEventListener("click", (event) => saveFluencyReviewNow(event.currentTarget));
   app.querySelectorAll("[data-open-fluency]").forEach((button) => {
     button.addEventListener("click", () => setRoute(`fluency-${button.dataset.openFluency}`));
   });
@@ -2176,8 +2824,7 @@ function renderFluencyHome() {
 
 function createFluencyChapter(chapter) {
   const summary = getChapterFluencySummary(chapter);
-  const complete = summary.total && summary.rated === summary.total;
-  const chapterClass = complete ? "perfect" : summary.rated ? "passing" : "current";
+  const chapterClass = getFluencyOutcomeClass(summary);
   const collapsed = isFluencyChapterCollapsed(chapter.number);
   const lessonListId = `fluency-chapter-lessons-${chapter.number}`;
 
@@ -2187,10 +2834,9 @@ function createFluencyChapter(chapter) {
         <div>
           <p class="history-kicker">Lessons ${getChapterLessonRange(chapter)}</p>
           <h2 id="fluency-chapter-${chapter.number}">Chapter ${chapter.number}</h2>
-          <p>${getChapterFluencyLabel(chapter)}</p>
+          ${summary.complete ? "" : `<p>${getChapterFluencyLabel(chapter)}</p>`}
         </div>
         <div class="fluency-chapter-actions">
-          ${summary.rated ? `<div class="chapter-score">${formatScore(summary.average)} / 5</div>` : ""}
           <button class="icon-button chapter-toggle-button" type="button" data-toggle-fluency-chapter="${chapter.number}" aria-controls="${lessonListId}" aria-expanded="${collapsed ? "false" : "true"}" title="${collapsed ? "Expand chapter" : "Collapse chapter"}" aria-label="${collapsed ? "Expand Chapter " + chapter.number : "Collapse Chapter " + chapter.number}">${collapsed ? "+" : "&minus;"}</button>
         </div>
       </div>
@@ -2201,16 +2847,39 @@ function createFluencyChapter(chapter) {
   `;
 }
 
+async function saveFluencyReviewNow(button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+  cloudSaveStatus = "Saving...";
+  updateAccountSyncStatus();
+
+  try {
+    await saveCloudStateNow();
+    button.textContent = "Saved";
+  } catch (error) {
+    console.warn("Fluency review could not be saved.", error);
+    cloudSaveStatus = "Save failed";
+    updateAccountSyncStatus();
+    button.textContent = "Save failed";
+  } finally {
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = originalText;
+    }, 1200);
+  }
+}
+
 function createFluencyLessonItem(lesson) {
   const summary = getLessonFluencySummary(lesson);
-  const className = summary.rated === summary.total && summary.total ? "perfect" : summary.rated ? "passing" : "current";
+  const className = getFluencyOutcomeClass(summary);
 
   return `
     <article class="history-item ${className}">
       <div>
         <p class="history-kicker">${lesson.language}</p>
         <h2>${lesson.title}</h2>
-        <p>${getFluencySummaryLabel(lesson)}</p>
+        ${summary.complete ? "" : `<p>${getFluencySummaryLabel(lesson)}</p>`}
       </div>
       <button class="text-button" type="button" data-open-fluency="${lesson.id}" ${lesson.lines.length ? "" : "disabled"}>Open</button>
     </article>
@@ -2220,26 +2889,34 @@ function createFluencyLessonItem(lesson) {
 function renderFluencyLesson(lesson) {
   const summary = getLessonFluencySummary(lesson);
   const playableLineCount = lesson.lines.filter((line) => line.audio).length;
+  const nextLesson = getNextFluencyLesson(lesson.id);
 
   app.innerHTML = `
-    <section class="shell">
+    <section class="shell has-sticky-player">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Fluency</button>
       </div>
       <header class="lesson-header">
         <h1>${lesson.title}</h1>
-        <p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>
-        ${summary.rated ? `<div class="fluency-meter" aria-label="Average fluency ${formatScore(summary.average)} out of 5"><span style="width: ${(summary.average / 5) * 100}%"></span></div>` : ""}
+        ${summary.complete ? "" : `<p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>`}
+        <button class="primary-button" type="button" data-save-fluency>Save Review</button>
       </header>
       ${playableLineCount ? createStoryPlayerControls(playableLineCount) : ""}
       <section class="story-list fluency-list" aria-label="${lesson.title} fluency sentences">
         ${lesson.lines.length ? lesson.lines.map((line, index) => createFluencyLine(lesson, line, index)).join("") : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`}
       </section>
+      <div class="fluency-bottom-actions">
+        <button class="primary-button" type="button" data-save-exit-fluency>Save + Exit</button>
+        <button class="primary-button" type="button" data-save-next-fluency ${nextLesson ? "" : "disabled"}>Save + Next</button>
+      </div>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute("fluency"));
+  app.querySelector("[data-save-fluency]").addEventListener("click", (event) => saveFluencyReviewNow(event.currentTarget));
+  app.querySelector("[data-save-next-fluency]").addEventListener("click", (event) => saveFluencyAndGo(event.currentTarget, nextLesson ? `fluency-${nextLesson.id}` : "fluency"));
+  app.querySelector("[data-save-exit-fluency]").addEventListener("click", (event) => saveFluencyAndGo(event.currentTarget, "fluency"));
   app.querySelectorAll("[data-listening-audio]").forEach((button) => {
     button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFluencyRating(button)));
   });
@@ -2272,10 +2949,43 @@ function renderFluencyLesson(lesson) {
   });
 }
 
+function getNextFluencyLesson(lessonId) {
+  const index = lessons.findIndex((lesson) => lesson.id === lessonId);
+
+  if (index === -1) {
+    return null;
+  }
+
+  return lessons[index + 1] || null;
+}
+
+async function saveFluencyAndGo(button, route) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+  cloudSaveStatus = "Saving...";
+  updateAccountSyncStatus();
+
+  try {
+    await saveCloudStateNow(route);
+    button.textContent = "Saved";
+    setRoute(route);
+  } catch (error) {
+    console.warn("Fluency review could not be saved.", error);
+    cloudSaveStatus = "Save failed";
+    updateAccountSyncStatus();
+    button.textContent = "Save failed";
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = originalText;
+    }, 1200);
+  }
+}
+
 function createFluencyLine(lesson, line, index) {
   const savedRating = getLessonFluencyRatings(lesson.id)[index];
   const hasSavedRating = savedRating !== undefined && savedRating !== null && savedRating !== "";
-  const rating = hasSavedRating ? Number(savedRating) : null;
+  const rating = hasSavedRating ? normalizeFluencyRating(savedRating) : null;
   const reveal = getLineFluencyReveal(lesson.id, index);
   const canRate = Boolean(reveal.listened || reveal.french || hasSavedRating || !line.audio);
   const frenchVisible = Boolean(reveal.french || hasSavedRating);
@@ -2293,25 +3003,26 @@ function createFluencyLine(lesson, line, index) {
       <p class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${line.french}</p>
       <p class="fluency-hidden-text translation ${englishVisible ? "visible" : ""}" id="fluency-english-${index}">${line.english}</p>
       <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
-        ${[0, 1, 2, 3, 4, 5].map((value) => `<button class="rating-button rating-${value} ${rating === value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${value}" title="${getFluencyRatingLabel(value)}" aria-label="${getFluencyRatingLabel(value)}" ${canRate ? "" : "disabled"}>${value}</button>`).join("")}
+        ${getFluencyRatingOptions().map((option) => `<button class="rating-button rating-${option.value} ${rating === option.value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${option.value}" title="${option.label}" aria-label="${option.label}" ${canRate ? "" : "disabled"}>${option.symbol}</button>`).join("")}
         <button class="text-button hide-line-button" type="button" data-hide-fluency-line ${frenchVisible || englishVisible ? "" : "disabled"}>Hide</button>
-        <span>${hasSavedRating ? `Saved: ${rating} / 5` : "Not rated"}</span>
+        <span>${hasSavedRating ? `Saved: ${getFluencyRatingSymbol(rating)}` : "Not rated"}</span>
       </div>
     </article>
   `;
 }
 
-function getFluencyRatingLabel(value) {
-  const labels = {
-    0: "0 - understand nothing",
-    1: "1 - barely understand",
-    2: "2 - partly understand",
-    3: "3 - understand",
-    4: "4 - understand well",
-    5: "5 - completely understand"
-  };
+function getFluencyRatingOptions() {
+  return [
+    { value: 0, symbol: "X", label: "Missed it" },
+    { value: 2, symbol: "&#10003;-", label: "Barely understood" },
+    { value: 3, symbol: "&#10003;", label: "Understood" },
+    { value: 5, symbol: "&#10003;+", label: "Understood completely" }
+  ];
+}
 
-  return labels[value];
+function getFluencyRatingSymbol(value) {
+  const option = getFluencyRatingOptions().find((item) => item.value === normalizeFluencyRating(value));
+  return option ? option.symbol : "";
 }
 
 function unlockFluencyRating(audioButton) {
@@ -2370,7 +3081,7 @@ function renderHistory() {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back home</button>
       </div>
       <header class="lesson-header">
@@ -2442,7 +3153,7 @@ function renderIntro(introItem, slideIndex = 0) {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back home</button>
       </div>
       <section class="slide-panel" aria-label="Introduction slide">
@@ -2724,7 +3435,7 @@ function renderLockedItem(item) {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back home</button>
       </div>
       <section class="complete-panel">
@@ -2751,7 +3462,7 @@ function renderLesson(lesson) {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back home</button>
       </div>
       <header class="lesson-header">
@@ -3025,7 +3736,7 @@ function renderTest(lesson, test, itemIndex = 0, selected = [], feedback = "", a
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <div class="topbar-actions">
           <button class="back-link" type="button" data-look-back>Look back</button>
           <button class="back-link" type="button" data-back-lesson>Back to lesson</button>
@@ -3316,7 +4027,7 @@ function renderPartOneComplete(lesson, test, attempts) {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back to lesson</button>
       </div>
       <section class="complete-panel">
@@ -3422,7 +4133,7 @@ function renderTestComplete(lesson) {
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back to lesson</button>
       </div>
       <section class="complete-panel">
@@ -3442,7 +4153,7 @@ function renderFillIntro(lesson, test, partOneSummary = getStoredScoreSummary(le
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back to lesson</button>
       </div>
       <section class="complete-panel">
@@ -3465,7 +4176,7 @@ function renderFillTest(lesson, test, answers = [], feedback = "", results = {},
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <div class="topbar-actions">
           <button class="back-link" type="button" data-look-back>Look back</button>
           <button class="back-link" type="button" data-back-lesson>Back to lesson</button>
@@ -3720,7 +4431,7 @@ function renderFillComplete(lesson, test = lesson.tests[1], attempts = activeFil
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
-        <div class="brand">Personal Language Reader</div>
+        ${createBrandMarkup()}
         <button class="back-link" type="button">Back to lesson</button>
       </div>
       <section class="complete-panel">
