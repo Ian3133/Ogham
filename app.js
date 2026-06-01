@@ -1350,12 +1350,23 @@ async function loadCloudState() {
 
     applyCloudState(state);
     cloudStateReady = true;
+    if (isCloudStateMissingCurrentFields(state)) {
+      await saveCloudStateNow();
+    }
   } catch (error) {
     console.warn("Cloud progress could not be loaded. Using local progress for now.", error);
     cloudStateReady = false;
     cloudSaveStatus = "Cloud load failed";
     updateAccountSyncStatus();
   }
+}
+
+function isCloudStateMissingCurrentFields(state) {
+  return !state
+    || !Object.hasOwn(state, "lessonAudioProgress")
+    || !Object.hasOwn(state, "bestScores")
+    || !Object.hasOwn(state, "fluencyRatings")
+    || !Object.hasOwn(state, "fluencyReveals");
 }
 
 function getEmptyUserState() {
