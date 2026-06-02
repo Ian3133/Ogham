@@ -1128,7 +1128,8 @@ let storySequence = {
   audio: null,
   token: 0,
   paused: false,
-  finished: true
+  finished: true,
+  mode: "lesson"
 };
 let activeTest = {
   lesson: null,
@@ -1929,8 +1930,16 @@ function isFluencyChapterCollapsed(chapterNumber) {
 
 function toggleFluencyChapter(chapterNumber) {
   const collapsedChapters = getCollapsedFluencyChapters();
+  const hasStoredCollapseState = Object.keys(collapsedChapters).length > 0;
+  const currentChapterNumber = getCurrentFluencyChapterNumber();
+  const isCollapsed = hasStoredCollapseState
+    ? Boolean(collapsedChapters[chapterNumber])
+    : Number(chapterNumber) !== currentChapterNumber;
 
-  if (collapsedChapters[chapterNumber]) {
+  if (isCollapsed) {
+    getFluencyChapters().forEach((chapter) => {
+      collapsedChapters[chapter.number] = true;
+    });
     delete collapsedChapters[chapterNumber];
   } else {
     collapsedChapters[chapterNumber] = true;
@@ -2267,6 +2276,12 @@ function render() {
     return;
   }
 
+  if (route === "fluency-weak-review") {
+    renderFluencyWeakReview();
+    renderAccountControls();
+    return;
+  }
+
   const toolRoute = getToolRoute(route);
   if (toolRoute) {
     renderToolPlaceholder(toolRoute);
@@ -2278,7 +2293,7 @@ function render() {
 
   if (fluencyRoute) {
     renderFluencyLesson(fluencyRoute);
-    renderAccountControls();
+    renderAccountControls({ hideActions: true });
     return;
   }
 
@@ -2290,7 +2305,7 @@ function render() {
 
   if (routeItem?.type === "lesson") {
     renderLockedAwareLesson(routeItem);
-    renderAccountControls();
+    renderAccountControls({ hideActions: true });
     return;
   }
 
@@ -2299,13 +2314,13 @@ function render() {
   if (testRoute) {
     if (!isItemUnlocked(testRoute.lesson.id)) {
       renderLockedItem(testRoute.lesson);
-      renderAccountControls();
+      renderAccountControls({ hideActions: true });
       return;
     }
 
     if (!isLessonTestUnlocked(testRoute.lesson)) {
       renderLesson(testRoute.lesson);
-      renderAccountControls();
+      renderAccountControls({ hideActions: true });
       return;
     }
 
@@ -2314,7 +2329,7 @@ function render() {
     } else {
       renderFillIntro(testRoute.lesson, testRoute.test);
     }
-    renderAccountControls();
+    renderAccountControls({ hideActions: true });
     return;
   }
 
@@ -2341,7 +2356,7 @@ function renderAuthGate(message = "") {
   app.querySelector("[data-login]").addEventListener("click", startLogin);
 }
 
-function renderAccountControls() {
+function renderAccountControls(options = {}) {
   const user = getCurrentUser();
   const topbar = app.querySelector(".topbar");
 
@@ -2354,13 +2369,15 @@ function renderAccountControls() {
   controls.innerHTML = `
     <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
     <span class="account-email">${user.email}</span>
-    <button class="back-link" type="button" data-master-control>Master Control</button>
-    <button class="back-link" type="button" data-logout>Log out</button>
+    ${options.hideActions ? "" : `
+      <button class="back-link" type="button" data-master-control>Master Control</button>
+      <button class="back-link" type="button" data-logout>Log out</button>
+    `}
   `;
 
   topbar.appendChild(controls);
-  controls.querySelector("[data-master-control]").addEventListener("click", showMasterControl);
-  controls.querySelector("[data-logout]").addEventListener("click", logout);
+  controls.querySelector("[data-master-control]")?.addEventListener("click", showMasterControl);
+  controls.querySelector("[data-logout]")?.addEventListener("click", logout);
 }
 
 function updateAccountSyncStatus() {
@@ -2795,6 +2812,9 @@ function getFluencyRoute(route) {
 }
 
 function renderFluencyHome() {
+  const currentChapterNumber = getCurrentFluencyChapterNumber();
+  const chapters = getOrderedFluencyChapters(currentChapterNumber);
+
   app.innerHTML = `
     <section class="shell">
       <div class="topbar">
@@ -2802,18 +2822,22 @@ function renderFluencyHome() {
         <button class="back-link" type="button">Back home</button>
       </div>
       <header class="lesson-header">
-        <h1>Fluency Review</h1>
-        <p class="lesson-lede">Listen first, rate your understanding, then check the French and English.</p>
-        <button class="primary-button" type="button" data-save-fluency>Save Review</button>
+        <div class="lesson-header-row">
+          <div>
+            <h1>Fluency Review</h1>
+            <p class="lesson-lede">Listen first, rate your understanding, then check the French and English.</p>
+          </div>
+          <button class="text-button compact-review-button" type="button" data-open-weak-review>All Review</button>
+        </div>
       </header>
       <section class="fluency-chapter-list" aria-label="Fluency review chapters">
-        ${getFluencyChapters().map(createFluencyChapter).join("")}
+        ${chapters.map((chapter) => createFluencyChapter(chapter, currentChapterNumber)).join("")}
       </section>
     </section>
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
-  app.querySelector("[data-save-fluency]").addEventListener("click", (event) => saveFluencyReviewNow(event.currentTarget));
+  app.querySelector("[data-open-weak-review]").addEventListener("click", () => setRoute("fluency-weak-review"));
   app.querySelectorAll("[data-open-fluency]").forEach((button) => {
     button.addEventListener("click", () => setRoute(`fluency-${button.dataset.openFluency}`));
   });
@@ -2822,18 +2846,50 @@ function renderFluencyHome() {
   });
 }
 
-function createFluencyChapter(chapter) {
+function getCurrentFluencyChapterNumber() {
+  const currentLesson = getCurrentFluencyLesson();
+
+  if (!currentLesson) {
+    return null;
+  }
+
+  return Math.ceil(getLessonNumber(currentLesson) / 7);
+}
+
+function getOrderedFluencyChapters(currentChapterNumber = getCurrentFluencyChapterNumber()) {
+  const chapters = getFluencyChapters();
+
+  if (!currentChapterNumber) {
+    return chapters;
+  }
+
+  const currentIndex = chapters.findIndex((chapter) => chapter.number === currentChapterNumber);
+
+  if (currentIndex <= 0) {
+    return chapters;
+  }
+
+  return [
+    chapters[currentIndex],
+    ...chapters.slice(0, currentIndex),
+    ...chapters.slice(currentIndex + 1)
+  ];
+}
+
+function createFluencyChapter(chapter, currentChapterNumber = getCurrentFluencyChapterNumber()) {
   const summary = getChapterFluencySummary(chapter);
   const chapterClass = getFluencyOutcomeClass(summary);
-  const collapsed = isFluencyChapterCollapsed(chapter.number);
+  const isCurrentChapter = chapter.number === currentChapterNumber;
+  const hasStoredCollapseState = Object.keys(getCollapsedFluencyChapters()).length > 0;
+  const collapsed = hasStoredCollapseState ? isFluencyChapterCollapsed(chapter.number) : !isCurrentChapter;
   const lessonListId = `fluency-chapter-lessons-${chapter.number}`;
 
   return `
-    <section class="fluency-chapter ${chapterClass} ${collapsed ? "collapsed" : ""}" aria-labelledby="fluency-chapter-${chapter.number}">
+    <section class="fluency-chapter ${chapterClass} ${isCurrentChapter ? "current-chapter" : ""} ${collapsed ? "collapsed" : ""}" aria-labelledby="fluency-chapter-${chapter.number}">
       <div class="fluency-chapter-header">
         <div>
           <p class="history-kicker">Lessons ${getChapterLessonRange(chapter)}</p>
-          <h2 id="fluency-chapter-${chapter.number}">Chapter ${chapter.number}</h2>
+          <h2 id="fluency-chapter-${chapter.number}">Chapter ${chapter.number}${isCurrentChapter ? " - Current" : ""}</h2>
           ${summary.complete ? "" : `<p>${getChapterFluencyLabel(chapter)}</p>`}
         </div>
         <div class="fluency-chapter-actions">
@@ -2847,27 +2903,19 @@ function createFluencyChapter(chapter) {
   `;
 }
 
-async function saveFluencyReviewNow(button) {
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "Saving...";
-  cloudSaveStatus = "Saving...";
-  updateAccountSyncStatus();
+function getWeakFluencyReviewItems() {
+  return lessons.flatMap((lesson) => {
+    const ratings = getLessonFluencyRatings(lesson.id);
 
-  try {
-    await saveCloudStateNow();
-    button.textContent = "Saved";
-  } catch (error) {
-    console.warn("Fluency review could not be saved.", error);
-    cloudSaveStatus = "Save failed";
-    updateAccountSyncStatus();
-    button.textContent = "Save failed";
-  } finally {
-    window.setTimeout(() => {
-      button.disabled = false;
-      button.textContent = originalText;
-    }, 1200);
-  }
+    return lesson.lines
+      .map((line, lineIndex) => ({
+        lesson,
+        line,
+        lineIndex,
+        rating: normalizeFluencyRating(ratings[lineIndex])
+      }))
+      .filter((item) => item.rating === 0 || item.rating === 2);
+  });
 }
 
 function createFluencyLessonItem(lesson) {
@@ -2886,10 +2934,219 @@ function createFluencyLessonItem(lesson) {
   `;
 }
 
+function renderFluencyWeakReview() {
+  const items = getWeakFluencyReviewItems();
+
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button">Fluency</button>
+      </div>
+      <header class="lesson-header">
+        <h1>All Review</h1>
+        <p class="lesson-lede" data-weak-review-count>${items.length ? `${items.length} X or check-minus sentences to revisit.` : "No X or check-minus sentences right now."}</p>
+      </header>
+      <section class="story-list fluency-list weak-review-list" aria-label="All low-rated fluency sentences">
+        ${items.length ? items.map(createWeakReviewLine).join("") : `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear.</p></article>`}
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute("fluency"));
+  app.querySelectorAll("[data-weak-review-audio]").forEach((button) => {
+    button.addEventListener("click", () => toggleWeakReviewAudio(button));
+  });
+  app.querySelectorAll("[data-weak-review-reveal]").forEach((button) => {
+    button.addEventListener("click", () => revealWeakReviewFrench(button));
+  });
+  app.querySelectorAll("[data-weak-review-reveal-english]").forEach((button) => {
+    button.addEventListener("click", () => revealWeakReviewEnglish(button));
+  });
+  app.querySelectorAll("[data-weak-review-rating]").forEach((button) => {
+    button.addEventListener("click", () => handleWeakReviewRating(button));
+  });
+}
+
+function createWeakReviewLine(item) {
+  const hasAudio = Boolean(item.line.audio);
+  const reviewId = `${item.lesson.id}-${item.lineIndex}`;
+  const listened = Boolean(getLineFluencyReveal(item.lesson.id, item.lineIndex).listened);
+  const frenchId = `weak-review-french-${reviewId}`;
+  const englishId = `weak-review-english-${reviewId}`;
+
+  return `
+    <article class="story-line weak-review-line" data-weak-review-line="${reviewId}">
+      <div class="fluency-line-main">
+        <span class="line-number">${String(item.lineIndex + 1).padStart(2, "0")}</span>
+        <button class="icon-button" type="button" data-weak-review-audio="${item.line.audio}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause " + item.lesson.title + " sentence " + (item.lineIndex + 1) : "Audio coming later"}">&#9654;</button>
+        <span class="weak-review-source">${item.lesson.title}</span>
+        <button class="text-button" type="button" data-weak-review-reveal="${frenchId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal French</button>
+        <button class="text-button" type="button" data-weak-review-reveal-english="${englishId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal English</button>
+      </div>
+      <p class="fluency-hidden-text french" id="${frenchId}">${item.line.french}</p>
+      <p class="fluency-hidden-text translation" id="${englishId}">${item.line.english}</p>
+      <div class="fluency-rating" aria-label="Update ${item.lesson.title} sentence ${item.lineIndex + 1} rating">
+        ${getFluencyRatingOptions().map((option) => `
+          <button class="rating-button rating-${option.value} ${item.rating === option.value ? "active" : ""}" type="button" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}" data-weak-review-rating="${option.value}" title="${option.label}" aria-label="${option.label}" ${listened || !hasAudio ? "" : "disabled"}>
+            ${option.symbol}
+          </button>
+        `).join("")}
+        <span data-fluency-rating-status>Saved: ${getFluencyRatingTextSymbol(item.rating)}</span>
+        <span class="weak-review-reviewed" data-weak-review-reviewed hidden>Reviewed</span>
+      </div>
+    </article>
+  `;
+}
+
+function revealWeakReviewFrench(button) {
+  const line = button.closest(".weak-review-line");
+  const french = line.querySelector(`#${button.dataset.weakReviewReveal}`);
+
+  app.querySelectorAll(".weak-review-line").forEach((reviewLine) => {
+    if (reviewLine !== line) {
+      const openFrench = reviewLine.querySelector(".fluency-hidden-text.french.visible");
+      const revealButton = reviewLine.querySelector("[data-weak-review-reveal]");
+
+      if (openFrench) {
+        openFrench.classList.remove("visible");
+      }
+      if (revealButton) {
+        revealButton.textContent = "Reveal French";
+      }
+    }
+  });
+
+  french.classList.add("visible");
+  button.textContent = "French Revealed";
+  saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "french");
+}
+
+function revealWeakReviewEnglish(button) {
+  const line = button.closest(".weak-review-line");
+  const english = line.querySelector(`#${button.dataset.weakReviewRevealEnglish}`);
+
+  app.querySelectorAll(".weak-review-line").forEach((reviewLine) => {
+    if (reviewLine !== line) {
+      const openEnglish = reviewLine.querySelector(".fluency-hidden-text.translation.visible");
+      const revealButton = reviewLine.querySelector("[data-weak-review-reveal-english]");
+
+      if (openEnglish) {
+        openEnglish.classList.remove("visible");
+      }
+      if (revealButton) {
+        revealButton.textContent = "Reveal English";
+      }
+    }
+  });
+
+  english.classList.add("visible");
+  button.textContent = "English Revealed";
+  saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "english");
+}
+
+function handleWeakReviewRating(button) {
+  const rating = normalizeFluencyRating(Number(button.dataset.weakReviewRating));
+
+  saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating);
+
+  if (rating === 0 || rating === 2) {
+    markWeakReviewLineReviewed(button, rating);
+    return;
+  }
+
+  removeWeakReviewLine(button);
+}
+
+function markWeakReviewLineReviewed(button, rating) {
+  const line = button.closest(".weak-review-line");
+  const status = line.querySelector("[data-fluency-rating-status]");
+  const reviewed = line.querySelector("[data-weak-review-reviewed]");
+
+  line.classList.add("reviewed");
+  line.querySelectorAll("[data-weak-review-rating]").forEach((ratingButton) => {
+    ratingButton.classList.toggle("active", Number(ratingButton.dataset.weakReviewRating) === rating);
+  });
+
+  if (status) {
+    status.textContent = `Reviewed: ${getFluencyRatingTextSymbol(rating)}`;
+  }
+  if (reviewed) {
+    reviewed.hidden = false;
+  }
+}
+
+function removeWeakReviewLine(button) {
+  const line = button.closest(".weak-review-line");
+  const list = app.querySelector(".weak-review-list");
+
+  line.remove();
+  updateWeakReviewCount();
+
+  if (!list.querySelector(".weak-review-line")) {
+    list.innerHTML = `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear.</p></article>`;
+  }
+}
+
+function updateWeakReviewCount() {
+  const count = app.querySelectorAll(".weak-review-line").length;
+  const countText = app.querySelector("[data-weak-review-count]");
+
+  if (countText) {
+    countText.textContent = count ? `${count} X or check-minus sentences to revisit.` : "No X or check-minus sentences right now.";
+  }
+}
+
+function toggleWeakReviewAudio(button) {
+  const source = button.dataset.weakReviewAudio;
+
+  if (!source) {
+    return;
+  }
+
+  if (currentAudio && currentAudioButton === button) {
+    if (currentAudio.paused) {
+      currentAudio.play().then(() => {
+        button.innerHTML = "&#10074;&#10074;";
+      }).catch(() => {});
+    } else {
+      currentAudio.pause();
+      button.innerHTML = "&#9654;";
+    }
+    return;
+  }
+
+  stopCurrentAudio();
+  const audio = new Audio(source);
+  currentAudio = audio;
+  currentAudioButton = button;
+  button.innerHTML = "&#10074;&#10074;";
+
+  audio.addEventListener("ended", () => finishWeakReviewAudio(button, audio));
+  audio.addEventListener("error", () => finishWeakReviewAudio(button, audio));
+  audio.play().catch(() => finishWeakReviewAudio(button, audio));
+}
+
+function finishWeakReviewAudio(button, audio) {
+  if (currentAudio === audio) {
+    currentAudio = null;
+  }
+  if (currentAudioButton === button) {
+    currentAudioButton = null;
+  }
+
+  button.innerHTML = "&#9654;";
+  button.closest(".weak-review-line").querySelectorAll("[data-weak-review-rating]").forEach((ratingButton) => {
+    ratingButton.disabled = false;
+  });
+  saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "listened");
+}
+
 function renderFluencyLesson(lesson) {
   const summary = getLessonFluencySummary(lesson);
   const playableLineCount = lesson.lines.filter((line) => line.audio).length;
   const nextLesson = getNextFluencyLesson(lesson.id);
+  prepareFluencyStorySequence(lesson);
 
   app.innerHTML = `
     <section class="shell has-sticky-player">
@@ -2900,9 +3157,8 @@ function renderFluencyLesson(lesson) {
       <header class="lesson-header">
         <h1>${lesson.title}</h1>
         ${summary.complete ? "" : `<p class="lesson-lede">${getFluencySummaryLabel(lesson)}</p>`}
-        <button class="primary-button" type="button" data-save-fluency>Save Review</button>
       </header>
-      ${playableLineCount ? createStoryPlayerControls(playableLineCount) : ""}
+      ${playableLineCount ? createStoryPlayerControls(playableLineCount, "fluency") : ""}
       <section class="story-list fluency-list" aria-label="${lesson.title} fluency sentences">
         ${lesson.lines.length ? lesson.lines.map((line, index) => createFluencyLine(lesson, line, index)).join("") : `<article class="story-line empty-lesson"><p>Lesson content coming later.</p></article>`}
       </section>
@@ -2914,24 +3170,12 @@ function renderFluencyLesson(lesson) {
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute("fluency"));
-  app.querySelector("[data-save-fluency]").addEventListener("click", (event) => saveFluencyReviewNow(event.currentTarget));
-  app.querySelector("[data-save-next-fluency]").addEventListener("click", (event) => saveFluencyAndGo(event.currentTarget, nextLesson ? `fluency-${nextLesson.id}` : "fluency"));
+  app.querySelector("[data-save-next-fluency]").addEventListener("click", (event) => saveFluencyAndGo(event.currentTarget, nextLesson ? `fluency-${nextLesson.id}` : "fluency", { scrollToTop: true }));
   app.querySelector("[data-save-exit-fluency]").addEventListener("click", (event) => saveFluencyAndGo(event.currentTarget, "fluency"));
   app.querySelectorAll("[data-listening-audio]").forEach((button) => {
-    button.addEventListener("click", () => toggleListeningAudio(button, () => unlockFluencyRating(button)));
+    button.addEventListener("click", () => playFluencyLineAudio(button, lesson));
   });
-  const storyPlayButton = app.querySelector("[data-story-sequence-play]");
-  if (storyPlayButton) {
-    storyPlayButton.addEventListener("click", () => toggleStorySequence(lesson));
-  }
-  const storyRepeatButton = app.querySelector("[data-story-sequence-repeat]");
-  if (storyRepeatButton) {
-    storyRepeatButton.addEventListener("click", () => repeatStorySequenceLine(lesson));
-  }
-  const storyNextButton = app.querySelector("[data-story-sequence-next]");
-  if (storyNextButton) {
-    storyNextButton.addEventListener("click", () => skipStorySequenceLine(lesson));
-  }
+  bindStoryPlayerControls(lesson, "fluency");
   app.querySelectorAll("[data-reveal-french]").forEach((button) => {
     button.addEventListener("click", () => revealFluencyFrench(button));
   });
@@ -2944,9 +3188,12 @@ function renderFluencyLesson(lesson) {
   app.querySelectorAll("[data-fluency-rating]").forEach((button) => {
     button.addEventListener("click", () => {
       saveFluencyRating(lesson.id, button.dataset.lineIndex, Number(button.dataset.fluencyRating));
-      renderFluencyLesson(lesson);
+      updateFluencyLineRatingState(lesson, Number(button.dataset.lineIndex));
+      revealFluencyFrenchForLine(Number(button.dataset.lineIndex));
+      updateStorySequenceControls("ready", lesson);
     });
   });
+  updateStorySequenceControls("ready", lesson);
 }
 
 function getNextFluencyLesson(lessonId) {
@@ -2959,7 +3206,7 @@ function getNextFluencyLesson(lessonId) {
   return lessons[index + 1] || null;
 }
 
-async function saveFluencyAndGo(button, route) {
+async function saveFluencyAndGo(button, route, options = {}) {
   const originalText = button.textContent;
   button.disabled = true;
   button.textContent = "Saving...";
@@ -2970,6 +3217,9 @@ async function saveFluencyAndGo(button, route) {
     await saveCloudStateNow(route);
     button.textContent = "Saved";
     setRoute(route);
+    if (options.scrollToTop) {
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 0);
+    }
   } catch (error) {
     console.warn("Fluency review could not be saved.", error);
     cloudSaveStatus = "Save failed";
@@ -2988,24 +3238,25 @@ function createFluencyLine(lesson, line, index) {
   const rating = hasSavedRating ? normalizeFluencyRating(savedRating) : null;
   const reveal = getLineFluencyReveal(lesson.id, index);
   const canRate = Boolean(reveal.listened || reveal.french || hasSavedRating || !line.audio);
-  const frenchVisible = Boolean(reveal.french || hasSavedRating);
-  const englishVisible = Boolean(reveal.english);
+  const canRevealEnglish = Boolean(reveal.french || hasSavedRating);
+  const frenchVisible = false;
+  const englishVisible = false;
   const hasAudio = Boolean(line.audio);
 
   return `
     <article class="story-line fluency-line" data-story-line-index="${index}">
       <div class="fluency-line-main">
         <span class="line-number">${String(index + 1).padStart(2, "0")}</span>
-        <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-lesson-id="${lesson.id}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">▶</button>
+        <button class="icon-button" type="button" data-listening-audio="${line.audio}" data-lesson-id="${lesson.id}" data-line-index="${index}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause sentence " + (index + 1) : "Audio coming later for sentence " + (index + 1)}">&#9654;</button>
         <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRate ? "" : "disabled"}>${frenchVisible ? "French Revealed" : "Reveal French"}</button>
-        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" ${frenchVisible ? "" : "disabled"}>${englishVisible ? "English Revealed" : "Reveal English"}</button>
+        <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" ${canRevealEnglish ? "" : "disabled"}>Reveal English</button>
       </div>
       <p class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${line.french}</p>
       <p class="fluency-hidden-text translation ${englishVisible ? "visible" : ""}" id="fluency-english-${index}">${line.english}</p>
       <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
         ${getFluencyRatingOptions().map((option) => `<button class="rating-button rating-${option.value} ${rating === option.value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${option.value}" title="${option.label}" aria-label="${option.label}" ${canRate ? "" : "disabled"}>${option.symbol}</button>`).join("")}
         <button class="text-button hide-line-button" type="button" data-hide-fluency-line ${frenchVisible || englishVisible ? "" : "disabled"}>Hide</button>
-        <span>${hasSavedRating ? `Saved: ${getFluencyRatingSymbol(rating)}` : "Not rated"}</span>
+        <span data-fluency-rating-status>${hasSavedRating ? `Saved: ${getFluencyRatingTextSymbol(rating)}` : "Not rated"}</span>
       </div>
     </article>
   `;
@@ -3023,6 +3274,25 @@ function getFluencyRatingOptions() {
 function getFluencyRatingSymbol(value) {
   const option = getFluencyRatingOptions().find((item) => item.value === normalizeFluencyRating(value));
   return option ? option.symbol : "";
+}
+
+function getFluencyRatingTextSymbol(value) {
+  const check = String.fromCharCode(10003);
+
+  if (normalizeFluencyRating(value) === 0) {
+    return "X";
+  }
+  if (normalizeFluencyRating(value) === 2) {
+    return `${check}-`;
+  }
+  if (normalizeFluencyRating(value) === 3) {
+    return check;
+  }
+  if (normalizeFluencyRating(value) === 5) {
+    return `${check}+`;
+  }
+
+  return "";
 }
 
 function unlockFluencyRating(audioButton) {
@@ -3045,6 +3315,7 @@ function revealFluencyFrench(button) {
   const french = line.querySelector(`#${button.dataset.revealFrench}`);
   const englishButton = line.querySelector("[data-reveal-english]");
 
+  collapseOpenFluencyLines(line);
   saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "french");
   french.classList.add("visible");
   button.textContent = "French Revealed";
@@ -3055,17 +3326,44 @@ function revealFluencyFrench(button) {
   line.querySelector("[data-hide-fluency-line]").disabled = false;
 }
 
-function revealFluencyEnglish(button) {
-  const english = button.closest(".fluency-line").querySelector(`#${button.dataset.revealEnglish}`);
+function revealFluencyFrenchForLine(lineIndex, shouldScroll = false) {
+  const line = app.querySelector(`.fluency-line[data-story-line-index="${lineIndex}"]`);
+  const revealButton = line ? line.querySelector("[data-reveal-french]") : null;
 
+  if (revealButton) {
+    revealFluencyFrench(revealButton);
+  }
+
+  if (shouldScroll && line) {
+    line.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+}
+
+function revealFluencyEnglish(button) {
+  const line = button.closest(".fluency-line");
+  const english = line.querySelector(`#${button.dataset.revealEnglish}`);
+
+  collapseOpenFluencyLines(line);
   saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "english");
   english.classList.add("visible");
   button.textContent = "English Revealed";
-  button.closest(".fluency-line").querySelector("[data-hide-fluency-line]").disabled = false;
+  line.querySelector("[data-hide-fluency-line]").disabled = false;
 }
 
 function hideFluencyLine(button) {
   const line = button.closest(".fluency-line");
+  collapseFluencyLine(line);
+}
+
+function collapseOpenFluencyLines(exceptLine = null) {
+  app.querySelectorAll(".fluency-line").forEach((line) => {
+    if (line !== exceptLine) {
+      collapseFluencyLine(line);
+    }
+  });
+}
+
+function collapseFluencyLine(line) {
   const englishButton = line.querySelector("[data-reveal-english]");
 
   line.querySelectorAll(".fluency-hidden-text.visible").forEach((text) => {
@@ -3516,18 +3814,7 @@ function renderLesson(lesson) {
   app.querySelectorAll("[data-audio]").forEach((button) => {
     button.addEventListener("click", () => playLineAudio(button, lesson));
   });
-  const storyPlayButton = app.querySelector("[data-story-sequence-play]");
-  if (storyPlayButton) {
-    storyPlayButton.addEventListener("click", () => toggleStorySequence(lesson));
-  }
-  const storyRepeatButton = app.querySelector("[data-story-sequence-repeat]");
-  if (storyRepeatButton) {
-    storyRepeatButton.addEventListener("click", () => repeatStorySequenceLine(lesson));
-  }
-  const storyNextButton = app.querySelector("[data-story-sequence-next]");
-  if (storyNextButton) {
-    storyNextButton.addEventListener("click", () => skipStorySequenceLine(lesson));
-  }
+  bindStoryPlayerControls(lesson, "lesson");
   app.querySelectorAll("[data-note]").forEach((button) => {
     button.addEventListener("click", () => toggleNote(button, lesson.notes));
   });
@@ -3541,20 +3828,172 @@ function renderLesson(lesson) {
   }
 }
 
-function createStoryPlayerControls(playableLineCount) {
+function createStoryPlayerControls(playableLineCount, mode = "lesson") {
+  const isFluency = mode === "fluency";
+
   return `
-    <div class="story-player" aria-label="Sentence audio player">
+    <div class="story-player ${isFluency ? "fluency-story-player" : ""}" aria-label="Sentence audio player">
       <div class="story-player-main">
         <button class="primary-button story-player-play" type="button" data-story-sequence-play aria-label="Play all sentences">
           <span aria-hidden="true">&#9654;</span>
-          <span data-story-sequence-play-label>Play all</span>
+          <span data-story-sequence-play-label>${isFluency ? "Listen" : "Play all"}</span>
         </button>
         <button class="icon-button story-player-icon" type="button" data-story-sequence-repeat title="Repeat current sentence" aria-label="Repeat current sentence">&#8635;</button>
-        <button class="icon-button story-player-icon" type="button" data-story-sequence-next title="Skip to next sentence" aria-label="Skip to next sentence">&#8594;</button>
+        ${isFluency ? "" : `<button class="icon-button story-player-icon" type="button" data-story-sequence-next title="Skip to next sentence" aria-label="Skip to next sentence">&#8594;</button>`}
       </div>
+      <div class="story-player-timeline">
+        <span data-story-current-time>0:00</span>
+        <input type="range" min="0" max="0" step="0.05" value="0" data-story-sequence-seek aria-label="Audio position">
+        <span data-story-duration>0:00</span>
+      </div>
+      ${isFluency ? `
+        <div class="story-player-rating" aria-label="Rate current sentence from the player">
+          ${getFluencyRatingOptions().map((option) => `<button class="rating-button rating-${option.value}" type="button" data-story-fluency-rating="${option.value}" title="${option.label}" aria-label="${option.label}">${option.symbol}</button>`).join("")}
+          <button class="icon-button story-player-icon story-player-next-after-rating" type="button" data-story-sequence-next title="Next sentence" aria-label="Next sentence">&#8594;</button>
+        </div>
+      ` : ""}
       <p class="story-player-status" data-story-sequence-status aria-live="polite">Ready for ${playableLineCount} sentences</p>
     </div>
   `;
+}
+
+function bindStoryPlayerControls(lesson, mode = "lesson") {
+  const storyPlayButton = app.querySelector("[data-story-sequence-play]");
+  if (storyPlayButton) {
+    storyPlayButton.addEventListener("click", () => toggleStorySequence(lesson, mode));
+  }
+
+  const storyRepeatButton = app.querySelector("[data-story-sequence-repeat]");
+  if (storyRepeatButton) {
+    storyRepeatButton.addEventListener("click", () => repeatStorySequenceLine(lesson, mode));
+  }
+
+  const storyNextButton = app.querySelector("[data-story-sequence-next]");
+  if (storyNextButton) {
+    storyNextButton.addEventListener("click", () => skipStorySequenceLine(lesson, mode));
+  }
+
+  const storySeek = app.querySelector("[data-story-sequence-seek]");
+  if (storySeek) {
+    storySeek.addEventListener("input", seekStorySequenceAudio);
+  }
+
+  app.querySelectorAll("[data-story-fluency-rating]").forEach((button) => {
+    button.addEventListener("click", () => rateStoryPlayerSentence(lesson, button));
+  });
+}
+
+function prepareFluencyStorySequence(lesson) {
+  if (storySequence.lessonId === lesson.id && storySequence.mode === "fluency") {
+    return;
+  }
+
+  const playableLines = getPlayableStoryLines(lesson);
+
+  if (!playableLines.length) {
+    return;
+  }
+
+  storySequence.lessonId = lesson.id;
+  storySequence.lineIndex = getInitialFluencyLineIndex(lesson, playableLines);
+  storySequence.audio = null;
+  storySequence.paused = false;
+  storySequence.finished = false;
+  storySequence.mode = "fluency";
+}
+
+function getInitialFluencyLineIndex(lesson, playableLines = getPlayableStoryLines(lesson)) {
+  const ratings = getLessonFluencyRatings(lesson.id);
+  const unratedLine = playableLines.find((item) => ratings[item.index] === undefined || ratings[item.index] === null || ratings[item.index] === "");
+
+  return (unratedLine || playableLines[0]).index;
+}
+
+function rateStoryPlayerSentence(lesson, button) {
+  const lineIndex = storySequence.lessonId === lesson.id ? storySequence.lineIndex : getInitialFluencyLineIndex(lesson);
+
+  saveFluencyRating(lesson.id, lineIndex, Number(button.dataset.storyFluencyRating));
+  updateFluencyLineRatingState(lesson, lineIndex);
+  revealFluencyFrenchForLine(lineIndex, true);
+  updateStorySequenceControls("ready", lesson);
+}
+
+function updateFluencyLineRatingState(lesson, lineIndex) {
+  const line = app.querySelector(`.fluency-line[data-story-line-index="${lineIndex}"]`);
+
+  if (!line) {
+    return;
+  }
+
+  const rating = normalizeFluencyRating(getLessonFluencyRatings(lesson.id)[lineIndex]);
+
+  line.querySelectorAll("[data-fluency-rating]").forEach((ratingButton) => {
+    const isActive = Number(ratingButton.dataset.fluencyRating) === rating;
+    ratingButton.disabled = false;
+    ratingButton.classList.toggle("active", isActive);
+  });
+
+  const revealFrenchButton = line.querySelector("[data-reveal-french]");
+  const revealEnglishButton = line.querySelector("[data-reveal-english]");
+  const ratingStatus = line.querySelector("[data-fluency-rating-status]");
+
+  if (revealFrenchButton) {
+    revealFrenchButton.disabled = false;
+  }
+  if (revealEnglishButton) {
+    revealEnglishButton.disabled = false;
+  }
+  if (ratingStatus) {
+    ratingStatus.textContent = `Saved: ${getFluencyRatingTextSymbol(rating)}`;
+  }
+}
+
+function seekStorySequenceAudio(event) {
+  const audio = storySequence.audio;
+
+  if (!audio || Number.isNaN(audio.duration)) {
+    return;
+  }
+
+  audio.currentTime = Number(event.currentTarget.value);
+  updateStorySequenceTimeline(audio);
+}
+
+function bindStorySequenceAudioProgress(audio) {
+  audio.addEventListener("loadedmetadata", () => updateStorySequenceTimeline(audio));
+  audio.addEventListener("durationchange", () => updateStorySequenceTimeline(audio));
+  audio.addEventListener("timeupdate", () => updateStorySequenceTimeline(audio));
+}
+
+function updateStorySequenceTimeline(audio = storySequence.audio) {
+  const seek = app.querySelector("[data-story-sequence-seek]");
+  const currentTime = app.querySelector("[data-story-current-time]");
+  const duration = app.querySelector("[data-story-duration]");
+
+  if (!seek || !currentTime || !duration) {
+    return;
+  }
+
+  const audioDuration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
+  const audioCurrentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+
+  seek.max = String(Math.max(audioDuration, 0));
+  seek.value = String(Math.min(audioCurrentTime, audioDuration || audioCurrentTime));
+  seek.disabled = !audioDuration;
+  currentTime.textContent = formatAudioTime(audioCurrentTime);
+  duration.textContent = audioDuration ? formatAudioTime(audioDuration) : "0:00";
+}
+
+function resetStorySequenceTimeline() {
+  updateStorySequenceTimeline(null);
+}
+
+function formatAudioTime(seconds) {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = String(safeSeconds % 60).padStart(2, "0");
+
+  return `${minutes}:${remainingSeconds}`;
 }
 
 function createLine(line, index, notes) {
@@ -4553,8 +4992,8 @@ function getPlayableStoryLines(lesson) {
     .filter((item) => item.line.audio);
 }
 
-function toggleStorySequence(lesson) {
-  if (storySequence.lessonId === lesson.id && storySequence.audio) {
+function toggleStorySequence(lesson, mode = "lesson") {
+  if (storySequence.lessonId === lesson.id && storySequence.mode === mode && storySequence.audio) {
     if (storySequence.paused) {
       storySequence.audio.play().then(() => {
         storySequence.paused = false;
@@ -4568,26 +5007,28 @@ function toggleStorySequence(lesson) {
     return;
   }
 
-  const startIndex = storySequence.lessonId === lesson.id && !storySequence.finished
+  const startIndex = storySequence.lessonId === lesson.id && storySequence.mode === mode && !storySequence.finished
     ? storySequence.lineIndex
     : 0;
 
-  startStorySequence(lesson, startIndex);
+  startStorySequence(lesson, startIndex, mode);
 }
 
-function repeatStorySequenceLine(lesson) {
-  const requestedIndex = storySequence.lessonId === lesson.id ? storySequence.lineIndex : 0;
-  startStorySequence(lesson, requestedIndex);
+function repeatStorySequenceLine(lesson, mode = "lesson") {
+  const requestedIndex = storySequence.lessonId === lesson.id && storySequence.mode === mode ? storySequence.lineIndex : 0;
+  startStorySequence(lesson, requestedIndex, mode);
 }
 
-function skipStorySequenceLine(lesson) {
+function skipStorySequenceLine(lesson, mode = "lesson") {
   const playableLines = getPlayableStoryLines(lesson);
 
   if (!playableLines.length) {
     return;
   }
 
-  const currentPlayableIndex = playableLines.findIndex((item) => item.index === storySequence.lineIndex);
+  const currentPlayableIndex = storySequence.lessonId === lesson.id && storySequence.mode === mode
+    ? playableLines.findIndex((item) => item.index === storySequence.lineIndex)
+    : -1;
   const nextPlayableIndex = currentPlayableIndex >= 0 ? currentPlayableIndex + 1 : 0;
 
   if (nextPlayableIndex >= playableLines.length) {
@@ -4595,10 +5036,10 @@ function skipStorySequenceLine(lesson) {
     return;
   }
 
-  startStorySequence(lesson, playableLines[nextPlayableIndex].index);
+  startStorySequence(lesson, playableLines[nextPlayableIndex].index, mode);
 }
 
-function startStorySequence(lesson, requestedLineIndex = 0) {
+function startStorySequence(lesson, requestedLineIndex = 0, mode = "lesson") {
   const playableLines = getPlayableStoryLines(lesson);
 
   if (!playableLines.length) {
@@ -4613,10 +5054,11 @@ function startStorySequence(lesson, requestedLineIndex = 0) {
   storySequence.token += 1;
   storySequence.paused = false;
   storySequence.finished = false;
-  playStorySequenceLine(lesson, requestedPlayableLine.index, storySequence.token);
+  storySequence.mode = mode;
+  playStorySequenceLine(lesson, requestedPlayableLine.index, storySequence.token, mode);
 }
 
-function playStorySequenceLine(lesson, lineIndex, token) {
+function playStorySequenceLine(lesson, lineIndex, token, mode = storySequence.mode) {
   const line = lesson.lines[lineIndex];
 
   if (!line || !line.audio || token !== storySequence.token) {
@@ -4629,9 +5071,11 @@ function playStorySequenceLine(lesson, lineIndex, token) {
   storySequence.lineIndex = lineIndex;
   storySequence.paused = false;
   storySequence.finished = false;
+  storySequence.mode = mode;
   markStorySequenceLine(lineIndex);
   enableLineReveal(lineIndex);
   updateStorySequenceControls("playing", lesson);
+  bindStorySequenceAudioProgress(audio);
 
   audio.addEventListener("ended", () => {
     if (token !== storySequence.token) {
@@ -4641,7 +5085,13 @@ function playStorySequenceLine(lesson, lineIndex, token) {
       currentAudio = null;
     }
     storySequence.audio = null;
-    playNextStorySequenceLine(lesson, token);
+    if (mode === "fluency") {
+      storySequence.paused = false;
+      storySequence.finished = false;
+      updateStorySequenceControls("ready", lesson);
+      return;
+    }
+    playNextStorySequenceLine(lesson, token, mode);
   });
   audio.addEventListener("error", () => {
     if (token !== storySequence.token) {
@@ -4651,6 +5101,7 @@ function playStorySequenceLine(lesson, lineIndex, token) {
       currentAudio = null;
     }
     storySequence.audio = null;
+    resetStorySequenceTimeline();
     updateStorySequenceControls("error", lesson);
   });
   audio.play().catch(() => {
@@ -4661,11 +5112,12 @@ function playStorySequenceLine(lesson, lineIndex, token) {
       currentAudio = null;
     }
     storySequence.audio = null;
+    resetStorySequenceTimeline();
     updateStorySequenceControls("error", lesson);
   });
 }
 
-function playNextStorySequenceLine(lesson, token) {
+function playNextStorySequenceLine(lesson, token, mode = storySequence.mode) {
   const playableLines = getPlayableStoryLines(lesson);
   const currentPlayableIndex = playableLines.findIndex((item) => item.index === storySequence.lineIndex);
   const nextPlayableLine = playableLines[currentPlayableIndex + 1];
@@ -4675,7 +5127,7 @@ function playNextStorySequenceLine(lesson, token) {
     return;
   }
 
-  playStorySequenceLine(lesson, nextPlayableLine.index, token);
+  playStorySequenceLine(lesson, nextPlayableLine.index, token, mode);
 }
 
 function finishStorySequence(lesson) {
@@ -4691,6 +5143,7 @@ function finishStorySequence(lesson) {
   storySequence.finished = true;
   storySequence.token += 1;
   clearStorySequenceHighlight();
+  resetStorySequenceTimeline();
   updateStorySequenceControls("finished", lesson);
   completeLessonAudio(lesson.id);
   unlockLessonTestButton();
@@ -4702,7 +5155,10 @@ function markStorySequenceLine(lineIndex) {
 
   if (lineElement) {
     lineElement.classList.add("story-line-active");
-    lineElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    lineElement.scrollIntoView({
+      block: app.querySelector(".has-sticky-player") ? "center" : "nearest",
+      behavior: "smooth"
+    });
   }
 }
 
@@ -4732,6 +5188,7 @@ function updateStorySequenceControls(status, lesson) {
   const playButton = app.querySelector("[data-story-sequence-play]");
   const playLabel = app.querySelector("[data-story-sequence-play-label]");
   const statusElement = app.querySelector("[data-story-sequence-status]");
+  const isFluency = storySequence.mode === "fluency";
   const currentLineText = storySequence.lessonId === lesson.id && !storySequence.finished
     ? `Sentence ${storySequence.lineIndex + 1} of ${lesson.lines.length}`
     : "";
@@ -4744,9 +5201,12 @@ function updateStorySequenceControls(status, lesson) {
     } else {
       playButton.setAttribute("aria-label", storySequence.paused ? "Resume sentence audio" : "Play all sentences");
       playButton.querySelector("[aria-hidden='true']").innerHTML = "&#9654;";
-      playLabel.textContent = storySequence.paused ? "Resume" : "Play all";
+      playLabel.textContent = storySequence.paused ? "Resume" : (isFluency ? "Listen" : "Play all");
     }
   }
+
+  updateStorySequenceTimeline();
+  updateStoryPlayerRatingControls(lesson);
 
   if (!statusElement) {
     return;
@@ -4761,8 +5221,29 @@ function updateStorySequenceControls(status, lesson) {
   } else if (status === "error") {
     statusElement.textContent = "Audio could not play";
   } else {
-    statusElement.textContent = `Ready for ${getPlayableStoryLines(lesson).length} sentences`;
+    statusElement.textContent = currentLineText ? `Ready on ${currentLineText}` : `Ready for ${getPlayableStoryLines(lesson).length} sentences`;
   }
+}
+
+function updateStoryPlayerRatingControls(lesson) {
+  const ratingButtons = app.querySelectorAll("[data-story-fluency-rating]");
+
+  if (!ratingButtons.length) {
+    return;
+  }
+
+  const activeLineIndex = storySequence.lessonId === lesson.id ? storySequence.lineIndex : getInitialFluencyLineIndex(lesson);
+  const savedRating = getLessonFluencyRatings(lesson.id)[activeLineIndex];
+  const normalizedRating = normalizeFluencyRating(savedRating);
+  const reveal = getLineFluencyReveal(lesson.id, activeLineIndex);
+  const line = lesson.lines[activeLineIndex];
+  const canRate = Boolean(reveal.listened || reveal.french || normalizedRating !== null || !line?.audio || storySequence.lessonId === lesson.id);
+
+  ratingButtons.forEach((button) => {
+    const rating = Number(button.dataset.storyFluencyRating);
+    button.disabled = !canRate;
+    button.classList.toggle("active", normalizedRating === rating);
+  });
 }
 
 function playLineAudio(button, lesson) {
@@ -4806,6 +5287,100 @@ function playLineAudio(button, lesson) {
       currentAudioButton = null;
     }
     resetAudioButton(button);
+  });
+}
+
+function playFluencyLineAudio(button, lesson) {
+  const source = button.dataset.listeningAudio;
+  const lineIndex = Number(button.dataset.lineIndex);
+
+  if (!source || Number.isNaN(lineIndex)) {
+    return;
+  }
+
+  if (currentAudio && currentAudioButton === button) {
+    if (currentAudio.paused) {
+      currentAudio.play().then(() => {
+        button.innerHTML = "&#10074;&#10074;";
+        storySequence.audio = currentAudio;
+        storySequence.paused = false;
+        storySequence.finished = false;
+        updateStorySequenceControls("playing", lesson);
+      }).catch(() => {});
+    } else {
+      currentAudio.pause();
+      button.innerHTML = "&#9654;";
+      storySequence.paused = true;
+      updateStorySequenceControls("paused", lesson);
+    }
+    return;
+  }
+
+  stopCurrentAudio();
+  storySequence.lessonId = lesson.id;
+  storySequence.lineIndex = lineIndex;
+  storySequence.token += 1;
+  storySequence.paused = false;
+  storySequence.finished = false;
+  storySequence.mode = "fluency";
+
+  const token = storySequence.token;
+  const audio = new Audio(source);
+  currentAudio = audio;
+  currentAudioButton = button;
+  storySequence.audio = audio;
+  button.innerHTML = "&#10074;&#10074;";
+  markStorySequenceLine(lineIndex);
+  enableLineReveal(lineIndex);
+  updateStorySequenceControls("playing", lesson);
+  bindStorySequenceAudioProgress(audio);
+
+  audio.addEventListener("ended", () => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    storySequence.audio = null;
+    storySequence.paused = false;
+    storySequence.finished = false;
+    resetAudioButton(button);
+    unlockFluencyRating(button);
+    updateStorySequenceControls("ready", lesson);
+  });
+  audio.addEventListener("error", () => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    storySequence.audio = null;
+    resetAudioButton(button);
+    resetStorySequenceTimeline();
+    updateStorySequenceControls("error", lesson);
+  });
+  audio.play().catch(() => {
+    if (token !== storySequence.token) {
+      return;
+    }
+    if (currentAudio === audio) {
+      currentAudio = null;
+    }
+    if (currentAudioButton === button) {
+      currentAudioButton = null;
+    }
+    storySequence.audio = null;
+    resetAudioButton(button);
+    resetStorySequenceTimeline();
+    updateStorySequenceControls("error", lesson);
   });
 }
 
@@ -4865,6 +5440,18 @@ function toggleListeningAudio(button, onEnded) {
 }
 
 function resetAudioButton(button = currentAudioButton) {
+  if (button?.dataset.weakReviewAudio) {
+    button.disabled = false;
+    button.innerHTML = "&#9654;";
+    return;
+  }
+
+  if (button?.dataset.listeningAudio) {
+    button.disabled = false;
+    button.innerHTML = "&#9654;";
+    return;
+  }
+
   if (button) {
     button.disabled = false;
     if (button.dataset.listeningAudio) {
