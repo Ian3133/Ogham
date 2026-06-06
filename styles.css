@@ -895,6 +895,57 @@ h1 {
   gap: 12px;
 }
 
+.weak-review-chapter-list {
+  display: grid;
+  gap: 20px;
+}
+
+.weak-review-chapter {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.weak-review-chapter-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.weak-review-chapter.collapsed .weak-review-chapter-header {
+  margin-bottom: 0;
+}
+
+.weak-review-chapter.collapsed .weak-review-list {
+  display: none;
+}
+
+.weak-review-chapter-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.weak-review-chapter-header h2 {
+  color: var(--accent-dark);
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.weak-review-chapter-header span {
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.weak-review-chapter-toggle {
+  flex: 0 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .weak-review-source {
   color: var(--muted);
   font-family: Arial, sans-serif;
@@ -1823,6 +1874,11 @@ h1 {
 
   .chapter-review-ratings {
     justify-content: flex-start;
+  }
+
+  .weak-review-chapter-header {
+    align-items: flex-start;
+    display: grid;
   }
 
   .shell.has-sticky-player {

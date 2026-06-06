@@ -1053,6 +1053,7 @@ const bestScoresKey = "ogham-best-scores";
 const fluencyRatingsKey = "ogham-fluency-ratings";
 const fluencyRevealsKey = "ogham-fluency-reveals";
 const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
+const fluencyDailyReviewKey = "ogham-fluency-daily-review";
 const homeGraphModeKey = "odrerir-home-graph-mode";
 const fluencyRatingProgressPrefix = "fluency-rating|";
 const fluencyRevealProgressPrefix = "fluency-reveal|";
@@ -1321,7 +1322,8 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
     lessonAudioProgress: getLessonAudioProgress(),
     bestScores: getBestScores(),
     fluencyRatings: getFluencyRatings(),
-    fluencyReveals: getFluencyReveals()
+    fluencyReveals: getFluencyReveals(),
+    fluencyDailyReview: getFluencyDailyReviewState()
   };
 }
 
@@ -1381,6 +1383,10 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
       mergedState[key] = localState[key];
     }
   });
+  mergedState.fluencyDailyReview = mergeFluencyDailyReviewState(
+    cloudState.fluencyDailyReview,
+    localState.fluencyDailyReview
+  );
 
   if (!mergedState.currentRoute && localState.currentRoute) {
     mergedState.currentRoute = localState.currentRoute;
@@ -1426,7 +1432,8 @@ function getEmptyUserState() {
     lessonAudioProgress: { completed: [] },
     bestScores: {},
     fluencyRatings: {},
-    fluencyReveals: {}
+    fluencyReveals: {},
+    fluencyDailyReview: {}
   };
 }
 
@@ -1454,6 +1461,10 @@ function applyCloudState(state) {
 
   if (Object.hasOwn(state, "fluencyReveals") || Object.keys(fluencyFromProgress.reveals).length) {
     writeStoredJson(fluencyRevealsKey, mergedFluencyReveals);
+  }
+
+  if (Object.hasOwn(state, "fluencyDailyReview")) {
+    writeStoredJson(fluencyDailyReviewKey, normalizeFluencyDailyReviewState(state.fluencyDailyReview));
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1922,6 +1933,66 @@ function getLineFluencyReveal(lessonId, lineIndex) {
 
 function getCollapsedFluencyChapters() {
   return readStoredJson(fluencyCollapsedChaptersKey, {});
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getEmptyFluencyDailyReviewState(dateKey = getLocalDateKey()) {
+  return {
+    date: dateKey,
+    reviewed: {}
+  };
+}
+
+function normalizeFluencyDailyReviewState(state, dateKey = getLocalDateKey()) {
+  if (!state || state.date !== dateKey) {
+    return getEmptyFluencyDailyReviewState(dateKey);
+  }
+
+  return {
+    date: dateKey,
+    reviewed: state.reviewed || {}
+  };
+}
+
+function mergeFluencyDailyReviewState(cloudState = {}, localState = {}) {
+  const dateKey = getLocalDateKey();
+  const cloudToday = normalizeFluencyDailyReviewState(cloudState, dateKey);
+  const localToday = normalizeFluencyDailyReviewState(localState, dateKey);
+
+  return {
+    date: dateKey,
+    reviewed: {
+      ...cloudToday.reviewed,
+      ...localToday.reviewed
+    }
+  };
+}
+
+function getFluencyDailyReviewState() {
+  return normalizeFluencyDailyReviewState(readStoredJson(fluencyDailyReviewKey, {}));
+}
+
+function getFluencyDailyReviewKey(lessonId, lineIndex) {
+  return `${lessonId}|${lineIndex}`;
+}
+
+function isFluencyLineReviewedToday(lessonId, lineIndex) {
+  return Boolean(getFluencyDailyReviewState().reviewed[getFluencyDailyReviewKey(lessonId, lineIndex)]);
+}
+
+function markFluencyLineReviewedToday(lessonId, lineIndex) {
+  const state = getFluencyDailyReviewState();
+
+  state.reviewed[getFluencyDailyReviewKey(lessonId, lineIndex)] = true;
+  writeStoredJson(fluencyDailyReviewKey, state);
+  flushCloudStateSave();
 }
 
 function isFluencyChapterCollapsed(chapterNumber) {
@@ -2903,7 +2974,9 @@ function createFluencyChapter(chapter, currentChapterNumber = getCurrentFluencyC
   `;
 }
 
-function getWeakFluencyReviewItems() {
+function getWeakFluencyReviewItems(options = {}) {
+  const includeReviewedToday = Boolean(options.includeReviewedToday);
+
   return lessons.flatMap((lesson) => {
     const ratings = getLessonFluencyRatings(lesson.id);
 
@@ -2912,10 +2985,58 @@ function getWeakFluencyReviewItems() {
         lesson,
         line,
         lineIndex,
+        chapterNumber: getLessonChapterNumber(lesson),
         rating: normalizeFluencyRating(ratings[lineIndex])
       }))
-      .filter((item) => item.rating === 0 || item.rating === 2);
+      .filter((item) => {
+        const isWeak = item.rating === 0 || item.rating === 2;
+
+        return isWeak && (includeReviewedToday || !isFluencyLineReviewedToday(lesson.id, item.lineIndex));
+      });
   });
+}
+
+function getLessonChapterNumber(lesson) {
+  return Math.ceil(getLessonNumber(lesson) / 7);
+}
+
+function groupWeakFluencyReviewItemsByChapter(items) {
+  return items.reduce((groups, item) => {
+    const existingGroup = groups.find((group) => group.chapterNumber === item.chapterNumber);
+
+    if (existingGroup) {
+      existingGroup.items.push(item);
+      return groups;
+    }
+
+    return [
+      ...groups,
+      {
+        chapterNumber: item.chapterNumber,
+        items: [item]
+      }
+    ];
+  }, []);
+}
+
+function getWeakReviewProgressSummary() {
+  const dailyItems = getWeakFluencyReviewItems();
+  const allWeakItems = getWeakFluencyReviewItems({ includeReviewedToday: true });
+  const reviewedToday = Object.keys(getFluencyDailyReviewState().reviewed).length;
+
+  return {
+    remainingToday: dailyItems.length,
+    reviewedToday,
+    totalWeak: allWeakItems.length
+  };
+}
+
+function formatWeakReviewProgressSummary(summary = getWeakReviewProgressSummary()) {
+  if (!summary.totalWeak) {
+    return "No X or check-minus sentences right now.";
+  }
+
+  return `${summary.reviewedToday} reviewed today · ${summary.remainingToday} left today · ${summary.totalWeak} total weak`;
 }
 
 function createFluencyLessonItem(lesson) {
@@ -2936,6 +3057,8 @@ function createFluencyLessonItem(lesson) {
 
 function renderFluencyWeakReview() {
   const items = getWeakFluencyReviewItems();
+  const groups = groupWeakFluencyReviewItemsByChapter(items);
+  const summary = getWeakReviewProgressSummary();
 
   app.innerHTML = `
     <section class="shell">
@@ -2945,10 +3068,10 @@ function renderFluencyWeakReview() {
       </div>
       <header class="lesson-header">
         <h1>All Review</h1>
-        <p class="lesson-lede" data-weak-review-count>${items.length ? `${items.length} X or check-minus sentences to revisit.` : "No X or check-minus sentences right now."}</p>
+        <p class="lesson-lede" data-weak-review-count>${formatWeakReviewProgressSummary(summary)}</p>
       </header>
-      <section class="story-list fluency-list weak-review-list" aria-label="All low-rated fluency sentences">
-        ${items.length ? items.map(createWeakReviewLine).join("") : `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear.</p></article>`}
+      <section class="weak-review-chapter-list" aria-label="All low-rated fluency sentences">
+        ${groups.length ? groups.map(createWeakReviewChapterGroup).join("") : createWeakReviewEmptyMarkup()}
       </section>
     </section>
   `;
@@ -2966,6 +3089,61 @@ function renderFluencyWeakReview() {
   app.querySelectorAll("[data-weak-review-rating]").forEach((button) => {
     button.addEventListener("click", () => handleWeakReviewRating(button));
   });
+  app.querySelectorAll("[data-toggle-weak-review-chapter]").forEach((button) => {
+    button.addEventListener("click", () => toggleWeakReviewChapter(button));
+  });
+}
+
+function createWeakReviewChapterGroup(group, index) {
+  const collapsed = index > 0;
+  const panelId = `weak-review-chapter-panel-${group.chapterNumber}`;
+
+  return `
+    <section class="weak-review-chapter ${collapsed ? "collapsed" : ""}" data-weak-review-chapter="${group.chapterNumber}">
+      <header class="weak-review-chapter-header">
+        <div>
+          <h2>Chapter ${group.chapterNumber}</h2>
+          <span data-weak-review-chapter-count>${group.items.length} left today</span>
+        </div>
+        <button class="icon-button weak-review-chapter-toggle" type="button" data-toggle-weak-review-chapter aria-controls="${panelId}" aria-expanded="${collapsed ? "false" : "true"}" title="${collapsed ? "Expand chapter" : "Collapse chapter"}" aria-label="${collapsed ? "Expand Chapter " + group.chapterNumber : "Collapse Chapter " + group.chapterNumber}">${collapsed ? "+" : "&minus;"}</button>
+      </header>
+      <div class="story-list fluency-list weak-review-list" id="${panelId}" ${collapsed ? "hidden" : ""}>
+        ${group.items.map(createWeakReviewLine).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function toggleWeakReviewChapter(button) {
+  const chapter = button.closest(".weak-review-chapter");
+  const shouldOpen = chapter.classList.contains("collapsed");
+
+  app.querySelectorAll(".weak-review-chapter").forEach((reviewChapter) => {
+    setWeakReviewChapterCollapsed(reviewChapter, true);
+  });
+
+  setWeakReviewChapterCollapsed(chapter, !shouldOpen);
+}
+
+function setWeakReviewChapterCollapsed(chapter, collapsed) {
+  const button = chapter.querySelector("[data-toggle-weak-review-chapter]");
+  const panel = chapter.querySelector(".weak-review-list");
+  const chapterNumber = chapter.dataset.weakReviewChapter;
+
+  chapter.classList.toggle("collapsed", collapsed);
+  if (panel) {
+    panel.hidden = collapsed;
+  }
+  if (button) {
+    button.innerHTML = collapsed ? "+" : "&minus;";
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    button.setAttribute("title", collapsed ? "Expand chapter" : "Collapse chapter");
+    button.setAttribute("aria-label", `${collapsed ? "Expand" : "Collapse"} Chapter ${chapterNumber}`);
+  }
+}
+
+function createWeakReviewEmptyMarkup() {
+  return `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear for today.</p></article>`;
 }
 
 function createWeakReviewLine(item) {
@@ -3049,12 +3227,7 @@ function handleWeakReviewRating(button) {
   const rating = normalizeFluencyRating(Number(button.dataset.weakReviewRating));
 
   saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating);
-
-  if (rating === 0 || rating === 2) {
-    markWeakReviewLineReviewed(button, rating);
-    return;
-  }
-
+  markFluencyLineReviewedToday(button.dataset.lessonId, button.dataset.lineIndex);
   removeWeakReviewLine(button);
 }
 
@@ -3078,22 +3251,51 @@ function markWeakReviewLineReviewed(button, rating) {
 
 function removeWeakReviewLine(button) {
   const line = button.closest(".weak-review-line");
-  const list = app.querySelector(".weak-review-list");
+  const chapter = line.closest(".weak-review-chapter");
+  const list = chapter ? chapter.querySelector(".weak-review-list") : app.querySelector(".weak-review-list");
+  const container = app.querySelector(".weak-review-chapter-list");
 
   line.remove();
+  if (chapter && !list.querySelector(".weak-review-line")) {
+    chapter.remove();
+    ensureOpenWeakReviewChapter();
+  } else if (chapter) {
+    updateWeakReviewChapterCount(chapter);
+  }
   updateWeakReviewCount();
 
-  if (!list.querySelector(".weak-review-line")) {
-    list.innerHTML = `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear.</p></article>`;
+  if (container && !container.querySelector(".weak-review-line")) {
+    container.innerHTML = createWeakReviewEmptyMarkup();
   }
 }
 
 function updateWeakReviewCount() {
-  const count = app.querySelectorAll(".weak-review-line").length;
+  const summary = {
+    ...getWeakReviewProgressSummary(),
+    remainingToday: app.querySelectorAll(".weak-review-line").length
+  };
   const countText = app.querySelector("[data-weak-review-count]");
 
   if (countText) {
-    countText.textContent = count ? `${count} X or check-minus sentences to revisit.` : "No X or check-minus sentences right now.";
+    countText.textContent = formatWeakReviewProgressSummary(summary);
+  }
+}
+
+function updateWeakReviewChapterCount(chapter) {
+  const countText = chapter.querySelector("[data-weak-review-chapter-count]");
+  const count = chapter.querySelectorAll(".weak-review-line").length;
+
+  if (countText) {
+    countText.textContent = `${count} left today`;
+  }
+}
+
+function ensureOpenWeakReviewChapter() {
+  const chapters = Array.from(app.querySelectorAll(".weak-review-chapter"));
+  const hasOpenChapter = chapters.some((chapter) => !chapter.classList.contains("collapsed"));
+
+  if (!hasOpenChapter && chapters[0]) {
+    setWeakReviewChapterCollapsed(chapters[0], false);
   }
 }
 
