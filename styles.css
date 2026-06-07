@@ -958,6 +958,19 @@ h1 {
   box-shadow: 0 0 0 3px rgba(39, 128, 96, 0.08);
 }
 
+.weak-review-line[hidden] {
+  display: none;
+}
+
+.weak-review-line.leaving {
+  animation: weak-review-leave 260ms ease-in forwards;
+  pointer-events: none;
+}
+
+.weak-review-line.entering {
+  animation: weak-review-enter 190ms ease-out both;
+}
+
 .weak-review-reviewed {
   background: #e8f4ec;
   border: 1px solid #b7d9c1;
@@ -967,6 +980,30 @@ h1 {
   font-size: 0.82rem;
   font-weight: 800;
   padding: 7px 10px;
+}
+
+@keyframes weak-review-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes weak-review-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fluency-hidden-text {

@@ -3146,15 +3146,16 @@ function createWeakReviewEmptyMarkup() {
   return `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear for today.</p></article>`;
 }
 
-function createWeakReviewLine(item) {
+function createWeakReviewLine(item, index = 0) {
   const hasAudio = Boolean(item.line.audio);
   const reviewId = `${item.lesson.id}-${item.lineIndex}`;
   const listened = Boolean(getLineFluencyReveal(item.lesson.id, item.lineIndex).listened);
   const frenchId = `weak-review-french-${reviewId}`;
   const englishId = `weak-review-english-${reviewId}`;
+  const isActive = index === 0;
 
   return `
-    <article class="story-line weak-review-line" data-weak-review-line="${reviewId}">
+    <article class="story-line weak-review-line ${isActive ? "active" : ""}" data-weak-review-line="${reviewId}" ${isActive ? "" : "hidden"}>
       <div class="fluency-line-main">
         <span class="line-number">${String(item.lineIndex + 1).padStart(2, "0")}</span>
         <button class="icon-button" type="button" data-weak-review-audio="${item.line.audio}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause " + item.lesson.title + " sentence " + (item.lineIndex + 1) : "Audio coming later"}">&#9654;</button>
@@ -3228,6 +3229,7 @@ function handleWeakReviewRating(button) {
 
   saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating);
   markFluencyLineReviewedToday(button.dataset.lessonId, button.dataset.lineIndex);
+  markWeakReviewLineReviewed(button, rating);
   removeWeakReviewLine(button);
 }
 
@@ -3251,6 +3253,29 @@ function markWeakReviewLineReviewed(button, rating) {
 
 function removeWeakReviewLine(button) {
   const line = button.closest(".weak-review-line");
+  if (!line || line.classList.contains("leaving")) {
+    return;
+  }
+
+  line.querySelectorAll("button").forEach((lineButton) => {
+    lineButton.disabled = true;
+  });
+  line.classList.add("leaving");
+
+  let removed = false;
+  const removeAfterAnimation = () => {
+    if (removed) {
+      return;
+    }
+    removed = true;
+    finishWeakReviewLineRemoval(line);
+  };
+
+  line.addEventListener("animationend", removeAfterAnimation, { once: true });
+  window.setTimeout(removeAfterAnimation, 320);
+}
+
+function finishWeakReviewLineRemoval(line) {
   const chapter = line.closest(".weak-review-chapter");
   const list = chapter ? chapter.querySelector(".weak-review-list") : app.querySelector(".weak-review-list");
   const container = app.querySelector(".weak-review-chapter-list");
@@ -3260,6 +3285,7 @@ function removeWeakReviewLine(button) {
     chapter.remove();
     ensureOpenWeakReviewChapter();
   } else if (chapter) {
+    revealNextWeakReviewLine(chapter);
     updateWeakReviewChapterCount(chapter);
   }
   updateWeakReviewCount();
@@ -3267,6 +3293,18 @@ function removeWeakReviewLine(button) {
   if (container && !container.querySelector(".weak-review-line")) {
     container.innerHTML = createWeakReviewEmptyMarkup();
   }
+}
+
+function revealNextWeakReviewLine(chapter) {
+  const nextLine = chapter.querySelector(".weak-review-line[hidden]");
+
+  if (!nextLine) {
+    return;
+  }
+
+  nextLine.hidden = false;
+  nextLine.classList.add("active", "entering");
+  window.setTimeout(() => nextLine.classList.remove("entering"), 240);
 }
 
 function updateWeakReviewCount() {
