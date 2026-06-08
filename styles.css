@@ -953,6 +953,32 @@ h1 {
   font-weight: 800;
 }
 
+.weak-review-audio-tools {
+  align-items: center;
+  display: flex;
+  flex: 1 1 260px;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.weak-review-speed {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--accent-dark);
+  font-family: Arial, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 800;
+  height: 36px;
+  padding: 0 8px;
+}
+
+.weak-review-progress {
+  accent-color: var(--accent-dark);
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+
 .weak-review-line.reviewed {
   border-color: rgba(39, 128, 96, 0.38);
   box-shadow: 0 0 0 3px rgba(39, 128, 96, 0.08);
@@ -1916,6 +1942,11 @@ h1 {
   .weak-review-chapter-header {
     align-items: flex-start;
     display: grid;
+  }
+
+  .weak-review-audio-tools {
+    flex-basis: 100%;
+    min-width: 0;
   }
 
   .shell.has-sticky-player {

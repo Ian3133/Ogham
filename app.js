@@ -3080,6 +3080,12 @@ function renderFluencyWeakReview() {
   app.querySelectorAll("[data-weak-review-audio]").forEach((button) => {
     button.addEventListener("click", () => toggleWeakReviewAudio(button));
   });
+  app.querySelectorAll("[data-weak-review-speed]").forEach((select) => {
+    select.addEventListener("change", () => updateWeakReviewPlaybackRate(select));
+  });
+  app.querySelectorAll("[data-weak-review-progress]").forEach((slider) => {
+    slider.addEventListener("input", () => seekWeakReviewAudio(slider));
+  });
   app.querySelectorAll("[data-weak-review-reveal]").forEach((button) => {
     button.addEventListener("click", () => revealWeakReviewFrench(button));
   });
@@ -3160,6 +3166,15 @@ function createWeakReviewLine(item, index = 0) {
         <span class="line-number">${String(item.lineIndex + 1).padStart(2, "0")}</span>
         <button class="icon-button" type="button" data-weak-review-audio="${item.line.audio}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}" ${hasAudio ? "" : "disabled"} title="${hasAudio ? "Play or pause audio" : "Audio coming later"}" aria-label="${hasAudio ? "Play or pause " + item.lesson.title + " sentence " + (item.lineIndex + 1) : "Audio coming later"}">&#9654;</button>
         <span class="weak-review-source">${item.lesson.title}</span>
+        <div class="weak-review-audio-tools">
+          <select class="weak-review-speed" data-weak-review-speed aria-label="Playback speed for ${item.lesson.title} sentence ${item.lineIndex + 1}" title="Playback speed" ${hasAudio ? "" : "disabled"}>
+            <option value="1" selected>1.0x</option>
+            <option value="0.9">0.9x</option>
+            <option value="0.75">0.75x</option>
+            <option value="0.5">0.5x</option>
+          </select>
+          <input class="weak-review-progress" type="range" min="0" max="100" step="0.1" value="0" data-weak-review-progress aria-label="Audio position for ${item.lesson.title} sentence ${item.lineIndex + 1}" ${hasAudio ? "" : "disabled"}>
+        </div>
         <button class="text-button" type="button" data-weak-review-reveal="${frenchId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal French</button>
         <button class="text-button" type="button" data-weak-review-reveal-english="${englishId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal English</button>
       </div>
@@ -3260,6 +3275,11 @@ function removeWeakReviewLine(button) {
   line.querySelectorAll("button").forEach((lineButton) => {
     lineButton.disabled = true;
   });
+  if (currentAudio && currentAudioButton && currentAudioButton.closest(".weak-review-line") === line) {
+    currentAudio.pause();
+    currentAudio = null;
+    currentAudioButton = null;
+  }
   line.classList.add("leaving");
 
   let removed = false;
@@ -3345,6 +3365,7 @@ function toggleWeakReviewAudio(button) {
   }
 
   if (currentAudio && currentAudioButton === button) {
+    currentAudio.playbackRate = getWeakReviewPlaybackRate(button);
     if (currentAudio.paused) {
       currentAudio.play().then(() => {
         button.innerHTML = "&#10074;&#10074;";
@@ -3360,8 +3381,12 @@ function toggleWeakReviewAudio(button) {
   const audio = new Audio(source);
   currentAudio = audio;
   currentAudioButton = button;
+  audio.playbackRate = getWeakReviewPlaybackRate(button);
   button.innerHTML = "&#10074;&#10074;";
 
+  audio.addEventListener("loadedmetadata", () => applyWeakReviewPendingSeek(button, audio));
+  audio.addEventListener("timeupdate", () => updateWeakReviewAudioProgress(button, audio));
+  audio.addEventListener("durationchange", () => updateWeakReviewAudioProgress(button, audio));
   audio.addEventListener("ended", () => finishWeakReviewAudio(button, audio));
   audio.addEventListener("error", () => finishWeakReviewAudio(button, audio));
   audio.play().catch(() => finishWeakReviewAudio(button, audio));
@@ -3375,11 +3400,76 @@ function finishWeakReviewAudio(button, audio) {
     currentAudioButton = null;
   }
 
+  clearWeakReviewPendingSeek(button);
   button.innerHTML = "&#9654;";
-  button.closest(".weak-review-line").querySelectorAll("[data-weak-review-rating]").forEach((ratingButton) => {
+  updateWeakReviewAudioProgress(button, audio);
+  button.closest(".weak-review-line")?.querySelectorAll("[data-weak-review-rating]").forEach((ratingButton) => {
     ratingButton.disabled = false;
   });
   saveFluencyReveal(button.dataset.lessonId, button.dataset.lineIndex, "listened");
+}
+
+function getWeakReviewPlaybackRate(element) {
+  const line = element.closest(".weak-review-line");
+  const speed = Number(line?.querySelector("[data-weak-review-speed]")?.value);
+
+  return Number.isFinite(speed) && speed > 0 ? speed : 1;
+}
+
+function updateWeakReviewPlaybackRate(select) {
+  const line = select.closest(".weak-review-line");
+
+  if (currentAudio && currentAudioButton && currentAudioButton.closest(".weak-review-line") === line) {
+    currentAudio.playbackRate = getWeakReviewPlaybackRate(select);
+  }
+}
+
+function seekWeakReviewAudio(slider) {
+  const line = slider.closest(".weak-review-line");
+
+  slider.dataset.pendingSeek = "true";
+  if (!currentAudio || !currentAudioButton || currentAudioButton.closest(".weak-review-line") !== line) {
+    return;
+  }
+  if (!Number.isFinite(currentAudio.duration) || currentAudio.duration <= 0) {
+    return;
+  }
+
+  currentAudio.currentTime = currentAudio.duration * (Number(slider.value) / 100);
+}
+
+function applyWeakReviewPendingSeek(button, audio) {
+  const slider = button.closest(".weak-review-line")?.querySelector("[data-weak-review-progress]");
+
+  if (!slider || slider.dataset.pendingSeek !== "true") {
+    updateWeakReviewAudioProgress(button, audio);
+    return;
+  }
+  if (Number.isFinite(audio.duration) && audio.duration > 0) {
+    audio.currentTime = audio.duration * (Number(slider.value) / 100);
+  }
+}
+
+function updateWeakReviewAudioProgress(button, audio) {
+  const slider = button.closest(".weak-review-line")?.querySelector("[data-weak-review-progress]");
+
+  if (!slider || slider.dataset.pendingSeek === "true" && audio.paused) {
+    return;
+  }
+  if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+    slider.value = "0";
+    return;
+  }
+
+  slider.value = String(Math.min(100, (audio.currentTime / audio.duration) * 100));
+}
+
+function clearWeakReviewPendingSeek(button) {
+  const slider = button.closest(".weak-review-line")?.querySelector("[data-weak-review-progress]");
+
+  if (slider) {
+    delete slider.dataset.pendingSeek;
+  }
 }
 
 function renderFluencyLesson(lesson) {
