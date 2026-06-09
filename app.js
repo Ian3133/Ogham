@@ -2455,14 +2455,44 @@ function renderAccountControls(options = {}) {
     <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
     <span class="account-email">${user.email}</span>
     ${options.hideActions ? "" : `
+      <button class="back-link" type="button" data-sync-now>Sync now</button>
       <button class="back-link" type="button" data-master-control>Master Control</button>
       <button class="back-link" type="button" data-logout>Log out</button>
     `}
   `;
 
   topbar.appendChild(controls);
+  controls.querySelector("[data-sync-now]")?.addEventListener("click", syncAccountStateNow);
   controls.querySelector("[data-master-control]")?.addEventListener("click", showMasterControl);
   controls.querySelector("[data-logout]")?.addEventListener("click", logout);
+}
+
+async function syncAccountStateNow(event) {
+  const button = event.currentTarget;
+  const originalText = button.textContent;
+
+  button.disabled = true;
+  button.textContent = "Syncing...";
+  cloudSaveStatus = "Saving...";
+  updateAccountSyncStatus();
+
+  try {
+    await saveCloudStateNow();
+    button.textContent = "Synced";
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = originalText;
+    }, 900);
+  } catch (error) {
+    console.warn("Account state could not be synced.", error);
+    cloudSaveStatus = "Save failed";
+    updateAccountSyncStatus();
+    button.textContent = "Failed";
+    window.setTimeout(() => {
+      button.disabled = false;
+      button.textContent = originalText;
+    }, 1200);
+  }
 }
 
 function updateAccountSyncStatus() {

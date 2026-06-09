@@ -135,6 +135,11 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.account-controls [data-sync-now] {
+  font-size: 0.82rem;
+  padding: 8px 10px;
+}
+
 .back-link {
   background: transparent;
   border: 1px solid var(--line);
