@@ -1150,6 +1150,7 @@ let activeFillTest = {
 const scorePenalty = 0.25;
 const passingRatio = 0.7;
 let cloudSaveTimer = null;
+let cloudSaveSequence = Promise.resolve();
 let isApplyingCloudState = false;
 let cloudStateReady = false;
 let cloudSaveStatus = "";
@@ -1527,6 +1528,11 @@ function flushCloudStateSave(route) {
 }
 
 async function saveCloudStateNow(route, options = {}) {
+  cloudSaveSequence = cloudSaveSequence.catch(() => {}).then(() => saveCloudStateSnapshot(route, options));
+  return cloudSaveSequence;
+}
+
+async function saveCloudStateSnapshot(route, options = {}) {
   const session = getAuthSession();
 
   if (!session?.idToken) {
@@ -1988,11 +1994,17 @@ function isFluencyLineReviewedToday(lessonId, lineIndex) {
 }
 
 function markFluencyLineReviewedToday(lessonId, lineIndex) {
+  return saveFluencyLineReviewedToday(lessonId, lineIndex);
+}
+
+function saveFluencyLineReviewedToday(lessonId, lineIndex, options = {}) {
   const state = getFluencyDailyReviewState();
 
   state.reviewed[getFluencyDailyReviewKey(lessonId, lineIndex)] = true;
   writeStoredJson(fluencyDailyReviewKey, state);
-  flushCloudStateSave();
+  if (!options.skipCloudSave) {
+    flushCloudStateSave();
+  }
 }
 
 function isFluencyChapterCollapsed(chapterNumber) {
@@ -2036,7 +2048,7 @@ function saveFluencyReveal(lessonId, lineIndex, revealType) {
   flushCloudStateSave();
 }
 
-function saveFluencyRating(lessonId, lineIndex, rating) {
+function saveFluencyRating(lessonId, lineIndex, rating, options = {}) {
   const ratings = getFluencyRatings();
   const reveals = getFluencyReveals();
   const lessonReveals = reveals[lessonId] || {};
@@ -2060,7 +2072,9 @@ function saveFluencyRating(lessonId, lineIndex, rating) {
     `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|`
   );
   saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "french"));
-  flushCloudStateSave();
+  if (!options.skipCloudSave) {
+    flushCloudStateSave();
+  }
 }
 
 function getLessonFluencySummary(lesson) {
@@ -3242,8 +3256,9 @@ function revealWeakReviewEnglish(button) {
 function handleWeakReviewRating(button) {
   const rating = normalizeFluencyRating(Number(button.dataset.weakReviewRating));
 
-  saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating);
-  markFluencyLineReviewedToday(button.dataset.lessonId, button.dataset.lineIndex);
+  saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating, { skipCloudSave: true });
+  saveFluencyLineReviewedToday(button.dataset.lessonId, button.dataset.lineIndex, { skipCloudSave: true });
+  flushCloudStateSave();
   markWeakReviewLineReviewed(button, rating);
   removeWeakReviewLine(button);
 }
