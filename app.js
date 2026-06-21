@@ -1054,6 +1054,7 @@ const fluencyRatingsKey = "ogham-fluency-ratings";
 const fluencyRevealsKey = "ogham-fluency-reveals";
 const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
 const fluencyDailyReviewKey = "ogham-fluency-daily-review";
+const fluencyReviewScheduleKey = "ogham-fluency-review-schedule";
 const homeGraphModeKey = "odrerir-home-graph-mode";
 const fluencyRatingProgressPrefix = "fluency-rating|";
 const fluencyRevealProgressPrefix = "fluency-reveal|";
@@ -1324,7 +1325,8 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
     bestScores: getBestScores(),
     fluencyRatings: getFluencyRatings(),
     fluencyReveals: getFluencyReveals(),
-    fluencyDailyReview: getFluencyDailyReviewState()
+    fluencyDailyReview: getFluencyDailyReviewState(),
+    fluencyReviewSchedule: getFluencyReviewScheduleState()
   };
 }
 
@@ -1388,6 +1390,10 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
     cloudState.fluencyDailyReview,
     localState.fluencyDailyReview
   );
+  mergedState.fluencyReviewSchedule = mergeFluencyReviewScheduleState(
+    cloudState.fluencyReviewSchedule,
+    localState.fluencyReviewSchedule
+  );
 
   if (!mergedState.currentRoute && localState.currentRoute) {
     mergedState.currentRoute = localState.currentRoute;
@@ -1434,7 +1440,8 @@ function getEmptyUserState() {
     bestScores: {},
     fluencyRatings: {},
     fluencyReveals: {},
-    fluencyDailyReview: {}
+    fluencyDailyReview: {},
+    fluencyReviewSchedule: {}
   };
 }
 
@@ -1466,6 +1473,9 @@ function applyCloudState(state) {
 
   if (Object.hasOwn(state, "fluencyDailyReview")) {
     writeStoredJson(fluencyDailyReviewKey, normalizeFluencyDailyReviewState(state.fluencyDailyReview));
+  }
+  if (Object.hasOwn(state, "fluencyReviewSchedule")) {
+    writeStoredJson(fluencyReviewScheduleKey, normalizeFluencyReviewScheduleState(state.fluencyReviewSchedule));
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1949,6 +1959,14 @@ function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysToLocalDateKey(dateKey, days) {
+  const [year, month, day] = String(dateKey).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  date.setDate(date.getDate() + days);
+  return getLocalDateKey(date);
+}
+
 function getEmptyFluencyDailyReviewState(dateKey = getLocalDateKey()) {
   return {
     date: dateKey,
@@ -2004,6 +2022,173 @@ function saveFluencyLineReviewedToday(lessonId, lineIndex, options = {}) {
   writeStoredJson(fluencyDailyReviewKey, state);
   if (!options.skipCloudSave) {
     flushCloudStateSave();
+  }
+}
+
+function normalizeFluencyReviewScheduleState(state = {}) {
+  return Object.entries(state || {}).reduce((schedule, [key, entry]) => {
+    const normalized = normalizeFluencyReviewScheduleEntry(entry);
+
+    if (normalized) {
+      schedule[key] = normalized;
+    }
+
+    return schedule;
+  }, {});
+}
+
+function normalizeFluencyReviewScheduleEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : 0;
+
+  if (entry.status === "mastered") {
+    return {
+      status: "mastered",
+      updatedAt
+    };
+  }
+
+  const dueDate = typeof entry.dueDate === "string" ? entry.dueDate : "";
+  const intervalDays = normalizeFluencyReviewInterval(entry.intervalDays);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || !intervalDays) {
+    return null;
+  }
+
+  return {
+    status: "scheduled",
+    dueDate,
+    intervalDays,
+    updatedAt
+  };
+}
+
+function normalizeFluencyReviewInterval(intervalDays) {
+  const value = Number(intervalDays);
+
+  if (value >= 4) {
+    return 4;
+  }
+  if (value >= 2) {
+    return 2;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+
+  return null;
+}
+
+function mergeFluencyReviewScheduleState(cloudState = {}, localState = {}) {
+  const cloudSchedule = normalizeFluencyReviewScheduleState(cloudState);
+  const localSchedule = normalizeFluencyReviewScheduleState(localState);
+
+  return Array.from(new Set([
+    ...Object.keys(cloudSchedule),
+    ...Object.keys(localSchedule)
+  ])).reduce((merged, key) => {
+    const cloudEntry = cloudSchedule[key];
+    const localEntry = localSchedule[key];
+
+    if (!cloudEntry) {
+      merged[key] = localEntry;
+    } else if (!localEntry) {
+      merged[key] = cloudEntry;
+    } else {
+      merged[key] = (localEntry.updatedAt || 0) >= (cloudEntry.updatedAt || 0) ? localEntry : cloudEntry;
+    }
+
+    return merged;
+  }, {});
+}
+
+function getFluencyReviewScheduleState() {
+  return normalizeFluencyReviewScheduleState(readStoredJson(fluencyReviewScheduleKey, {}));
+}
+
+function getFluencyReviewScheduleEntry(lessonId, lineIndex) {
+  return getFluencyReviewScheduleState()[getFluencyDailyReviewKey(lessonId, lineIndex)] || null;
+}
+
+function isFluencyReviewScheduleDue(entry, dateKey = getLocalDateKey()) {
+  return entry?.status === "scheduled" && entry.dueDate <= dateKey;
+}
+
+function isFluencyReviewItemActive(item, options = {}) {
+  const scheduleEntry = getFluencyReviewScheduleEntry(item.lesson.id, item.lineIndex);
+  const isWeak = item.rating === 0 || item.rating === 2;
+  const isScheduled = scheduleEntry?.status === "scheduled";
+  const isDue = isFluencyReviewScheduleDue(scheduleEntry);
+
+  if (item.rating === 5) {
+    return false;
+  }
+
+  if (!isWeak && !isScheduled) {
+    return false;
+  }
+
+  if (!options.includeReviewedToday && isFluencyLineReviewedToday(item.lesson.id, item.lineIndex)) {
+    return false;
+  }
+
+  return options.includeNotDue || !isScheduled || isDue;
+}
+
+function saveFluencyReviewScheduleEntry(lessonId, lineIndex, entry) {
+  const schedule = getFluencyReviewScheduleState();
+
+  schedule[getFluencyDailyReviewKey(lessonId, lineIndex)] = {
+    ...entry,
+    updatedAt: Date.now()
+  };
+  writeStoredJson(fluencyReviewScheduleKey, schedule);
+}
+
+function scheduleFluencyReview(lessonId, lineIndex, intervalDays) {
+  const normalizedInterval = normalizeFluencyReviewInterval(intervalDays) || 1;
+
+  saveFluencyReviewScheduleEntry(lessonId, lineIndex, {
+    status: "scheduled",
+    dueDate: addDaysToLocalDateKey(getLocalDateKey(), normalizedInterval),
+    intervalDays: normalizedInterval
+  });
+}
+
+function markFluencyReviewMastered(lessonId, lineIndex) {
+  saveFluencyReviewScheduleEntry(lessonId, lineIndex, { status: "mastered" });
+}
+
+function updateFluencyReviewScheduleForRating(lessonId, lineIndex, rating) {
+  const normalizedRating = normalizeFluencyRating(rating);
+  const currentEntry = getFluencyReviewScheduleEntry(lessonId, lineIndex);
+  const currentInterval = normalizeFluencyReviewInterval(currentEntry?.intervalDays) || 1;
+
+  if (normalizedRating === 5) {
+    markFluencyReviewMastered(lessonId, lineIndex);
+    return;
+  }
+
+  if (normalizedRating === 3) {
+    if (currentInterval >= 4) {
+      markFluencyReviewMastered(lessonId, lineIndex);
+      return;
+    }
+
+    scheduleFluencyReview(lessonId, lineIndex, currentInterval >= 2 ? 4 : 2);
+    return;
+  }
+
+  if (normalizedRating === 2) {
+    scheduleFluencyReview(lessonId, lineIndex, currentInterval >= 4 ? 2 : 1);
+    return;
+  }
+
+  if (normalizedRating === 0) {
+    scheduleFluencyReview(lessonId, lineIndex, 1);
   }
 }
 
@@ -3020,6 +3205,7 @@ function createFluencyChapter(chapter, currentChapterNumber = getCurrentFluencyC
 
 function getWeakFluencyReviewItems(options = {}) {
   const includeReviewedToday = Boolean(options.includeReviewedToday);
+  const includeNotDue = Boolean(options.includeNotDue);
 
   return lessons.flatMap((lesson) => {
     const ratings = getLessonFluencyRatings(lesson.id);
@@ -3032,11 +3218,7 @@ function getWeakFluencyReviewItems(options = {}) {
         chapterNumber: getLessonChapterNumber(lesson),
         rating: normalizeFluencyRating(ratings[lineIndex])
       }))
-      .filter((item) => {
-        const isWeak = item.rating === 0 || item.rating === 2;
-
-        return isWeak && (includeReviewedToday || !isFluencyLineReviewedToday(lesson.id, item.lineIndex));
-      });
+      .filter((item) => isFluencyReviewItemActive(item, { includeReviewedToday, includeNotDue }));
   });
 }
 
@@ -3065,22 +3247,22 @@ function groupWeakFluencyReviewItemsByChapter(items) {
 
 function getWeakReviewProgressSummary() {
   const dailyItems = getWeakFluencyReviewItems();
-  const allWeakItems = getWeakFluencyReviewItems({ includeReviewedToday: true });
+  const allReviewItems = getWeakFluencyReviewItems({ includeReviewedToday: true, includeNotDue: true });
   const reviewedToday = Object.keys(getFluencyDailyReviewState().reviewed).length;
 
   return {
     remainingToday: dailyItems.length,
     reviewedToday,
-    totalWeak: allWeakItems.length
+    totalReview: allReviewItems.length
   };
 }
 
 function formatWeakReviewProgressSummary(summary = getWeakReviewProgressSummary()) {
-  if (!summary.totalWeak) {
-    return "No X or check-minus sentences right now.";
+  if (!summary.totalReview) {
+    return "No review sentences right now.";
   }
 
-  return `${summary.reviewedToday} reviewed today · ${summary.remainingToday} left today · ${summary.totalWeak} total weak`;
+  return `${summary.reviewedToday} reviewed today - ${summary.remainingToday} due today - ${summary.totalReview} total review`;
 }
 
 function createFluencyLessonItem(lesson) {
@@ -3153,7 +3335,7 @@ function createWeakReviewChapterGroup(group, index) {
       <header class="weak-review-chapter-header">
         <div>
           <h2>Chapter ${group.chapterNumber}</h2>
-          <span data-weak-review-chapter-count>${group.items.length} left today</span>
+          <span data-weak-review-chapter-count>${group.items.length} due today</span>
         </div>
         <button class="icon-button weak-review-chapter-toggle" type="button" data-toggle-weak-review-chapter aria-controls="${panelId}" aria-expanded="${collapsed ? "false" : "true"}" title="${collapsed ? "Expand chapter" : "Collapse chapter"}" aria-label="${collapsed ? "Expand Chapter " + group.chapterNumber : "Collapse Chapter " + group.chapterNumber}">${collapsed ? "+" : "&minus;"}</button>
       </header>
@@ -3193,7 +3375,7 @@ function setWeakReviewChapterCollapsed(chapter, collapsed) {
 }
 
 function createWeakReviewEmptyMarkup() {
-  return `<article class="story-line empty-lesson"><p>Everything in the weak review queue is clear for today.</p></article>`;
+  return `<article class="story-line empty-lesson"><p>Everything in the review queue is clear for today.</p></article>`;
 }
 
 function createWeakReviewLine(item, index = 0) {
@@ -3287,6 +3469,7 @@ function handleWeakReviewRating(button) {
   const rating = normalizeFluencyRating(Number(button.dataset.weakReviewRating));
 
   saveFluencyRating(button.dataset.lessonId, button.dataset.lineIndex, rating, { skipCloudSave: true });
+  updateFluencyReviewScheduleForRating(button.dataset.lessonId, button.dataset.lineIndex, rating);
   saveFluencyLineReviewedToday(button.dataset.lessonId, button.dataset.lineIndex, { skipCloudSave: true });
   flushCloudStateSave();
   markWeakReviewLineReviewed(button, rating);
@@ -3389,7 +3572,7 @@ function updateWeakReviewChapterCount(chapter) {
   const count = chapter.querySelectorAll(".weak-review-line").length;
 
   if (countText) {
-    countText.textContent = `${count} left today`;
+    countText.textContent = `${count} due today`;
   }
 }
 
