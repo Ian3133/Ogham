@@ -1064,6 +1064,7 @@ const authSessionKey = "ogham-auth-session";
 const cognitoDomain = "https://us-east-1lecx3id7z.auth.us-east-1.amazoncognito.com";
 const cognitoClientId = "7ifahuq15bidifgdm57t3389e5";
 const cognitoRedirectUri = `${window.location.origin}/`;
+const authRefreshSkewMs = 60 * 1000;
 const userStateApiUrl = "https://4ei4w1egn9.execute-api.us-east-1.amazonaws.com";
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
 const appBrandName = "Odrerir";
@@ -1155,6 +1156,7 @@ let cloudSaveSequence = Promise.resolve();
 let isApplyingCloudState = false;
 let cloudStateReady = false;
 let cloudSaveStatus = "";
+let authRefreshPromise = null;
 
 function getAuthSession() {
   const saved = window.localStorage.getItem(authSessionKey);
@@ -1166,7 +1168,12 @@ function getAuthSession() {
   try {
     const session = JSON.parse(saved);
 
-    if (!session.idToken || !session.expiresAt || Date.now() >= session.expiresAt) {
+    if (!session.idToken || !session.expiresAt) {
+      clearAuthSession();
+      return null;
+    }
+
+    if (Date.now() >= session.expiresAt && !session.refreshToken) {
       clearAuthSession();
       return null;
     }
@@ -1176,6 +1183,71 @@ function getAuthSession() {
     clearAuthSession();
     return null;
   }
+}
+
+function isAuthSessionFresh(session) {
+  return Boolean(session?.idToken && session.expiresAt && Date.now() < session.expiresAt - authRefreshSkewMs);
+}
+
+async function getValidAuthSession() {
+  const session = getAuthSession();
+
+  if (!session) {
+    return null;
+  }
+
+  if (isAuthSessionFresh(session)) {
+    return session;
+  }
+
+  if (!session.refreshToken) {
+    clearAuthSession();
+    return null;
+  }
+
+  if (!authRefreshPromise) {
+    authRefreshPromise = refreshAuthSession(session)
+      .catch((error) => {
+        console.warn("Auth session could not be refreshed.", error);
+        return null;
+      })
+      .finally(() => {
+        authRefreshPromise = null;
+      });
+  }
+
+  return authRefreshPromise;
+}
+
+async function refreshAuthSession(session) {
+  const tokenResponse = await fetch(`${cognitoDomain}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      client_id: cognitoClientId,
+      grant_type: "refresh_token",
+      refresh_token: session.refreshToken
+    })
+  });
+
+  if (!tokenResponse.ok) {
+    clearAuthSession();
+    return null;
+  }
+
+  const tokens = await tokenResponse.json();
+  const refreshedSession = {
+    ...session,
+    accessToken: tokens.access_token || session.accessToken,
+    idToken: tokens.id_token || session.idToken,
+    refreshToken: tokens.refresh_token || session.refreshToken,
+    expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000
+  };
+
+  window.localStorage.setItem(authSessionKey, JSON.stringify(refreshedSession));
+  return refreshedSession;
 }
 
 function getCurrentUser() {
@@ -1331,7 +1403,7 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
 }
 
 async function loadCloudState() {
-  const session = getAuthSession();
+  const session = await getValidAuthSession();
 
   if (!session?.idToken) {
     return;
@@ -1543,7 +1615,7 @@ async function saveCloudStateNow(route, options = {}) {
 }
 
 async function saveCloudStateSnapshot(route, options = {}) {
-  const session = getAuthSession();
+  const session = await getValidAuthSession();
 
   if (!session?.idToken) {
     return;
@@ -6132,6 +6204,7 @@ async function initializeApp() {
 
   try {
     await handleAuthRedirect();
+    await getValidAuthSession();
   } catch (error) {
     console.error(error);
     renderAuthGate("Sign-in could not be completed. Please try again.");
