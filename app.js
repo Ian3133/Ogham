@@ -1055,6 +1055,7 @@ const fluencyRevealsKey = "ogham-fluency-reveals";
 const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
 const fluencyDailyReviewKey = "ogham-fluency-daily-review";
 const fluencyReviewScheduleKey = "ogham-fluency-review-schedule";
+const dictionaryEntriesKey = "ogham-dictionary-entries";
 const homeGraphModeKey = "odrerir-home-graph-mode";
 const fluencyRatingProgressPrefix = "fluency-rating|";
 const fluencyRevealProgressPrefix = "fluency-reveal|";
@@ -1066,6 +1067,9 @@ const cognitoClientId = "7ifahuq15bidifgdm57t3389e5";
 const cognitoRedirectUri = `${window.location.origin}/`;
 const authRefreshSkewMs = 60 * 1000;
 const userStateApiUrl = "https://4ei4w1egn9.execute-api.us-east-1.amazonaws.com";
+const dictionaryGlossApiUrl = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  ? `${window.location.origin}/dictionary/gloss`
+  : `${userStateApiUrl}/dictionary/gloss`;
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
 const appBrandName = "Odrerir";
 const remoteLessonFiles = [
@@ -1157,6 +1161,9 @@ let isApplyingCloudState = false;
 let cloudStateReady = false;
 let cloudSaveStatus = "";
 let authRefreshPromise = null;
+let activeDictionaryEditId = null;
+let activeDictionarySelection = null;
+let dictionaryDismissBound = false;
 
 function getAuthSession() {
   const saved = window.localStorage.getItem(authSessionKey);
@@ -1297,6 +1304,25 @@ function writeStoredJson(key, value) {
   window.localStorage.setItem(getScopedStorageKey(key), JSON.stringify(value));
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value = "") {
+  return escapeHtml(value);
+}
+
+function stripHtml(value = "") {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(value);
+  return wrapper.textContent || "";
+}
+
 function clearAuthSession() {
   window.localStorage.removeItem(authSessionKey);
   window.sessionStorage.removeItem(authStateKey);
@@ -1398,7 +1424,8 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
     fluencyRatings: getFluencyRatings(),
     fluencyReveals: getFluencyReveals(),
     fluencyDailyReview: getFluencyDailyReviewState(),
-    fluencyReviewSchedule: getFluencyReviewScheduleState()
+    fluencyReviewSchedule: getFluencyReviewScheduleState(),
+    dictionaryEntries: getDictionaryEntriesState()
   };
 }
 
@@ -1466,6 +1493,10 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
     cloudState.fluencyReviewSchedule,
     localState.fluencyReviewSchedule
   );
+  mergedState.dictionaryEntries = mergeDictionaryEntriesState(
+    cloudState.dictionaryEntries,
+    localState.dictionaryEntries
+  );
 
   if (!mergedState.currentRoute && localState.currentRoute) {
     mergedState.currentRoute = localState.currentRoute;
@@ -1513,7 +1544,8 @@ function getEmptyUserState() {
     fluencyRatings: {},
     fluencyReveals: {},
     fluencyDailyReview: {},
-    fluencyReviewSchedule: {}
+    fluencyReviewSchedule: {},
+    dictionaryEntries: { entries: [] }
   };
 }
 
@@ -1548,6 +1580,9 @@ function applyCloudState(state) {
   }
   if (Object.hasOwn(state, "fluencyReviewSchedule")) {
     writeStoredJson(fluencyReviewScheduleKey, normalizeFluencyReviewScheduleState(state.fluencyReviewSchedule));
+  }
+  if (Object.hasOwn(state, "dictionaryEntries")) {
+    writeStoredJson(dictionaryEntriesKey, normalizeDictionaryEntriesState(state.dictionaryEntries));
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1997,6 +2032,160 @@ function getBestScores() {
 
 function getBestScore(itemId) {
   return getBestScores()[itemId];
+}
+
+function getDictionaryEntriesState() {
+  return normalizeDictionaryEntriesState(readStoredJson(dictionaryEntriesKey, { entries: [] }));
+}
+
+function normalizeDictionaryEntriesState(state = {}) {
+  const entries = Array.isArray(state?.entries) ? state.entries : [];
+
+  return {
+    entries: entries
+      .map(normalizeDictionaryEntry)
+      .filter((entry) => entry.term)
+      .sort((a, b) => (b.updatedAt || b.savedAt || 0) - (a.updatedAt || a.savedAt || 0))
+  };
+}
+
+function normalizeDictionaryEntry(entry = {}, index = 0) {
+  const savedAt = Number.isFinite(Number(entry.savedAt)) ? Number(entry.savedAt) : Date.now();
+  const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : savedAt;
+
+  return {
+    id: String(entry.id || `dictionary-entry-${savedAt}-${index}`),
+    term: String(entry.term || "").trim(),
+    literalTranslation: String(entry.literalTranslation || "").trim(),
+    meaningTranslation: String(entry.meaningTranslation || "").trim(),
+    notes: String(entry.notes || "").trim(),
+    sourceSentence: String(entry.sourceSentence || "").trim(),
+    englishSentence: String(entry.englishSentence || "").trim(),
+    lessonId: String(entry.lessonId || "").trim(),
+    lessonTitle: String(entry.lessonTitle || "").trim(),
+    lineIndex: Number.isFinite(Number(entry.lineIndex)) ? Number(entry.lineIndex) : null,
+    audio: String(entry.audio || "").trim(),
+    sourceType: entry.sourceType === "fluency" ? "fluency" : "manual",
+    needsPractice: Boolean(entry.needsPractice),
+    savedAt,
+    updatedAt
+  };
+}
+
+function mergeDictionaryEntriesState(cloudState = {}, localState = {}) {
+  const mergedEntries = new Map();
+
+  [
+    ...normalizeDictionaryEntriesState(cloudState).entries,
+    ...normalizeDictionaryEntriesState(localState).entries
+  ].forEach((entry) => {
+    const key = getDictionaryDuplicateKey(entry);
+    const existing = mergedEntries.get(key);
+
+    if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
+      mergedEntries.set(key, entry);
+    }
+  });
+
+  return normalizeDictionaryEntriesState({ entries: Array.from(mergedEntries.values()) });
+}
+
+function saveDictionaryEntriesState(state, options = {}) {
+  writeStoredJson(dictionaryEntriesKey, normalizeDictionaryEntriesState(state));
+  if (!options.skipCloudSave) {
+    flushCloudStateSave();
+  }
+}
+
+function upsertDictionaryEntry(entryInput, options = {}) {
+  const state = getDictionaryEntriesState();
+  const now = Date.now();
+  const entry = normalizeDictionaryEntry({
+    ...entryInput,
+    id: entryInput.id || createDictionaryEntryId(),
+    savedAt: entryInput.savedAt || now,
+    updatedAt: now
+  });
+  const duplicateKey = getDictionaryDuplicateKey(entry);
+  const existingIndex = state.entries.findIndex((item) => item.id === entry.id || getDictionaryDuplicateKey(item) === duplicateKey);
+
+  if (existingIndex >= 0) {
+    const existing = state.entries[existingIndex];
+    state.entries[existingIndex] = normalizeDictionaryEntry({
+      ...existing,
+      ...entry,
+      id: existing.id,
+      savedAt: existing.savedAt,
+      updatedAt: now,
+      notes: Object.hasOwn(entryInput, "notes") ? entry.notes : existing.notes,
+      needsPractice: Object.hasOwn(entryInput, "needsPractice") ? entry.needsPractice : existing.needsPractice
+    });
+  } else {
+    state.entries.unshift(entry);
+  }
+
+  saveDictionaryEntriesState(state, options);
+  return existingIndex >= 0 ? state.entries[existingIndex] : entry;
+}
+
+function deleteDictionaryEntry(entryId) {
+  const state = getDictionaryEntriesState();
+  saveDictionaryEntriesState({
+    entries: state.entries.filter((entry) => entry.id !== entryId)
+  });
+}
+
+function toggleDictionaryNeedsPractice(entryId) {
+  const state = getDictionaryEntriesState();
+  const entry = state.entries.find((item) => item.id === entryId);
+
+  if (!entry) {
+    return;
+  }
+
+  upsertDictionaryEntry({
+    ...entry,
+    needsPractice: !entry.needsPractice
+  });
+}
+
+function createDictionaryEntryId() {
+  return `dict-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getDictionaryDuplicateKey(entry) {
+  return [
+    normalizeDictionaryText(entry.term),
+    normalizeDictionaryText(entry.sourceSentence)
+  ].join("|");
+}
+
+function normalizeDictionaryText(value = "") {
+  return stripHtml(value)
+    .trim()
+    .toLocaleLowerCase("fr")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’`]/g, "'")
+    .replace(/\s+/g, " ");
+}
+
+function searchDictionaryEntries(entries, query = "") {
+  const normalizedQuery = normalizeDictionaryText(query);
+
+  if (!normalizedQuery) {
+    return entries;
+  }
+
+  return entries.filter((entry) => [
+    entry.term,
+    entry.literalTranslation,
+    entry.meaningTranslation,
+    entry.notes,
+    entry.sourceSentence,
+    entry.englishSentence,
+    entry.lessonTitle
+  ].some((value) => normalizeDictionaryText(value).includes(normalizedQuery)));
 }
 
 function getFluencyRatings() {
@@ -2620,6 +2809,12 @@ function render() {
 
   if (route === "fluency-weak-review") {
     renderFluencyWeakReview();
+    renderAccountControls();
+    return;
+  }
+
+  if (route === "dictionary") {
+    renderDictionary();
     renderAccountControls();
     return;
   }
@@ -3396,6 +3591,7 @@ function renderFluencyWeakReview() {
   app.querySelectorAll("[data-toggle-weak-review-chapter]").forEach((button) => {
     button.addEventListener("click", () => toggleWeakReviewChapter(button));
   });
+  bindDictionarySelectionControls();
 }
 
 function createWeakReviewChapterGroup(group, index) {
@@ -3476,7 +3672,7 @@ function createWeakReviewLine(item, index = 0) {
         <button class="text-button" type="button" data-weak-review-reveal="${frenchId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal French</button>
         <button class="text-button" type="button" data-weak-review-reveal-english="${englishId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal English</button>
       </div>
-      <p class="fluency-hidden-text french" id="${frenchId}">${item.line.french}</p>
+      <div class="fluency-hidden-text french" id="${frenchId}">${createDictionaryTokenMarkup(item.lesson, item.line, item.lineIndex)}</div>
       <p class="fluency-hidden-text translation" id="${englishId}">${item.line.english}</p>
       <div class="fluency-rating" aria-label="Update ${item.lesson.title} sentence ${item.lineIndex + 1} rating">
         ${getFluencyRatingOptions().map((option) => `
@@ -3823,6 +4019,7 @@ function renderFluencyLesson(lesson) {
       updateStorySequenceControls("ready", lesson);
     });
   });
+  bindDictionarySelectionControls();
   updateStorySequenceControls("ready", lesson);
 }
 
@@ -3881,7 +4078,7 @@ function createFluencyLine(lesson, line, index) {
         <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRate ? "" : "disabled"}>${frenchVisible ? "French Revealed" : "Reveal French"}</button>
         <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" ${canRevealEnglish ? "" : "disabled"}>Reveal English</button>
       </div>
-      <p class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${line.french}</p>
+      <div class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${createDictionaryTokenMarkup(lesson, line, index)}</div>
       <p class="fluency-hidden-text translation ${englishVisible ? "visible" : ""}" id="fluency-english-${index}">${line.english}</p>
       <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
         ${getFluencyRatingOptions().map((option) => `<button class="rating-button rating-${option.value} ${rating === option.value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${option.value}" title="${option.label}" aria-label="${option.label}" ${canRate ? "" : "disabled"}>${option.symbol}</button>`).join("")}
@@ -4026,6 +4223,485 @@ function renderHistory() {
   app.querySelectorAll("[data-open-item]").forEach((button) => {
     button.addEventListener("click", () => setRoute(button.dataset.openItem));
   });
+}
+
+function renderDictionary(searchQuery = "", needsOnly = false) {
+  const state = getDictionaryEntriesState();
+  const editingEntry = activeDictionaryEditId
+    ? state.entries.find((entry) => entry.id === activeDictionaryEditId)
+    : null;
+
+  app.innerHTML = `
+    <section class="shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button">Back home</button>
+      </div>
+      <header class="lesson-header">
+        <h1>Dictionary</h1>
+        <p class="lesson-lede">Save words and phrases from listening practice, or add your own study cards.</p>
+      </header>
+      <section class="dictionary-layout">
+        <form class="dictionary-form" data-dictionary-form>
+          <input type="hidden" data-dictionary-id value="${escapeAttribute(editingEntry?.id || "")}">
+          <div class="dictionary-form-header">
+            <div>
+              <p class="booklet-kicker">${editingEntry ? "Edit card" : "Manual entry"}</p>
+              <h2>${editingEntry ? "Update study card" : "Add word or phrase"}</h2>
+            </div>
+            ${editingEntry ? `<button class="text-button" type="button" data-cancel-dictionary-edit>Cancel</button>` : ""}
+          </div>
+          <label>
+            <span>French word or phrase</span>
+            <input type="text" data-dictionary-term value="${escapeAttribute(editingEntry?.term || "")}" required>
+          </label>
+          <label>
+            <span>Literal translation</span>
+            <input type="text" data-dictionary-literal value="${escapeAttribute(editingEntry?.literalTranslation || "")}">
+          </label>
+          <label>
+            <span>Meaning translation</span>
+            <input type="text" data-dictionary-meaning value="${escapeAttribute(editingEntry?.meaningTranslation || "")}">
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea data-dictionary-notes rows="4">${escapeHtml(editingEntry?.notes || "")}</textarea>
+          </label>
+          <label class="dictionary-checkbox">
+            <input type="checkbox" data-dictionary-practice ${editingEntry?.needsPractice ? "checked" : ""}>
+            <span>Needs practice</span>
+          </label>
+          <button class="primary-button" type="submit">${editingEntry ? "Update Card" : "Add Card"}</button>
+        </form>
+        <section class="dictionary-browser" aria-label="Saved dictionary entries">
+          <div class="dictionary-tools">
+            <label>
+              <span>Search</span>
+              <input type="search" data-dictionary-search value="${escapeAttribute(searchQuery)}" placeholder="Find a word, meaning, note, or lesson">
+            </label>
+            <label class="dictionary-checkbox">
+              <input type="checkbox" data-dictionary-needs-only ${needsOnly ? "checked" : ""}>
+              <span>Needs practice only</span>
+            </label>
+          </div>
+          <p class="dictionary-count" data-dictionary-count></p>
+          <div class="dictionary-list" data-dictionary-list></div>
+        </section>
+      </section>
+    </section>
+  `;
+
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelector("[data-dictionary-form]").addEventListener("submit", handleDictionaryFormSubmit);
+  app.querySelector("[data-dictionary-search]").addEventListener("input", updateDictionaryList);
+  app.querySelector("[data-dictionary-needs-only]").addEventListener("change", updateDictionaryList);
+  app.querySelector("[data-cancel-dictionary-edit]")?.addEventListener("click", () => {
+    activeDictionaryEditId = null;
+    renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+  });
+  updateDictionaryList();
+}
+
+function updateDictionaryList() {
+  const list = app.querySelector("[data-dictionary-list]");
+  const count = app.querySelector("[data-dictionary-count]");
+
+  if (!list || !count) {
+    return;
+  }
+
+  const query = getDictionarySearchValue();
+  const needsOnly = getDictionaryNeedsOnlyValue();
+  const allEntries = getDictionaryEntriesState().entries;
+  const filteredEntries = searchDictionaryEntries(
+    needsOnly ? allEntries.filter((entry) => entry.needsPractice) : allEntries,
+    query
+  );
+
+  count.textContent = `${filteredEntries.length} of ${allEntries.length} cards`;
+  list.innerHTML = filteredEntries.length
+    ? filteredEntries.map(createDictionaryEntryCard).join("")
+    : `<article class="dictionary-empty"><p>No saved cards match this view.</p></article>`;
+
+  bindDictionaryEntryActions(list);
+}
+
+function getDictionarySearchValue() {
+  return app.querySelector("[data-dictionary-search]")?.value || "";
+}
+
+function getDictionaryNeedsOnlyValue() {
+  return Boolean(app.querySelector("[data-dictionary-needs-only]")?.checked);
+}
+
+function handleDictionaryFormSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const entryId = form.querySelector("[data-dictionary-id]").value;
+  const existingEntry = entryId
+    ? getDictionaryEntriesState().entries.find((entry) => entry.id === entryId)
+    : null;
+  const term = form.querySelector("[data-dictionary-term]").value.trim();
+
+  if (!term) {
+    return;
+  }
+
+  upsertDictionaryEntry({
+    ...(existingEntry || {}),
+    id: entryId || undefined,
+    term,
+    literalTranslation: form.querySelector("[data-dictionary-literal]").value.trim(),
+    meaningTranslation: form.querySelector("[data-dictionary-meaning]").value.trim(),
+    notes: form.querySelector("[data-dictionary-notes]").value.trim(),
+    needsPractice: form.querySelector("[data-dictionary-practice]").checked,
+    sourceType: existingEntry?.sourceType || "manual"
+  });
+  activeDictionaryEditId = null;
+  renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+}
+
+function createDictionaryEntryCard(entry) {
+  const hasSource = Boolean(entry.sourceSentence || entry.englishSentence || entry.lessonTitle);
+  const date = entry.savedAt ? new Date(entry.savedAt).toLocaleDateString() : "";
+  const sourceLabel = entry.sourceType === "fluency" && entry.lessonTitle
+    ? `${entry.lessonTitle}${entry.lineIndex !== null ? ` - sentence ${entry.lineIndex + 1}` : ""}`
+    : "Manual entry";
+
+  return `
+    <article class="dictionary-card ${entry.needsPractice ? "needs-practice" : ""}" data-dictionary-entry="${escapeAttribute(entry.id)}">
+      <div class="dictionary-card-main">
+        <div>
+          <p class="booklet-kicker">${escapeHtml(sourceLabel)}</p>
+          <h2>${escapeHtml(entry.term)}</h2>
+        </div>
+        <div class="dictionary-card-actions">
+          ${entry.audio ? `<button class="icon-button" type="button" data-dictionary-audio="${escapeAttribute(entry.audio)}" title="Play source audio" aria-label="Play source audio">&#9654;</button>` : ""}
+          <button class="text-button" type="button" data-edit-dictionary-entry="${escapeAttribute(entry.id)}">Edit</button>
+          <button class="text-button" type="button" data-delete-dictionary-entry="${escapeAttribute(entry.id)}">Delete</button>
+        </div>
+      </div>
+      <div class="dictionary-meanings">
+        ${entry.literalTranslation ? `<p><strong>Literal:</strong> ${escapeHtml(entry.literalTranslation)}</p>` : ""}
+        ${entry.meaningTranslation ? `<p><strong>Meaning:</strong> ${escapeHtml(entry.meaningTranslation)}</p>` : ""}
+        ${entry.notes ? `<p><strong>Notes:</strong> ${escapeHtml(entry.notes)}</p>` : ""}
+      </div>
+      ${hasSource ? `
+        <div class="dictionary-source">
+          ${entry.sourceSentence ? `<p class="dictionary-source-french">${escapeHtml(entry.sourceSentence)}</p>` : ""}
+          ${entry.englishSentence ? `<p>${escapeHtml(entry.englishSentence)}</p>` : ""}
+        </div>
+      ` : ""}
+      <div class="dictionary-card-footer">
+        <label class="dictionary-checkbox">
+          <input type="checkbox" data-toggle-dictionary-practice="${escapeAttribute(entry.id)}" ${entry.needsPractice ? "checked" : ""}>
+          <span>Needs practice</span>
+        </label>
+        ${date ? `<span>Saved ${escapeHtml(date)}</span>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function bindDictionaryEntryActions(container) {
+  container.querySelectorAll("[data-dictionary-audio]").forEach((button) => {
+    button.addEventListener("click", () => playAudio(button.dataset.dictionaryAudio));
+  });
+  container.querySelectorAll("[data-edit-dictionary-entry]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeDictionaryEditId = button.dataset.editDictionaryEntry;
+      renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+  container.querySelectorAll("[data-delete-dictionary-entry]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteDictionaryEntry(button.dataset.deleteDictionaryEntry);
+      if (activeDictionaryEditId === button.dataset.deleteDictionaryEntry) {
+        activeDictionaryEditId = null;
+      }
+      updateDictionaryList();
+    });
+  });
+  container.querySelectorAll("[data-toggle-dictionary-practice]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      toggleDictionaryNeedsPractice(checkbox.dataset.toggleDictionaryPractice);
+      updateDictionaryList();
+    });
+  });
+}
+
+function createDictionaryTokenMarkup(lesson, line, lineIndex) {
+  const tokens = tokenizeDictionaryText(line.french);
+  let selectableIndex = 0;
+  const tokenMarkup = tokens.map((token) => {
+    if (!token.selectable) {
+      return `<span class="dictionary-token-static">${escapeHtml(token.text)}</span>`;
+    }
+
+    const tokenIndex = selectableIndex;
+    selectableIndex += 1;
+    return `<button class="dictionary-token" type="button" data-dictionary-token="${tokenIndex}" data-token-text="${escapeAttribute(token.text)}">${escapeHtml(token.text)}</button>`;
+  }).join("");
+
+  return `
+    <div class="dictionary-token-line"
+      data-dictionary-source-sentence="${escapeAttribute(line.french)}"
+      data-dictionary-english-sentence="${escapeAttribute(line.english)}"
+      data-dictionary-lesson-id="${escapeAttribute(lesson.id)}"
+      data-dictionary-lesson-title="${escapeAttribute(lesson.title)}"
+      data-dictionary-line-index="${lineIndex}"
+      data-dictionary-audio="${escapeAttribute(line.audio || "")}">
+      <span>${tokenMarkup}</span>
+      <button class="text-button dictionary-save-sentence" type="button" data-save-dictionary-sentence>Save sentence</button>
+    </div>
+  `;
+}
+
+function tokenizeDictionaryText(text = "") {
+  const tokens = [];
+  const wordPattern = /[\p{L}\p{M}\d]+(?:[’'\-][\p{L}\p{M}\d]+)*/gu;
+  let lastIndex = 0;
+  let match = wordPattern.exec(text);
+
+  while (match) {
+    if (match.index > lastIndex) {
+      tokens.push({ text: text.slice(lastIndex, match.index), selectable: false });
+    }
+    tokens.push({ text: match[0], selectable: true });
+    lastIndex = match.index + match[0].length;
+    match = wordPattern.exec(text);
+  }
+
+  if (lastIndex < text.length) {
+    tokens.push({ text: text.slice(lastIndex), selectable: false });
+  }
+
+  return tokens.length ? tokens : [{ text, selectable: false }];
+}
+
+function bindDictionarySelectionControls(scope = app) {
+  scope.querySelectorAll("[data-dictionary-token]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleDictionaryTokenClick(button);
+    });
+  });
+  scope.querySelectorAll("[data-save-dictionary-sentence]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const root = button.closest(".dictionary-token-line");
+      openDictionaryGlossPopover(getDictionaryContextFromRoot(root, root?.dataset.dictionarySourceSentence || ""));
+    });
+  });
+
+  if (!dictionaryDismissBound) {
+    document.addEventListener("click", dismissDictionaryPopoverOnOutsideClick);
+    dictionaryDismissBound = true;
+  }
+}
+
+function handleDictionaryTokenClick(button) {
+  const root = button.closest(".dictionary-token-line");
+  const tokenIndex = Number(button.dataset.dictionaryToken);
+
+  if (!root || !Number.isFinite(tokenIndex)) {
+    return;
+  }
+
+  if (!activeDictionarySelection || activeDictionarySelection.root !== root) {
+    activeDictionarySelection = { root, start: tokenIndex, end: tokenIndex };
+    highlightDictionaryTokenRange(root, tokenIndex, tokenIndex);
+    return;
+  }
+
+  activeDictionarySelection.end = tokenIndex;
+  const start = Math.min(activeDictionarySelection.start, activeDictionarySelection.end);
+  const end = Math.max(activeDictionarySelection.start, activeDictionarySelection.end);
+  highlightDictionaryTokenRange(root, start, end);
+  openDictionaryGlossPopover(getDictionaryContextFromRoot(root, getDictionarySelectedTerm(root, start, end)));
+}
+
+function getDictionarySelectedTerm(root, start, end) {
+  return Array.from(root.querySelectorAll("[data-dictionary-token]"))
+    .filter((button) => {
+      const index = Number(button.dataset.dictionaryToken);
+      return index >= start && index <= end;
+    })
+    .map((button) => button.dataset.tokenText)
+    .join(" ")
+    .trim();
+}
+
+function highlightDictionaryTokenRange(root, start, end) {
+  app.querySelectorAll(".dictionary-token.selected").forEach((button) => {
+    if (!root || !root.contains(button)) {
+      button.classList.remove("selected");
+    }
+  });
+  root.querySelectorAll("[data-dictionary-token]").forEach((button) => {
+    const index = Number(button.dataset.dictionaryToken);
+    button.classList.toggle("selected", index >= start && index <= end);
+  });
+}
+
+function clearDictionaryTokenSelection() {
+  activeDictionarySelection = null;
+  app.querySelectorAll(".dictionary-token.selected").forEach((button) => {
+    button.classList.remove("selected");
+  });
+}
+
+function getDictionaryContextFromRoot(root, term) {
+  return {
+    root,
+    term: String(term || "").trim(),
+    sourceSentence: root?.dataset.dictionarySourceSentence || "",
+    englishSentence: root?.dataset.dictionaryEnglishSentence || "",
+    lessonId: root?.dataset.dictionaryLessonId || "",
+    lessonTitle: root?.dataset.dictionaryLessonTitle || "",
+    lineIndex: Number.isFinite(Number(root?.dataset.dictionaryLineIndex)) ? Number(root.dataset.dictionaryLineIndex) : null,
+    audio: root?.dataset.dictionaryAudio || ""
+  };
+}
+
+function openDictionaryGlossPopover(context) {
+  closeDictionaryGlossPopover({ keepSelection: true });
+
+  if (!context.term) {
+    return;
+  }
+
+  const root = context.root || activeDictionarySelection?.root || app.querySelector(".dictionary-token-line");
+  const host = root?.closest(".fluency-line, .weak-review-line, .story-line") || app;
+  const popover = document.createElement("aside");
+  popover.className = "dictionary-gloss-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", "Dictionary gloss");
+  popover.innerHTML = `
+    <form data-dictionary-gloss-form>
+      <div class="dictionary-popover-header">
+        <div>
+          <p class="booklet-kicker">Dictionary</p>
+          <h3>${escapeHtml(context.term)}</h3>
+        </div>
+        <button class="icon-button" type="button" data-close-dictionary-popover title="Close" aria-label="Close">&times;</button>
+      </div>
+      <p class="dictionary-popover-status" data-dictionary-gloss-status>Asking for a literal and contextual gloss...</p>
+      <label>
+        <span>Selected word or phrase</span>
+        <input type="text" data-gloss-term value="${escapeAttribute(context.term)}" required>
+      </label>
+      <label>
+        <span>Literal translation</span>
+        <input type="text" data-gloss-literal>
+      </label>
+      <label>
+        <span>Meaning in this sentence</span>
+        <input type="text" data-gloss-meaning>
+      </label>
+      <label>
+        <span>Notes</span>
+        <textarea data-gloss-notes rows="3"></textarea>
+      </label>
+      <label class="dictionary-checkbox">
+        <input type="checkbox" data-gloss-practice checked>
+        <span>Needs practice</span>
+      </label>
+      <div class="dictionary-popover-actions">
+        <button class="primary-button" type="submit">Store</button>
+        <button class="text-button" type="button" data-cancel-dictionary-popover>Cancel</button>
+      </div>
+    </form>
+  `;
+
+  host.appendChild(popover);
+  popover.querySelector("[data-close-dictionary-popover]").addEventListener("click", () => closeDictionaryGlossPopover());
+  popover.querySelector("[data-cancel-dictionary-popover]").addEventListener("click", () => closeDictionaryGlossPopover());
+  popover.querySelector("[data-dictionary-gloss-form]").addEventListener("submit", (event) => {
+    event.preventDefault();
+    storeDictionaryGloss(context, popover);
+  });
+  requestDictionaryGloss(context, popover);
+}
+
+async function requestDictionaryGloss(context, popover) {
+  const status = popover.querySelector("[data-dictionary-gloss-status]");
+  const literal = popover.querySelector("[data-gloss-literal]");
+  const meaning = popover.querySelector("[data-gloss-meaning]");
+  const notes = popover.querySelector("[data-gloss-notes]");
+
+  try {
+    const session = await getValidAuthSession();
+
+    if (!session?.idToken) {
+      throw new Error("Not signed in");
+    }
+
+    const response = await fetch(dictionaryGlossApiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.idToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        term: context.term,
+        sourceSentence: context.sourceSentence,
+        englishSentence: context.englishSentence,
+        lessonId: context.lessonId,
+        lessonTitle: context.lessonTitle,
+        lineIndex: context.lineIndex
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gloss request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    literal.value = payload.literalTranslation || payload.literal || "";
+    meaning.value = payload.meaningTranslation || payload.contextualMeaning || payload.contextualTranslation || payload.meaning || "";
+    notes.value = payload.usageNote || payload.notes || "";
+    status.textContent = "AI draft loaded. Edit anything before storing.";
+    status.classList.remove("error");
+  } catch (error) {
+    console.warn("Dictionary gloss unavailable.", error);
+    status.textContent = "AI unavailable. Add your own translation, then store.";
+    status.classList.add("error");
+  }
+}
+
+function storeDictionaryGloss(context, popover) {
+  upsertDictionaryEntry({
+    term: popover.querySelector("[data-gloss-term]").value.trim(),
+    literalTranslation: popover.querySelector("[data-gloss-literal]").value.trim(),
+    meaningTranslation: popover.querySelector("[data-gloss-meaning]").value.trim(),
+    notes: popover.querySelector("[data-gloss-notes]").value.trim(),
+    sourceSentence: context.sourceSentence,
+    englishSentence: context.englishSentence,
+    lessonId: context.lessonId,
+    lessonTitle: context.lessonTitle,
+    lineIndex: context.lineIndex,
+    audio: context.audio,
+    sourceType: "fluency",
+    needsPractice: popover.querySelector("[data-gloss-practice]").checked
+  });
+  closeDictionaryGlossPopover();
+}
+
+function dismissDictionaryPopoverOnOutsideClick(event) {
+  if (event.target.closest(".dictionary-gloss-popover, [data-dictionary-token], [data-save-dictionary-sentence]")) {
+    return;
+  }
+
+  closeDictionaryGlossPopover();
+}
+
+function closeDictionaryGlossPopover(options = {}) {
+  app.querySelectorAll(".dictionary-gloss-popover").forEach((popover) => popover.remove());
+  if (!options.keepSelection) {
+    clearDictionaryTokenSelection();
+  }
 }
 
 function createHistoryItem(item) {

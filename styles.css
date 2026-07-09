@@ -701,6 +701,228 @@ h1 {
   display: block;
 }
 
+.dictionary-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+}
+
+.dictionary-form,
+.dictionary-browser,
+.dictionary-card,
+.dictionary-gloss-popover {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.dictionary-form,
+.dictionary-browser {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.dictionary-form {
+  position: sticky;
+  top: 18px;
+}
+
+.dictionary-form-header,
+.dictionary-card-main,
+.dictionary-card-footer,
+.dictionary-popover-header,
+.dictionary-popover-actions,
+.dictionary-tools {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.dictionary-form h2,
+.dictionary-popover-header h3 {
+  color: var(--accent-dark);
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.dictionary-form label,
+.dictionary-tools label,
+.dictionary-gloss-popover label {
+  color: var(--accent-dark);
+  display: grid;
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.dictionary-form input[type="text"],
+.dictionary-form textarea,
+.dictionary-tools input[type="search"],
+.dictionary-gloss-popover input[type="text"],
+.dictionary-gloss-popover textarea {
+  background: #fffaf1;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: 400 0.98rem Arial, sans-serif;
+  line-height: 1.35;
+  padding: 10px 11px;
+  width: 100%;
+}
+
+.dictionary-tools label:first-child {
+  flex: 1 1 260px;
+}
+
+.dictionary-checkbox {
+  align-items: center;
+  display: inline-flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.dictionary-checkbox input {
+  accent-color: var(--accent);
+}
+
+.dictionary-count,
+.dictionary-card-footer,
+.dictionary-source,
+.dictionary-empty {
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+}
+
+.dictionary-count {
+  font-size: 0.86rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.dictionary-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dictionary-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.dictionary-card.needs-practice {
+  border-color: #d4b84e;
+  box-shadow: inset 4px 0 0 #d4b84e;
+}
+
+.dictionary-card h2 {
+  color: var(--accent-dark);
+  font-size: 1.55rem;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.dictionary-card-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dictionary-meanings {
+  display: grid;
+  gap: 7px;
+}
+
+.dictionary-meanings p,
+.dictionary-source p,
+.dictionary-empty p {
+  line-height: 1.45;
+  margin: 0;
+}
+
+.dictionary-meanings strong,
+.dictionary-source-french {
+  color: var(--accent-dark);
+}
+
+.dictionary-source {
+  border-left: 3px solid var(--warm);
+  display: grid;
+  gap: 5px;
+  padding-left: 12px;
+}
+
+.dictionary-card-footer {
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  padding-top: 10px;
+}
+
+.dictionary-token-line {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.dictionary-token,
+.dictionary-token-static {
+  display: inline;
+}
+
+.dictionary-token {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid rgba(39, 108, 99, 0.28);
+  color: var(--accent-dark);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 1px 1px;
+}
+
+.dictionary-token:hover,
+.dictionary-token.selected {
+  background: #eef6f3;
+  border-bottom-color: var(--accent);
+}
+
+.dictionary-save-sentence {
+  font-size: 0.78rem;
+  margin-left: 8px;
+  padding: 6px 9px;
+}
+
+.dictionary-gloss-popover {
+  box-shadow: var(--shadow);
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.dictionary-gloss-popover form {
+  display: grid;
+  gap: 12px;
+}
+
+.dictionary-popover-status {
+  color: var(--accent-dark);
+  font-family: Arial, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.dictionary-popover-status.error {
+  color: #9f382e;
+}
+
 .fluency-list {
   gap: 16px;
 }
@@ -1881,6 +2103,7 @@ h1 {
 
   .home-grid,
   .home-dashboard,
+  .dictionary-layout,
   .next-steps {
     grid-template-columns: 1fr;
   }
@@ -1902,6 +2125,17 @@ h1 {
     grid-column: auto;
     grid-row: auto;
     padding-top: 0;
+  }
+
+  .dictionary-form {
+    position: static;
+  }
+
+  .dictionary-card-main,
+  .dictionary-card-footer,
+  .dictionary-tools {
+    align-items: flex-start;
+    display: grid;
   }
 
   .home-section-card-large {
