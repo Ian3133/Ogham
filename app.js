@@ -1165,6 +1165,7 @@ let cloudSaveStatus = "";
 let cloudLastConfirmedAt = "";
 let authRefreshPromise = null;
 let activeDictionaryEditId = null;
+let dictionaryManualFormOpen = false;
 let dictionaryDismissBound = false;
 let courseGlossary = { version: 1, lessons: {} };
 let courseGlossaryIndex = new Map();
@@ -1584,7 +1585,7 @@ function getEmptyUserState() {
     fluencyReveals: {},
     fluencyDailyReview: {},
     fluencyReviewSchedule: {},
-    dictionaryEntries: { entries: [] }
+    dictionaryEntries: { entries: [], deletedEntries: [] }
   };
 }
 
@@ -2203,17 +2204,35 @@ function indexCourseGlossary() {
 }
 
 function getDictionaryEntriesState() {
-  return normalizeDictionaryEntriesState(readStoredJson(dictionaryEntriesKey, { entries: [] }));
+  return normalizeDictionaryEntriesState(readStoredJson(dictionaryEntriesKey, { entries: [], deletedEntries: [] }));
 }
 
 function normalizeDictionaryEntriesState(state = {}) {
   const entries = Array.isArray(state?.entries) ? state.entries : [];
+  const deletedEntries = (Array.isArray(state?.deletedEntries) ? state.deletedEntries : [])
+    .map((deletion) => ({
+      key: String(deletion?.key || ""),
+      deletedAt: Number(deletion?.deletedAt) || 0
+    }))
+    .filter((deletion) => deletion.key && deletion.deletedAt);
+  const latestDeletionByKey = new Map();
+  deletedEntries.forEach((deletion) => {
+    if (deletion.deletedAt > (latestDeletionByKey.get(deletion.key)?.deletedAt || 0)) {
+      latestDeletionByKey.set(deletion.key, deletion);
+    }
+  });
+  const normalizedEntries = entries
+    .map(normalizeDictionaryEntry)
+    .filter((entry) => entry.term || entry.glossaryId)
+    .filter((entry) => (latestDeletionByKey.get(getDictionaryDuplicateKey(entry))?.deletedAt || 0) < entry.updatedAt)
+    .sort((a, b) => (b.updatedAt || b.savedAt || 0) - (a.updatedAt || a.savedAt || 0));
+  const liveUpdatedAtByKey = new Map(normalizedEntries.map((entry) => [getDictionaryDuplicateKey(entry), entry.updatedAt]));
 
   return {
-    entries: entries
-      .map(normalizeDictionaryEntry)
-      .filter((entry) => entry.term || entry.glossaryId)
-      .sort((a, b) => (b.updatedAt || b.savedAt || 0) - (a.updatedAt || a.savedAt || 0))
+    entries: normalizedEntries,
+    deletedEntries: Array.from(latestDeletionByKey.values())
+      .filter((deletion) => deletion.deletedAt >= (liveUpdatedAtByKey.get(deletion.key) || 0))
+      .sort((a, b) => b.deletedAt - a.deletedAt)
   };
 }
 
@@ -2256,8 +2275,9 @@ function normalizeDictionaryEntry(entry = {}, index = 0) {
 }
 
 function serializeDictionaryEntriesState(state = {}) {
+  const normalizedState = normalizeDictionaryEntriesState(state);
   return {
-    entries: normalizeDictionaryEntriesState(state).entries.map((entry) => {
+    entries: normalizedState.entries.map((entry) => {
       if (!entry.glossaryId) {
         return entry;
       }
@@ -2273,16 +2293,26 @@ function serializeDictionaryEntriesState(state = {}) {
         savedAt: entry.savedAt,
         updatedAt: entry.updatedAt
       };
-    })
+    }),
+    deletedEntries: normalizedState.deletedEntries
   };
 }
 
 function mergeDictionaryEntriesState(cloudState = {}, localState = {}) {
   const mergedEntries = new Map();
+  const normalizedCloud = normalizeDictionaryEntriesState(cloudState);
+  const normalizedLocal = normalizeDictionaryEntriesState(localState);
+  const mergedDeletions = new Map();
+
+  [...normalizedCloud.deletedEntries, ...normalizedLocal.deletedEntries].forEach((deletion) => {
+    if (deletion.deletedAt > (mergedDeletions.get(deletion.key)?.deletedAt || 0)) {
+      mergedDeletions.set(deletion.key, deletion);
+    }
+  });
 
   [
-    ...normalizeDictionaryEntriesState(cloudState).entries,
-    ...normalizeDictionaryEntriesState(localState).entries
+    ...normalizedCloud.entries,
+    ...normalizedLocal.entries
   ].forEach((entry) => {
     const key = getDictionaryDuplicateKey(entry);
     const existing = mergedEntries.get(key);
@@ -2296,20 +2326,26 @@ function mergeDictionaryEntriesState(cloudState = {}, localState = {}) {
     const firstEncounteredValues = [existing.firstEncounteredAt, entry.firstEncounteredAt].filter(Boolean);
     mergedEntries.set(key, normalizeDictionaryEntry({
       ...newest,
-      saved: existing.saved || entry.saved,
       encounterCount: Math.max(existing.encounterCount || 0, entry.encounterCount || 0),
       firstEncounteredAt: firstEncounteredValues.length ? Math.min(...firstEncounteredValues) : 0,
       lastEncounteredAt: Math.max(existing.lastEncounteredAt || 0, entry.lastEncounteredAt || 0)
     }));
   });
 
-  return normalizeDictionaryEntriesState({ entries: Array.from(mergedEntries.values()) });
+  return normalizeDictionaryEntriesState({
+    entries: Array.from(mergedEntries.values()),
+    deletedEntries: Array.from(mergedDeletions.values())
+  });
 }
 
 function saveDictionaryEntriesState(state, options = {}) {
   writeStoredJson(dictionaryEntriesKey, serializeDictionaryEntriesState(state));
   if (!options.skipCloudSave) {
-    flushCloudStateSave();
+    if (options.cloudMode === "debounced") {
+      queueCloudStateSave();
+    } else {
+      flushCloudStateSave();
+    }
   }
 }
 
@@ -2347,8 +2383,18 @@ function upsertDictionaryEntry(entryInput, options = {}) {
 
 function deleteDictionaryEntry(entryId) {
   const state = getDictionaryEntriesState();
+  const entry = state.entries.find((item) => item.id === entryId);
+
+  if (!entry) {
+    return;
+  }
+
   saveDictionaryEntriesState({
-    entries: state.entries.filter((entry) => entry.id !== entryId)
+    entries: state.entries.filter((item) => item.id !== entryId),
+    deletedEntries: [
+      ...state.deletedEntries.filter((deletion) => deletion.key !== getDictionaryDuplicateKey(entry)),
+      { key: getDictionaryDuplicateKey(entry), deletedAt: Date.now() }
+    ]
   });
 }
 
@@ -2452,7 +2498,7 @@ function getGlossaryCandidatePriority(candidate, glossaryLine) {
 function hasEncounteredDictionaryLemma(lemma) {
   const normalizedLemma = normalizeDictionaryText(lemma);
   return getDictionaryEntriesState().entries.some((entry) => (
-    entry.encounterCount > 0 && normalizeDictionaryText(entry.lemma) === normalizedLemma
+    (entry.saved || entry.encounterCount >= 2) && normalizeDictionaryText(entry.lemma) === normalizedLemma
   ));
 }
 
@@ -2498,7 +2544,7 @@ function createDictionaryEntryFromGlossary(context) {
   };
 }
 
-function recordDictionaryEncounter(context) {
+function recordDictionaryEncounter(context, options = {}) {
   const baseEntry = createDictionaryEntryFromGlossary(context);
   const existing = getDictionaryEntriesState().entries.find((entry) => getDictionaryDuplicateKey(entry) === getDictionaryDuplicateKey(baseEntry));
   const now = Date.now();
@@ -2509,7 +2555,7 @@ function recordDictionaryEncounter(context) {
     encounterCount: (existing?.encounterCount || 0) + 1,
     firstEncounteredAt: existing?.firstEncounteredAt || now,
     lastEncounteredAt: now
-  });
+  }, { ...options, cloudMode: options.cloudMode || "debounced" });
 }
 
 function saveGlossaryDictionaryEntry(context) {
@@ -4589,11 +4635,12 @@ function renderHistory() {
   });
 }
 
-function renderDictionary(searchQuery = "", filter = "all") {
+function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphabetical") {
   const state = getDictionaryEntriesState();
   const editingEntry = activeDictionaryEditId
     ? state.entries.find((entry) => entry.id === activeDictionaryEditId)
     : null;
+  const showManualForm = dictionaryManualFormOpen || Boolean(editingEntry);
 
   app.innerHTML = `
     <section class="shell">
@@ -4604,9 +4651,10 @@ function renderDictionary(searchQuery = "", filter = "all") {
       <header class="lesson-header">
         <h1>Dictionary</h1>
         <p class="lesson-lede">Revisit language encountered in listening practice, group related forms, and add your own terms.</p>
+        <button class="primary-button dictionary-add-button" type="button" data-open-dictionary-form>${showManualForm ? "Close entry form" : "Add entry"}</button>
       </header>
-      <section class="dictionary-layout">
-        <form class="dictionary-form" data-dictionary-form>
+      <section class="dictionary-layout ${showManualForm ? "" : "form-closed"}">
+        ${showManualForm ? `<form class="dictionary-form" data-dictionary-form>
           <input type="hidden" data-dictionary-id value="${escapeAttribute(editingEntry?.id || "")}">
           <div class="dictionary-form-header">
             <div>
@@ -4640,7 +4688,7 @@ function renderDictionary(searchQuery = "", filter = "all") {
             <span>Needs practice</span>
           </label>
           <button class="primary-button" type="submit">${editingEntry ? "Update Card" : "Add Card"}</button>
-        </form>
+        </form>` : ""}
         <section class="dictionary-browser" aria-label="Saved dictionary entries">
           <div class="dictionary-tools">
             <label>
@@ -4656,6 +4704,14 @@ function renderDictionary(searchQuery = "", filter = "all") {
                 <option value="manual" ${filter === "manual" ? "selected" : ""}>Manual</option>
               </select>
             </label>
+            <label>
+              <span>Sort</span>
+              <select data-dictionary-sort>
+                <option value="alphabetical" ${sortMode === "alphabetical" ? "selected" : ""}>Alphabetical</option>
+                <option value="recent" ${sortMode === "recent" ? "selected" : ""}>Recently viewed</option>
+                <option value="lesson" ${sortMode === "lesson" ? "selected" : ""}>Lesson order</option>
+              </select>
+            </label>
           </div>
           <p class="dictionary-count" data-dictionary-count></p>
           <div class="dictionary-list" data-dictionary-list></div>
@@ -4665,12 +4721,21 @@ function renderDictionary(searchQuery = "", filter = "all") {
   `;
 
   app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
-  app.querySelector("[data-dictionary-form]").addEventListener("submit", handleDictionaryFormSubmit);
+  app.querySelector("[data-open-dictionary-form]").addEventListener("click", () => {
+    dictionaryManualFormOpen = !showManualForm;
+    if (!dictionaryManualFormOpen) {
+      activeDictionaryEditId = null;
+    }
+    renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue(), getDictionarySortValue());
+  });
+  app.querySelector("[data-dictionary-form]")?.addEventListener("submit", handleDictionaryFormSubmit);
   app.querySelector("[data-dictionary-search]").addEventListener("input", updateDictionaryList);
   app.querySelector("[data-dictionary-filter]").addEventListener("change", updateDictionaryList);
+  app.querySelector("[data-dictionary-sort]").addEventListener("change", updateDictionaryList);
   app.querySelector("[data-cancel-dictionary-edit]")?.addEventListener("click", () => {
     activeDictionaryEditId = null;
-    renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
+    dictionaryManualFormOpen = false;
+    renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue(), getDictionarySortValue());
   });
   updateDictionaryList();
 }
@@ -4686,11 +4751,11 @@ function updateDictionaryList() {
   const query = getDictionarySearchValue();
   const allEntries = getDictionaryEntriesState().entries;
   const filteredEntries = searchDictionaryEntries(filterDictionaryEntries(allEntries, getDictionaryFilterValue()), query);
-  const clusters = groupDictionaryEntriesByLemma(filteredEntries);
+  const clusters = groupDictionaryEntriesByLemma(filteredEntries, getDictionarySortValue());
 
   count.textContent = `${clusters.length} clusters · ${filteredEntries.length} of ${allEntries.length} entries`;
   list.innerHTML = clusters.length
-    ? clusters.map(createDictionaryClusterCard).join("")
+    ? clusters.map((cluster) => createDictionaryClusterCard(cluster, Boolean(query))).join("")
     : `<article class="dictionary-empty"><p>No dictionary entries match this view.</p></article>`;
 
   bindDictionaryEntryActions(list);
@@ -4701,7 +4766,11 @@ function getDictionarySearchValue() {
 }
 
 function getDictionaryFilterValue() {
-  return app.querySelector("[data-dictionary-filter]")?.value || "all";
+  return app.querySelector("[data-dictionary-filter]")?.value || "saved";
+}
+
+function getDictionarySortValue() {
+  return app.querySelector("[data-dictionary-sort]")?.value || "alphabetical";
 }
 
 function filterDictionaryEntries(entries, filter) {
@@ -4717,7 +4786,7 @@ function filterDictionaryEntries(entries, filter) {
   return entries;
 }
 
-function groupDictionaryEntriesByLemma(entries) {
+function groupDictionaryEntriesByLemma(entries, sortMode = "alphabetical") {
   const groups = new Map();
 
   entries.forEach((entry) => {
@@ -4727,7 +4796,22 @@ function groupDictionaryEntriesByLemma(entries) {
     groups.set(key, existing);
   });
 
-  return Array.from(groups.values()).sort((a, b) => a.lemma.localeCompare(b.lemma, "fr"));
+  const clusters = Array.from(groups.values());
+
+  if (sortMode === "recent") {
+    return clusters.sort((a, b) => Math.max(...b.entries.map((entry) => entry.updatedAt)) - Math.max(...a.entries.map((entry) => entry.updatedAt)));
+  }
+  if (sortMode === "lesson") {
+    return clusters.sort((a, b) => getDictionaryClusterLessonNumber(a) - getDictionaryClusterLessonNumber(b) || a.lemma.localeCompare(b.lemma, "fr"));
+  }
+  return clusters.sort((a, b) => a.lemma.localeCompare(b.lemma, "fr"));
+}
+
+function getDictionaryClusterLessonNumber(cluster) {
+  const lessonNumbers = cluster.entries
+    .map((entry) => Number(entry.lessonId.match(/\d+/)?.[0]))
+    .filter(Number.isFinite);
+  return lessonNumbers.length ? Math.min(...lessonNumbers) : Number.MAX_SAFE_INTEGER;
 }
 
 function handleDictionaryFormSubmit(event) {
@@ -4757,15 +4841,16 @@ function handleDictionaryFormSubmit(event) {
     sourceType: existingEntry?.sourceType || "manual"
   });
   activeDictionaryEditId = null;
-  renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
+  dictionaryManualFormOpen = false;
+  renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue(), getDictionarySortValue());
 }
 
-function createDictionaryClusterCard(cluster) {
+function createDictionaryClusterCard(cluster, forceOpen = false) {
   const forms = Array.from(new Set(cluster.entries.map((entry) => entry.term))).sort((a, b) => a.localeCompare(b, "fr"));
 
   return `
-    <article class="dictionary-card dictionary-cluster">
-      <header class="dictionary-cluster-header">
+    <details class="dictionary-card dictionary-cluster" ${forceOpen || cluster.entries.length === 1 ? "open" : ""}>
+      <summary class="dictionary-cluster-header">
         <div>
           <p class="booklet-kicker">${cluster.entries.some((entry) => entry.kind === "phrase") ? "Expression cluster" : "Lemma cluster"}</p>
           <h2>${escapeHtml(cluster.lemma)}</h2>
@@ -4773,11 +4858,11 @@ function createDictionaryClusterCard(cluster) {
         <div class="dictionary-form-chips" aria-label="Encountered forms">
           ${forms.map((form) => `<span>${escapeHtml(form)}</span>`).join("")}
         </div>
-      </header>
+      </summary>
       <div class="dictionary-cluster-entries">
         ${cluster.entries.map(createDictionaryEntryRow).join("")}
       </div>
-    </article>
+    </details>
   `;
 }
 
@@ -4832,7 +4917,8 @@ function bindDictionaryEntryActions(container) {
   container.querySelectorAll("[data-edit-dictionary-entry]").forEach((button) => {
     button.addEventListener("click", () => {
       activeDictionaryEditId = button.dataset.editDictionaryEntry;
-      renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
+      dictionaryManualFormOpen = true;
+      renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue(), getDictionarySortValue());
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
@@ -5180,6 +5266,12 @@ function bindCourseGlossaryControls(scope = app) {
         closeCourseGlossaryLookup();
       }
     });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && app.querySelector(".dictionary-lookup-popover")) {
+        event.preventDefault();
+        closeCourseGlossaryLookup({ restoreFocus: true });
+      }
+    });
     dictionaryDismissBound = true;
   }
 }
@@ -5193,10 +5285,11 @@ function openCourseGlossaryLookup(root, anchor, candidates, tokenIndex) {
 
   const popover = document.createElement("aside");
   popover.className = "dictionary-lookup-popover";
+  popover.encounteredCandidates = new Map();
+  popover.returnFocusTarget = anchor;
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-label", "Course dictionary lookup");
   root.appendChild(popover);
-  positionCourseGlossaryLookup(popover, root, anchor);
 
   if (!candidates.length) {
     const term = anchor.textContent.trim();
@@ -5208,8 +5301,9 @@ function openCourseGlossaryLookup(root, anchor, candidates, tokenIndex) {
       <p class="dictionary-lookup-note">This term is not in the prepared course glossary yet.</p>
       <button class="text-button" type="button" data-request-missing-gloss>Draft with AI</button>
     `;
-    popover.querySelector("[data-close-course-lookup]").addEventListener("click", closeCourseGlossaryLookup);
+    popover.querySelector("[data-close-course-lookup]").addEventListener("click", () => closeCourseGlossaryLookup({ restoreFocus: true }));
     popover.querySelector("[data-request-missing-gloss]").addEventListener("click", () => requestMissingCourseGloss(root, popover, term, tokenIndex));
+    positionCourseGlossaryLookup(popover, root, anchor);
     return;
   }
 
@@ -5219,7 +5313,15 @@ function openCourseGlossaryLookup(root, anchor, candidates, tokenIndex) {
 function renderCourseGlossaryCandidate(popover, root, candidates, selectedIndex) {
   const candidate = candidates[selectedIndex];
   const context = getGlossaryCandidateContext(root, candidate);
-  const entry = recordDictionaryEncounter(context);
+  const candidateKey = candidate.id || getDictionaryDuplicateKey(createDictionaryEntryFromGlossary(context));
+  let entry = popover.encounteredCandidates?.get(candidateKey);
+
+  if (!entry) {
+    entry = recordDictionaryEncounter(context);
+    popover.encounteredCandidates?.set(candidateKey, entry);
+  } else {
+    entry = getDictionaryEntriesState().entries.find((item) => item.id === entry.id) || entry;
+  }
   const startToken = candidate.kind === "phrase" ? Number(candidate.startToken) : Number(candidate.tokenIndex);
   const endToken = candidate.kind === "phrase" ? Number(candidate.endToken) : Number(candidate.tokenIndex);
   highlightCourseGlossarySpan(root, startToken, endToken);
@@ -5248,7 +5350,7 @@ function renderCourseGlossaryCandidate(popover, root, candidates, selectedIndex)
     </div>
   `;
 
-  popover.querySelector("[data-close-course-lookup]").addEventListener("click", closeCourseGlossaryLookup);
+  popover.querySelector("[data-close-course-lookup]").addEventListener("click", () => closeCourseGlossaryLookup({ restoreFocus: true }));
   popover.querySelectorAll("[data-course-candidate]").forEach((button) => {
     button.addEventListener("click", () => renderCourseGlossaryCandidate(popover, root, candidates, Number(button.dataset.courseCandidate)));
   });
@@ -5258,15 +5360,32 @@ function renderCourseGlossaryCandidate(popover, root, candidates, selectedIndex)
     event.currentTarget.disabled = true;
     entry.saved = saved.saved;
   });
+  positionCourseGlossaryLookup(popover, root, popover.returnFocusTarget);
 }
 
 function positionCourseGlossaryLookup(popover, root, anchor) {
+  if (!popover || !root || !anchor) {
+    return;
+  }
+
   const rootRect = root.getBoundingClientRect();
   const anchorRect = anchor.getBoundingClientRect();
-  const left = Math.max(0, Math.min(anchorRect.left - rootRect.left, Math.max(0, rootRect.width - 320)));
+  const popoverRect = popover.getBoundingClientRect();
+  const viewportPadding = 12;
+  const desiredViewportLeft = Math.max(
+    viewportPadding,
+    Math.min(anchorRect.left, window.innerWidth - popoverRect.width - viewportPadding)
+  );
+  const belowTop = anchorRect.bottom - rootRect.top + 8;
+  const aboveTop = anchorRect.top - rootRect.top - popoverRect.height - 8;
+  const spaceBelow = window.innerHeight - anchorRect.bottom - viewportPadding;
+  const spaceAbove = anchorRect.top - viewportPadding;
+  const placeAbove = spaceBelow < Math.min(popoverRect.height, 240) && spaceAbove > spaceBelow;
 
-  popover.style.left = `${left}px`;
-  popover.style.top = `${anchorRect.bottom - rootRect.top + 8}px`;
+  popover.classList.toggle("above", placeAbove);
+  popover.style.left = `${desiredViewportLeft - rootRect.left}px`;
+  popover.style.top = `${placeAbove ? Math.max(-rootRect.top + viewportPadding, aboveTop) : belowTop}px`;
+  popover.style.maxHeight = `${Math.max(180, window.innerHeight - viewportPadding * 2)}px`;
 }
 
 function highlightCourseGlossarySpan(root, startToken, endToken) {
@@ -5317,9 +5436,14 @@ async function requestMissingCourseGloss(root, popover, term, tokenIndex) {
   }
 }
 
-function closeCourseGlossaryLookup() {
-  app.querySelectorAll(".dictionary-lookup-popover").forEach((popover) => popover.remove());
+function closeCourseGlossaryLookup(options = {}) {
+  const popovers = Array.from(app.querySelectorAll(".dictionary-lookup-popover"));
+  const returnFocusTarget = popovers.find((popover) => popover.returnFocusTarget)?.returnFocusTarget;
+  popovers.forEach((popover) => popover.remove());
   app.querySelectorAll("[data-course-glossary-token].selected").forEach((button) => button.classList.remove("selected"));
+  if (options.restoreFocus && returnFocusTarget?.isConnected) {
+    returnFocusTarget.focus();
+  }
 }
 
 function createHistoryItem(item) {
