@@ -2,3 +2,8 @@
 .env.*
 audio_pipeline/.env
 server*.log
+glossary/.generated/
+glossary/.enriched/
+aws/*.zip
+aws/live-lambda-inspect/
+aws/lambda-package/

@@ -1051,6 +1051,7 @@ const progressKey = "ogham-progress";
 const lessonAudioProgressKey = "ogham-lesson-audio-progress";
 const bestScoresKey = "ogham-best-scores";
 const fluencyRatingsKey = "ogham-fluency-ratings";
+const fluencyRatingUpdatedAtKey = "ogham-fluency-rating-updated-at";
 const fluencyRevealsKey = "ogham-fluency-reveals";
 const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
 const fluencyDailyReviewKey = "ogham-fluency-daily-review";
@@ -1071,6 +1072,7 @@ const dictionaryGlossApiUrl = ["localhost", "127.0.0.1"].includes(window.locatio
   ? `${window.location.origin}/dictionary/gloss`
   : `${userStateApiUrl}/dictionary/gloss`;
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
+const courseGlossaryPath = "glossary/course-glossary.json";
 const appBrandName = "Odrerir";
 const remoteLessonFiles = [
   "lessons/lesson-1-comment-allez-vous.json",
@@ -1160,10 +1162,12 @@ let cloudSaveSequence = Promise.resolve();
 let isApplyingCloudState = false;
 let cloudStateReady = false;
 let cloudSaveStatus = "";
+let cloudLastConfirmedAt = "";
 let authRefreshPromise = null;
 let activeDictionaryEditId = null;
-let activeDictionarySelection = null;
 let dictionaryDismissBound = false;
+let courseGlossary = { version: 1, lessons: {} };
+let courseGlossaryIndex = new Map();
 
 function getAuthSession() {
   const saved = window.localStorage.getItem(authSessionKey);
@@ -1417,15 +1421,17 @@ function clearAuthCallbackState() {
 
 function getStateSnapshot(route = window.location.hash.replace("#", "")) {
   return {
+    stateVersion: 2,
     currentRoute: route,
     progress: getProgressWithFluencyCompatibility(),
     lessonAudioProgress: getLessonAudioProgress(),
     bestScores: getBestScores(),
     fluencyRatings: getFluencyRatings(),
+    fluencyRatingUpdatedAt: getFluencyRatingUpdatedAt(),
     fluencyReveals: getFluencyReveals(),
     fluencyDailyReview: getFluencyDailyReviewState(),
     fluencyReviewSchedule: getFluencyReviewScheduleState(),
-    dictionaryEntries: getDictionaryEntriesState()
+    dictionaryEntries: serializeDictionaryEntriesState(getDictionaryEntriesState())
   };
 }
 
@@ -1449,6 +1455,7 @@ async function loadCloudState() {
 
     const payload = await response.json();
     const state = payload.state;
+    cloudLastConfirmedAt = state?.updatedAt || "";
     const localState = getStateSnapshot();
 
     if (!state) {
@@ -1464,6 +1471,9 @@ async function loadCloudState() {
     cloudStateReady = true;
     if (shouldBackfillCloud) {
       await saveCloudStateNow();
+    } else {
+      cloudSaveStatus = "Synced";
+      updateAccountSyncStatus();
     }
   } catch (error) {
     console.warn("Cloud progress could not be loaded. Using local progress for now.", error);
@@ -1478,9 +1488,35 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
     ...getEmptyUserState(),
     ...cloudState
   };
-  mergedState.progress = mergeProgressCompleted(cloudState.progress, localState.progress);
+  const cloudCompatibility = decodeFluencyProgressEntries(cloudState.progress);
+  const localCompatibility = decodeFluencyProgressEntries(localState.progress);
+  const cloudRatings = mergeFluencyRatings(cloudCompatibility.ratings, cloudState.fluencyRatings || {});
+  const localRatings = mergeFluencyRatings(localCompatibility.ratings, localState.fluencyRatings || {});
+  const cloudRatingUpdatedAt = mergeFluencyRatingUpdatedAt(cloudCompatibility.ratingUpdatedAt, cloudState.fluencyRatingUpdatedAt);
+  const localRatingUpdatedAt = mergeFluencyRatingUpdatedAt(localCompatibility.ratingUpdatedAt, localState.fluencyRatingUpdatedAt);
+  const mergedRatingState = mergeFluencyRatingsByUpdatedAt(
+    localRatings,
+    cloudRatings,
+    localRatingUpdatedAt,
+    cloudRatingUpdatedAt
+  );
+  mergedState.fluencyRatings = mergedRatingState.ratings;
+  mergedState.fluencyRatingUpdatedAt = mergedRatingState.updatedAt;
+  mergedState.fluencyReveals = mergeFluencyReveals(
+    localCompatibility.reveals,
+    localState.fluencyReveals,
+    cloudCompatibility.reveals,
+    cloudState.fluencyReveals
+  );
+  mergedState.progress = mergeProgressCompleted(
+    cloudState.progress,
+    localState.progress,
+    mergedState.fluencyRatings,
+    mergedState.fluencyReveals,
+    mergedState.fluencyRatingUpdatedAt
+  );
 
-  ["lessonAudioProgress", "bestScores", "fluencyRatings", "fluencyReveals"].forEach((key) => {
+  ["lessonAudioProgress", "bestScores"].forEach((key) => {
     if (isEmptyStateValue(mergedState[key]) && !isEmptyStateValue(localState[key])) {
       mergedState[key] = localState[key];
     }
@@ -1505,14 +1541,16 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
   return mergedState;
 }
 
-function mergeProgressCompleted(cloudProgress = {}, localProgress = {}) {
-  return {
+function mergeProgressCompleted(cloudProgress = {}, localProgress = {}, ratings = {}, reveals = {}, ratingUpdatedAt = {}) {
+  const progress = {
     ...cloudProgress,
     completed: Array.from(new Set([
       ...(Array.isArray(cloudProgress.completed) ? cloudProgress.completed : []),
       ...(Array.isArray(localProgress.completed) ? localProgress.completed : [])
-    ]))
+    ])).filter((entry) => !isFluencyProgressEntry(entry))
   };
+
+  return createProgressWithFluencyState(progress, ratings, reveals, ratingUpdatedAt);
 }
 
 function isEmptyStateValue(value) {
@@ -1542,6 +1580,7 @@ function getEmptyUserState() {
     lessonAudioProgress: { completed: [] },
     bestScores: {},
     fluencyRatings: {},
+    fluencyRatingUpdatedAt: {},
     fluencyReveals: {},
     fluencyDailyReview: {},
     fluencyReviewSchedule: {},
@@ -1553,6 +1592,10 @@ function applyCloudState(state) {
   isApplyingCloudState = true;
   const fluencyFromProgress = decodeFluencyProgressEntries(state.progress);
   const mergedFluencyRatings = mergeFluencyRatings(fluencyFromProgress.ratings, state.fluencyRatings || {});
+  const mergedFluencyRatingUpdatedAt = mergeFluencyRatingUpdatedAt(
+    fluencyFromProgress.ratingUpdatedAt,
+    state.fluencyRatingUpdatedAt
+  );
   const mergedFluencyReveals = mergeFluencyReveals(fluencyFromProgress.reveals, state.fluencyReveals || {});
 
   if (state.progress) {
@@ -1570,6 +1613,9 @@ function applyCloudState(state) {
   if (Object.hasOwn(state, "fluencyRatings") || Object.keys(fluencyFromProgress.ratings).length) {
     writeStoredJson(fluencyRatingsKey, mergedFluencyRatings);
   }
+  if (Object.hasOwn(state, "fluencyRatingUpdatedAt") || Object.keys(fluencyFromProgress.ratingUpdatedAt).length) {
+    writeStoredJson(fluencyRatingUpdatedAtKey, mergedFluencyRatingUpdatedAt);
+  }
 
   if (Object.hasOwn(state, "fluencyReveals") || Object.keys(fluencyFromProgress.reveals).length) {
     writeStoredJson(fluencyRevealsKey, mergedFluencyReveals);
@@ -1582,7 +1628,7 @@ function applyCloudState(state) {
     writeStoredJson(fluencyReviewScheduleKey, normalizeFluencyReviewScheduleState(state.fluencyReviewSchedule));
   }
   if (Object.hasOwn(state, "dictionaryEntries")) {
-    writeStoredJson(dictionaryEntriesKey, normalizeDictionaryEntriesState(state.dictionaryEntries));
+    writeStoredJson(dictionaryEntriesKey, serializeDictionaryEntriesState(normalizeDictionaryEntriesState(state.dictionaryEntries)));
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -1674,6 +1720,11 @@ async function saveCloudStateSnapshot(route, options = {}) {
     throw new Error(`Could not save cloud state: ${response.status}`);
   }
 
+  const payload = await response.json();
+  if (!payload.state?.updatedAt) {
+    throw new Error("Cloud save response did not confirm an updated timestamp.");
+  }
+  cloudLastConfirmedAt = payload.state.updatedAt;
   cloudSaveStatus = "Saved";
   updateAccountSyncStatus();
 }
@@ -1892,14 +1943,22 @@ function saveProgress(progress) {
 }
 
 function getProgressWithFluencyCompatibility() {
-  const progress = getProgress();
-  const completed = Array.isArray(progress.completed) ? [...progress.completed] : [];
-  const ratings = getFluencyRatings();
-  const reveals = getFluencyReveals();
+  return createProgressWithFluencyState(
+    getProgress(),
+    getFluencyRatings(),
+    getFluencyReveals(),
+    getFluencyRatingUpdatedAt()
+  );
+}
+
+function createProgressWithFluencyState(progress, ratings, reveals, ratingUpdatedAt = {}) {
+  const completed = (Array.isArray(progress.completed) ? [...progress.completed] : [])
+    .filter((entry) => !isFluencyProgressEntry(entry));
 
   Object.entries(ratings).forEach(([lessonId, lessonRatings]) => {
     Object.entries(lessonRatings || {}).forEach(([lineIndex, rating]) => {
-      const entry = getFluencyRatingProgressEntry(lessonId, lineIndex, rating);
+      const updatedAt = ratingUpdatedAt?.[lessonId]?.[lineIndex] || 0;
+      const entry = getFluencyRatingProgressEntry(lessonId, lineIndex, rating, updatedAt);
 
       if (!completed.includes(entry)) {
         completed.push(entry);
@@ -1929,6 +1988,12 @@ function getProgressWithFluencyCompatibility() {
   };
 }
 
+function isFluencyProgressEntry(entry) {
+  return typeof entry === "string" && (
+    entry.startsWith(fluencyRatingProgressPrefix) || entry.startsWith(fluencyRevealProgressPrefix)
+  );
+}
+
 function saveFluencyProgressCompatibilityEntry(entry, stalePrefix = "") {
   const progress = getProgress();
   const completed = Array.isArray(progress.completed) ? [...progress.completed] : [];
@@ -1946,8 +2011,8 @@ function saveFluencyProgressCompatibilityEntry(entry, stalePrefix = "") {
   });
 }
 
-function getFluencyRatingProgressEntry(lessonId, lineIndex, rating) {
-  return `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|${rating}`;
+function getFluencyRatingProgressEntry(lessonId, lineIndex, rating, updatedAt = 0) {
+  return `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|${rating}|${Math.max(0, Number(updatedAt) || 0)}`;
 }
 
 function getFluencyRevealProgressEntry(lessonId, lineIndex, revealType) {
@@ -1956,6 +2021,7 @@ function getFluencyRevealProgressEntry(lessonId, lineIndex, revealType) {
 
 function decodeFluencyProgressEntries(progress = {}) {
   const ratings = {};
+  const ratingUpdatedAt = {};
   const reveals = {};
   const completed = Array.isArray(progress.completed) ? progress.completed : [];
 
@@ -1965,14 +2031,22 @@ function decodeFluencyProgressEntries(progress = {}) {
     }
 
     if (item.startsWith(fluencyRatingProgressPrefix)) {
-      const [lessonId, lineIndex, rating] = item.slice(fluencyRatingProgressPrefix.length).split("|");
+      const [lessonId, lineIndex, rating, rawUpdatedAt] = item.slice(fluencyRatingProgressPrefix.length).split("|");
       const numericRating = Number(rating);
+      const updatedAt = Math.max(0, Number(rawUpdatedAt) || 0);
 
       if (lessonId && lineIndex !== undefined && numericRating >= 0 && numericRating <= 5) {
-        ratings[lessonId] = {
-          ...(ratings[lessonId] || {}),
-          [lineIndex]: numericRating
-        };
+        const existingUpdatedAt = ratingUpdatedAt?.[lessonId]?.[lineIndex] || 0;
+        if (!Object.hasOwn(ratings[lessonId] || {}, lineIndex) || updatedAt >= existingUpdatedAt) {
+          ratings[lessonId] = {
+            ...(ratings[lessonId] || {}),
+            [lineIndex]: numericRating
+          };
+          ratingUpdatedAt[lessonId] = {
+            ...(ratingUpdatedAt[lessonId] || {}),
+            [lineIndex]: updatedAt
+          };
+        }
       }
       return;
     }
@@ -1992,7 +2066,49 @@ function decodeFluencyProgressEntries(progress = {}) {
     }
   });
 
-  return { ratings, reveals };
+  return { ratings, ratingUpdatedAt, reveals };
+}
+
+function mergeFluencyRatingUpdatedAt(...updatedAtSets) {
+  return updatedAtSets.reduce((merged, updatedAtSet) => {
+    Object.entries(updatedAtSet || {}).forEach(([lessonId, lessonUpdatedAt]) => {
+      Object.entries(lessonUpdatedAt || {}).forEach(([lineIndex, updatedAt]) => {
+        merged[lessonId] = {
+          ...(merged[lessonId] || {}),
+          [lineIndex]: Math.max(merged[lessonId]?.[lineIndex] || 0, Number(updatedAt) || 0)
+        };
+      });
+    });
+    return merged;
+  }, {});
+}
+
+function mergeFluencyRatingsByUpdatedAt(localRatings, cloudRatings, localUpdatedAt, cloudUpdatedAt) {
+  const ratings = {};
+  const updatedAt = {};
+  const lessonIds = new Set([...Object.keys(localRatings || {}), ...Object.keys(cloudRatings || {})]);
+
+  lessonIds.forEach((lessonId) => {
+    const lineIndices = new Set([
+      ...Object.keys(localRatings?.[lessonId] || {}),
+      ...Object.keys(cloudRatings?.[lessonId] || {})
+    ]);
+    lineIndices.forEach((lineIndex) => {
+      const hasCloud = Object.hasOwn(cloudRatings?.[lessonId] || {}, lineIndex);
+      const localTime = Number(localUpdatedAt?.[lessonId]?.[lineIndex]) || 0;
+      const cloudTime = Number(cloudUpdatedAt?.[lessonId]?.[lineIndex]) || 0;
+      const useCloud = hasCloud && cloudTime >= localTime;
+      const rating = useCloud ? cloudRatings[lessonId][lineIndex] : localRatings?.[lessonId]?.[lineIndex];
+
+      if (rating === undefined) {
+        return;
+      }
+      ratings[lessonId] = { ...(ratings[lessonId] || {}), [lineIndex]: rating };
+      updatedAt[lessonId] = { ...(updatedAt[lessonId] || {}), [lineIndex]: Math.max(localTime, cloudTime) };
+    });
+  });
+
+  return { ratings, updatedAt };
 }
 
 function mergeFluencyRatings(...ratingSets) {
@@ -2034,6 +2150,58 @@ function getBestScore(itemId) {
   return getBestScores()[itemId];
 }
 
+async function loadCourseGlossary() {
+  for (const path of [courseGlossaryPath, getContentUrl(courseGlossaryPath)]) {
+    try {
+      const response = await fetch(path);
+
+      if (!response.ok) {
+        throw new Error(`Could not load ${path}: ${response.status}`);
+      }
+
+      const glossary = await response.json();
+      courseGlossary = glossary?.lessons ? glossary : { version: 1, lessons: {} };
+      return;
+    } catch (error) {
+      console.warn(`Course glossary ${path} could not load.`, error);
+    }
+  }
+
+  courseGlossary = { version: 1, lessons: {} };
+}
+
+function indexCourseGlossary() {
+  const index = new Map();
+
+  Object.values(courseGlossary.lessons || {}).forEach((glossaryLesson) => {
+    const lesson = lessons.find((item) => item.id === glossaryLesson.lessonId);
+    (glossaryLesson.lines || []).forEach((glossaryLine) => {
+      const line = lesson?.lines?.[glossaryLine.lineIndex];
+      [...(glossaryLine.words || []), ...(glossaryLine.phrases || [])].forEach((candidate) => {
+        index.set(candidate.id, {
+          term: candidate.term,
+          lemma: candidate.lemma || candidate.term,
+          kind: Object.hasOwn(candidate, "startToken") ? "phrase" : "word",
+          grammar: candidate.grammar || "",
+          literalTranslation: candidate.literalTranslation || candidate.meaning || "",
+          meaningTranslation: candidate.meaning || "",
+          notes: candidate.usageNote || "",
+          components: candidate.components || [],
+          sourceSentence: glossaryLine.french || line?.french || "",
+          englishSentence: glossaryLine.english || line?.english || "",
+          lessonId: glossaryLesson.lessonId,
+          lessonTitle: glossaryLesson.lessonTitle || lesson?.title || "",
+          lineIndex: glossaryLine.lineIndex,
+          audio: line?.audio || "",
+          sourceType: "glossary"
+        });
+      });
+    });
+  });
+
+  courseGlossaryIndex = index;
+}
+
 function getDictionaryEntriesState() {
   return normalizeDictionaryEntriesState(readStoredJson(dictionaryEntriesKey, { entries: [] }));
 }
@@ -2044,18 +2212,29 @@ function normalizeDictionaryEntriesState(state = {}) {
   return {
     entries: entries
       .map(normalizeDictionaryEntry)
-      .filter((entry) => entry.term)
+      .filter((entry) => entry.term || entry.glossaryId)
       .sort((a, b) => (b.updatedAt || b.savedAt || 0) - (a.updatedAt || a.savedAt || 0))
   };
 }
 
 function normalizeDictionaryEntry(entry = {}, index = 0) {
+  entry = entry?.glossaryId && courseGlossaryIndex.has(entry.glossaryId)
+    ? { ...courseGlossaryIndex.get(entry.glossaryId), ...entry }
+    : entry;
   const savedAt = Number.isFinite(Number(entry.savedAt)) ? Number(entry.savedAt) : Date.now();
   const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : savedAt;
 
   return {
     id: String(entry.id || `dictionary-entry-${savedAt}-${index}`),
     term: String(entry.term || "").trim(),
+    lemma: String(entry.lemma || entry.term || "").trim(),
+    kind: entry.kind === "phrase" ? "phrase" : "word",
+    grammar: String(entry.grammar || "").trim(),
+    glossaryId: String(entry.glossaryId || "").trim(),
+    components: Array.isArray(entry.components) ? entry.components.map((component) => ({
+      term: String(component?.term || "").trim(),
+      literal: String(component?.literal || "").trim()
+    })).filter((component) => component.term) : [],
     literalTranslation: String(entry.literalTranslation || "").trim(),
     meaningTranslation: String(entry.meaningTranslation || "").trim(),
     notes: String(entry.notes || "").trim(),
@@ -2065,10 +2244,36 @@ function normalizeDictionaryEntry(entry = {}, index = 0) {
     lessonTitle: String(entry.lessonTitle || "").trim(),
     lineIndex: Number.isFinite(Number(entry.lineIndex)) ? Number(entry.lineIndex) : null,
     audio: String(entry.audio || "").trim(),
-    sourceType: entry.sourceType === "fluency" ? "fluency" : "manual",
+    sourceType: entry.glossaryId ? "glossary" : (["fluency", "glossary"].includes(entry.sourceType) ? entry.sourceType : "manual"),
+    saved: Object.hasOwn(entry, "saved") ? Boolean(entry.saved) : true,
     needsPractice: Boolean(entry.needsPractice),
+    encounterCount: Math.max(0, Number(entry.encounterCount) || 0),
+    firstEncounteredAt: Number(entry.firstEncounteredAt) || 0,
+    lastEncounteredAt: Number(entry.lastEncounteredAt) || 0,
     savedAt,
     updatedAt
+  };
+}
+
+function serializeDictionaryEntriesState(state = {}) {
+  return {
+    entries: normalizeDictionaryEntriesState(state).entries.map((entry) => {
+      if (!entry.glossaryId) {
+        return entry;
+      }
+
+      return {
+        id: entry.id,
+        glossaryId: entry.glossaryId,
+        saved: entry.saved,
+        needsPractice: entry.needsPractice,
+        encounterCount: entry.encounterCount,
+        firstEncounteredAt: entry.firstEncounteredAt,
+        lastEncounteredAt: entry.lastEncounteredAt,
+        savedAt: entry.savedAt,
+        updatedAt: entry.updatedAt
+      };
+    })
   };
 }
 
@@ -2082,16 +2287,27 @@ function mergeDictionaryEntriesState(cloudState = {}, localState = {}) {
     const key = getDictionaryDuplicateKey(entry);
     const existing = mergedEntries.get(key);
 
-    if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
+    if (!existing) {
       mergedEntries.set(key, entry);
+      return;
     }
+
+    const newest = (entry.updatedAt || 0) >= (existing.updatedAt || 0) ? entry : existing;
+    const firstEncounteredValues = [existing.firstEncounteredAt, entry.firstEncounteredAt].filter(Boolean);
+    mergedEntries.set(key, normalizeDictionaryEntry({
+      ...newest,
+      saved: existing.saved || entry.saved,
+      encounterCount: Math.max(existing.encounterCount || 0, entry.encounterCount || 0),
+      firstEncounteredAt: firstEncounteredValues.length ? Math.min(...firstEncounteredValues) : 0,
+      lastEncounteredAt: Math.max(existing.lastEncounteredAt || 0, entry.lastEncounteredAt || 0)
+    }));
   });
 
   return normalizeDictionaryEntriesState({ entries: Array.from(mergedEntries.values()) });
 }
 
 function saveDictionaryEntriesState(state, options = {}) {
-  writeStoredJson(dictionaryEntriesKey, normalizeDictionaryEntriesState(state));
+  writeStoredJson(dictionaryEntriesKey, serializeDictionaryEntriesState(state));
   if (!options.skipCloudSave) {
     flushCloudStateSave();
   }
@@ -2118,6 +2334,7 @@ function upsertDictionaryEntry(entryInput, options = {}) {
       savedAt: existing.savedAt,
       updatedAt: now,
       notes: Object.hasOwn(entryInput, "notes") ? entry.notes : existing.notes,
+      saved: Object.hasOwn(entryInput, "saved") ? entry.saved : existing.saved,
       needsPractice: Object.hasOwn(entryInput, "needsPractice") ? entry.needsPractice : existing.needsPractice
     });
   } else {
@@ -2154,6 +2371,10 @@ function createDictionaryEntryId() {
 }
 
 function getDictionaryDuplicateKey(entry) {
+  if (entry.glossaryId) {
+    return `glossary|${entry.glossaryId}`;
+  }
+
   return [
     normalizeDictionaryText(entry.term),
     normalizeDictionaryText(entry.sourceSentence)
@@ -2179,6 +2400,8 @@ function searchDictionaryEntries(entries, query = "") {
 
   return entries.filter((entry) => [
     entry.term,
+    entry.lemma,
+    entry.grammar,
     entry.literalTranslation,
     entry.meaningTranslation,
     entry.notes,
@@ -2188,8 +2411,122 @@ function searchDictionaryEntries(entries, query = "") {
   ].some((value) => normalizeDictionaryText(value).includes(normalizedQuery)));
 }
 
+function getCourseGlossaryLine(lessonId, lineIndex) {
+  return courseGlossary.lessons?.[lessonId]?.lines?.find((line) => Number(line.lineIndex) === Number(lineIndex)) || null;
+}
+
+function getCourseGlossaryCandidates(lessonId, lineIndex, tokenIndex) {
+  const glossaryLine = getCourseGlossaryLine(lessonId, lineIndex);
+
+  if (!glossaryLine) {
+    return [];
+  }
+
+  const word = glossaryLine.words?.find((item) => Number(item.tokenIndex) === Number(tokenIndex));
+  const phrases = (glossaryLine.phrases || []).filter((phrase) => (
+    Number(phrase.startToken) <= Number(tokenIndex) && Number(phrase.endToken) >= Number(tokenIndex)
+  ));
+  const candidates = [
+    ...(word ? [{ ...word, kind: "word", literalTranslation: word.meaning || "", components: [] }] : []),
+    ...phrases.map((phrase) => ({ ...phrase, kind: "phrase" }))
+  ];
+
+  return candidates.sort((a, b) => getGlossaryCandidatePriority(b, glossaryLine) - getGlossaryCandidatePriority(a, glossaryLine));
+}
+
+function getGlossaryCandidatePriority(candidate, glossaryLine) {
+  if (candidate.kind === "word") {
+    return 100;
+  }
+
+  const words = (glossaryLine.words || []).filter((word) => (
+    word.tokenIndex >= candidate.startToken && word.tokenIndex <= candidate.endToken
+  ));
+  const familiarCount = words.filter((word) => hasEncounteredDictionaryLemma(word.lemma)).length;
+  const familiarRatio = words.length ? familiarCount / words.length : 0;
+  const spanLength = Number(candidate.endToken) - Number(candidate.startToken) + 1;
+
+  return (familiarRatio >= 0.6 ? 200 : 50) + Math.min(spanLength, 20);
+}
+
+function hasEncounteredDictionaryLemma(lemma) {
+  const normalizedLemma = normalizeDictionaryText(lemma);
+  return getDictionaryEntriesState().entries.some((entry) => (
+    entry.encounterCount > 0 && normalizeDictionaryText(entry.lemma) === normalizedLemma
+  ));
+}
+
+function getGlossaryCandidateContext(root, candidate) {
+  const lessonId = root?.dataset.dictionaryLessonId || "";
+  const lineIndex = Number(root?.dataset.dictionaryLineIndex);
+  const lesson = lessons.find((item) => item.id === lessonId);
+  const line = lesson?.lines?.[lineIndex];
+
+  return {
+    root,
+    candidate,
+    term: candidate.term || "",
+    sourceSentence: root?.dataset.dictionarySourceSentence || line?.french || "",
+    englishSentence: root?.dataset.dictionaryEnglishSentence || line?.english || "",
+    lessonId,
+    lessonTitle: root?.dataset.dictionaryLessonTitle || lesson?.title || "",
+    lineIndex: Number.isFinite(lineIndex) ? lineIndex : null,
+    audio: root?.dataset.dictionaryAudio || line?.audio || ""
+  };
+}
+
+function createDictionaryEntryFromGlossary(context) {
+  const candidate = context.candidate || {};
+
+  return {
+    term: candidate.term || context.term,
+    lemma: candidate.lemma || candidate.term || context.term,
+    kind: candidate.kind || "word",
+    grammar: candidate.grammar || "",
+    glossaryId: candidate.id || "",
+    components: candidate.components || [],
+    literalTranslation: candidate.literalTranslation || candidate.meaning || "",
+    meaningTranslation: candidate.meaning || "",
+    notes: candidate.usageNote || "",
+    sourceSentence: context.sourceSentence,
+    englishSentence: context.englishSentence,
+    lessonId: context.lessonId,
+    lessonTitle: context.lessonTitle,
+    lineIndex: context.lineIndex,
+    audio: context.audio,
+    sourceType: "glossary"
+  };
+}
+
+function recordDictionaryEncounter(context) {
+  const baseEntry = createDictionaryEntryFromGlossary(context);
+  const existing = getDictionaryEntriesState().entries.find((entry) => getDictionaryDuplicateKey(entry) === getDictionaryDuplicateKey(baseEntry));
+  const now = Date.now();
+
+  return upsertDictionaryEntry({
+    ...baseEntry,
+    saved: existing?.saved || false,
+    encounterCount: (existing?.encounterCount || 0) + 1,
+    firstEncounteredAt: existing?.firstEncounteredAt || now,
+    lastEncounteredAt: now
+  });
+}
+
+function saveGlossaryDictionaryEntry(context) {
+  const existing = recordDictionaryEncounter(context);
+  return upsertDictionaryEntry({
+    ...existing,
+    saved: true,
+    needsPractice: true
+  });
+}
+
 function getFluencyRatings() {
   return readStoredJson(fluencyRatingsKey, {});
+}
+
+function getFluencyRatingUpdatedAt() {
+  return readStoredJson(fluencyRatingUpdatedAtKey, {});
 }
 
 function getLessonFluencyRatings(lessonId) {
@@ -2496,13 +2833,19 @@ function saveFluencyReveal(lessonId, lineIndex, revealType) {
 
 function saveFluencyRating(lessonId, lineIndex, rating, options = {}) {
   const ratings = getFluencyRatings();
+  const ratingUpdatedAt = getFluencyRatingUpdatedAt();
   const reveals = getFluencyReveals();
   const lessonReveals = reveals[lessonId] || {};
   const normalizedRating = normalizeFluencyRating(rating);
+  const updatedAt = Date.now();
 
   ratings[lessonId] = {
     ...(ratings[lessonId] || {}),
     [lineIndex]: normalizedRating
+  };
+  ratingUpdatedAt[lessonId] = {
+    ...(ratingUpdatedAt[lessonId] || {}),
+    [lineIndex]: updatedAt
   };
   reveals[lessonId] = {
     ...lessonReveals,
@@ -2512,9 +2855,10 @@ function saveFluencyRating(lessonId, lineIndex, rating, options = {}) {
     }
   };
   writeStoredJson(fluencyRatingsKey, ratings);
+  writeStoredJson(fluencyRatingUpdatedAtKey, ratingUpdatedAt);
   writeStoredJson(fluencyRevealsKey, reveals);
   saveFluencyProgressCompatibilityEntry(
-    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating),
+    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating, updatedAt),
     `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|`
   );
   saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "french"));
@@ -2904,7 +3248,7 @@ function renderAccountControls(options = {}) {
   const controls = document.createElement("div");
   controls.className = "account-controls";
   controls.innerHTML = `
-    <span class="sync-status" data-sync-status>${cloudSaveStatus}</span>
+    <span class="sync-status" data-sync-status title="${escapeAttribute(getCloudSyncTitle())}">${cloudSaveStatus}</span>
     <span class="account-email">${user.email}</span>
     ${options.hideActions ? "" : `
       <button class="back-link" type="button" data-sync-now>Sync now</button>
@@ -2929,6 +3273,7 @@ async function syncAccountStateNow(event) {
   updateAccountSyncStatus();
 
   try {
+    await loadCloudState();
     await saveCloudStateNow();
     button.textContent = "Synced";
     window.setTimeout(() => {
@@ -2952,7 +3297,19 @@ function updateAccountSyncStatus() {
 
   if (status) {
     status.textContent = cloudSaveStatus;
+    status.title = getCloudSyncTitle();
   }
+}
+
+function getCloudSyncTitle() {
+  if (!cloudLastConfirmedAt) {
+    return "No server confirmation yet";
+  }
+
+  const confirmedAt = new Date(cloudLastConfirmedAt);
+  return Number.isNaN(confirmedAt.getTime())
+    ? "Server confirmation received"
+    : `Server confirmed ${confirmedAt.toLocaleString()}`;
 }
 
 function showMasterControl() {
@@ -3086,13 +3443,19 @@ function applyLessonFluencyRatingBlanks(lesson, rating) {
 
 function saveFluencyRatingLocalOnly(lessonId, lineIndex, rating) {
   const ratings = getFluencyRatings();
+  const ratingUpdatedAt = getFluencyRatingUpdatedAt();
   const reveals = getFluencyReveals();
   const lessonReveals = reveals[lessonId] || {};
   const normalizedRating = normalizeFluencyRating(rating);
+  const updatedAt = Date.now();
 
   ratings[lessonId] = {
     ...(ratings[lessonId] || {}),
     [lineIndex]: normalizedRating
+  };
+  ratingUpdatedAt[lessonId] = {
+    ...(ratingUpdatedAt[lessonId] || {}),
+    [lineIndex]: updatedAt
   };
   reveals[lessonId] = {
     ...lessonReveals,
@@ -3103,9 +3466,10 @@ function saveFluencyRatingLocalOnly(lessonId, lineIndex, rating) {
     }
   };
   writeStoredJson(fluencyRatingsKey, ratings);
+  writeStoredJson(fluencyRatingUpdatedAtKey, ratingUpdatedAt);
   writeStoredJson(fluencyRevealsKey, reveals);
   saveFluencyProgressCompatibilityEntry(
-    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating),
+    getFluencyRatingProgressEntry(lessonId, lineIndex, normalizedRating, updatedAt),
     `${fluencyRatingProgressPrefix}${lessonId}|${lineIndex}|`
   );
   saveFluencyProgressCompatibilityEntry(getFluencyRevealProgressEntry(lessonId, lineIndex, "listened"));
@@ -3591,7 +3955,7 @@ function renderFluencyWeakReview() {
   app.querySelectorAll("[data-toggle-weak-review-chapter]").forEach((button) => {
     button.addEventListener("click", () => toggleWeakReviewChapter(button));
   });
-  bindDictionarySelectionControls();
+  bindCourseGlossaryControls();
 }
 
 function createWeakReviewChapterGroup(group, index) {
@@ -3672,7 +4036,7 @@ function createWeakReviewLine(item, index = 0) {
         <button class="text-button" type="button" data-weak-review-reveal="${frenchId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal French</button>
         <button class="text-button" type="button" data-weak-review-reveal-english="${englishId}" data-lesson-id="${item.lesson.id}" data-line-index="${item.lineIndex}">Reveal English</button>
       </div>
-      <div class="fluency-hidden-text french" id="${frenchId}">${createDictionaryTokenMarkup(item.lesson, item.line, item.lineIndex)}</div>
+      <div class="fluency-hidden-text french" id="${frenchId}">${createCourseGlossaryTokenMarkup(item.lesson, item.line, item.lineIndex)}</div>
       <p class="fluency-hidden-text translation" id="${englishId}">${item.line.english}</p>
       <div class="fluency-rating" aria-label="Update ${item.lesson.title} sentence ${item.lineIndex + 1} rating">
         ${getFluencyRatingOptions().map((option) => `
@@ -4019,7 +4383,7 @@ function renderFluencyLesson(lesson) {
       updateStorySequenceControls("ready", lesson);
     });
   });
-  bindDictionarySelectionControls();
+  bindCourseGlossaryControls();
   updateStorySequenceControls("ready", lesson);
 }
 
@@ -4078,7 +4442,7 @@ function createFluencyLine(lesson, line, index) {
         <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-french="fluency-french-${index}" ${canRate ? "" : "disabled"}>${frenchVisible ? "French Revealed" : "Reveal French"}</button>
         <button class="text-button" type="button" data-lesson-id="${lesson.id}" data-line-index="${index}" data-reveal-english="fluency-english-${index}" ${canRevealEnglish ? "" : "disabled"}>Reveal English</button>
       </div>
-      <div class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${createDictionaryTokenMarkup(lesson, line, index)}</div>
+      <div class="fluency-hidden-text french ${frenchVisible ? "visible" : ""}" id="fluency-french-${index}">${createCourseGlossaryTokenMarkup(lesson, line, index)}</div>
       <p class="fluency-hidden-text translation ${englishVisible ? "visible" : ""}" id="fluency-english-${index}">${line.english}</p>
       <div class="fluency-rating" aria-label="Sentence ${index + 1} fluency rating">
         ${getFluencyRatingOptions().map((option) => `<button class="rating-button rating-${option.value} ${rating === option.value ? "active" : ""}" type="button" data-line-index="${index}" data-fluency-rating="${option.value}" title="${option.label}" aria-label="${option.label}" ${canRate ? "" : "disabled"}>${option.symbol}</button>`).join("")}
@@ -4225,7 +4589,7 @@ function renderHistory() {
   });
 }
 
-function renderDictionary(searchQuery = "", needsOnly = false) {
+function renderDictionary(searchQuery = "", filter = "all") {
   const state = getDictionaryEntriesState();
   const editingEntry = activeDictionaryEditId
     ? state.entries.find((entry) => entry.id === activeDictionaryEditId)
@@ -4239,7 +4603,7 @@ function renderDictionary(searchQuery = "", needsOnly = false) {
       </div>
       <header class="lesson-header">
         <h1>Dictionary</h1>
-        <p class="lesson-lede">Save words and phrases from listening practice, or add your own study cards.</p>
+        <p class="lesson-lede">Revisit language encountered in listening practice, group related forms, and add your own terms.</p>
       </header>
       <section class="dictionary-layout">
         <form class="dictionary-form" data-dictionary-form>
@@ -4254,6 +4618,10 @@ function renderDictionary(searchQuery = "", needsOnly = false) {
           <label>
             <span>French word or phrase</span>
             <input type="text" data-dictionary-term value="${escapeAttribute(editingEntry?.term || "")}" required>
+          </label>
+          <label>
+            <span>Dictionary form / lemma</span>
+            <input type="text" data-dictionary-lemma value="${escapeAttribute(editingEntry?.lemma || "")}" placeholder="faire">
           </label>
           <label>
             <span>Literal translation</span>
@@ -4277,11 +4645,16 @@ function renderDictionary(searchQuery = "", needsOnly = false) {
           <div class="dictionary-tools">
             <label>
               <span>Search</span>
-              <input type="search" data-dictionary-search value="${escapeAttribute(searchQuery)}" placeholder="Find a word, meaning, note, or lesson">
+              <input type="search" data-dictionary-search value="${escapeAttribute(searchQuery)}" placeholder="Find a form, lemma, meaning, or lesson">
             </label>
-            <label class="dictionary-checkbox">
-              <input type="checkbox" data-dictionary-needs-only ${needsOnly ? "checked" : ""}>
-              <span>Needs practice only</span>
+            <label>
+              <span>View</span>
+              <select data-dictionary-filter>
+                <option value="all" ${filter === "all" ? "selected" : ""}>All encountered</option>
+                <option value="saved" ${filter === "saved" ? "selected" : ""}>Saved</option>
+                <option value="practice" ${filter === "practice" ? "selected" : ""}>Needs practice</option>
+                <option value="manual" ${filter === "manual" ? "selected" : ""}>Manual</option>
+              </select>
             </label>
           </div>
           <p class="dictionary-count" data-dictionary-count></p>
@@ -4294,10 +4667,10 @@ function renderDictionary(searchQuery = "", needsOnly = false) {
   app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
   app.querySelector("[data-dictionary-form]").addEventListener("submit", handleDictionaryFormSubmit);
   app.querySelector("[data-dictionary-search]").addEventListener("input", updateDictionaryList);
-  app.querySelector("[data-dictionary-needs-only]").addEventListener("change", updateDictionaryList);
+  app.querySelector("[data-dictionary-filter]").addEventListener("change", updateDictionaryList);
   app.querySelector("[data-cancel-dictionary-edit]")?.addEventListener("click", () => {
     activeDictionaryEditId = null;
-    renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+    renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
   });
   updateDictionaryList();
 }
@@ -4311,17 +4684,14 @@ function updateDictionaryList() {
   }
 
   const query = getDictionarySearchValue();
-  const needsOnly = getDictionaryNeedsOnlyValue();
   const allEntries = getDictionaryEntriesState().entries;
-  const filteredEntries = searchDictionaryEntries(
-    needsOnly ? allEntries.filter((entry) => entry.needsPractice) : allEntries,
-    query
-  );
+  const filteredEntries = searchDictionaryEntries(filterDictionaryEntries(allEntries, getDictionaryFilterValue()), query);
+  const clusters = groupDictionaryEntriesByLemma(filteredEntries);
 
-  count.textContent = `${filteredEntries.length} of ${allEntries.length} cards`;
-  list.innerHTML = filteredEntries.length
-    ? filteredEntries.map(createDictionaryEntryCard).join("")
-    : `<article class="dictionary-empty"><p>No saved cards match this view.</p></article>`;
+  count.textContent = `${clusters.length} clusters · ${filteredEntries.length} of ${allEntries.length} entries`;
+  list.innerHTML = clusters.length
+    ? clusters.map(createDictionaryClusterCard).join("")
+    : `<article class="dictionary-empty"><p>No dictionary entries match this view.</p></article>`;
 
   bindDictionaryEntryActions(list);
 }
@@ -4330,8 +4700,34 @@ function getDictionarySearchValue() {
   return app.querySelector("[data-dictionary-search]")?.value || "";
 }
 
-function getDictionaryNeedsOnlyValue() {
-  return Boolean(app.querySelector("[data-dictionary-needs-only]")?.checked);
+function getDictionaryFilterValue() {
+  return app.querySelector("[data-dictionary-filter]")?.value || "all";
+}
+
+function filterDictionaryEntries(entries, filter) {
+  if (filter === "saved") {
+    return entries.filter((entry) => entry.saved);
+  }
+  if (filter === "practice") {
+    return entries.filter((entry) => entry.needsPractice);
+  }
+  if (filter === "manual") {
+    return entries.filter((entry) => entry.sourceType === "manual");
+  }
+  return entries;
+}
+
+function groupDictionaryEntriesByLemma(entries) {
+  const groups = new Map();
+
+  entries.forEach((entry) => {
+    const key = normalizeDictionaryText(entry.lemma || entry.term);
+    const existing = groups.get(key) || { lemma: entry.lemma || entry.term, entries: [] };
+    existing.entries.push(entry);
+    groups.set(key, existing);
+  });
+
+  return Array.from(groups.values()).sort((a, b) => a.lemma.localeCompare(b.lemma, "fr"));
 }
 
 function handleDictionaryFormSubmit(event) {
@@ -4351,39 +4747,65 @@ function handleDictionaryFormSubmit(event) {
     ...(existingEntry || {}),
     id: entryId || undefined,
     term,
+    lemma: form.querySelector("[data-dictionary-lemma]").value.trim() || term,
+    kind: term.includes(" ") ? "phrase" : "word",
     literalTranslation: form.querySelector("[data-dictionary-literal]").value.trim(),
     meaningTranslation: form.querySelector("[data-dictionary-meaning]").value.trim(),
     notes: form.querySelector("[data-dictionary-notes]").value.trim(),
     needsPractice: form.querySelector("[data-dictionary-practice]").checked,
+    saved: true,
     sourceType: existingEntry?.sourceType || "manual"
   });
   activeDictionaryEditId = null;
-  renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+  renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
 }
 
-function createDictionaryEntryCard(entry) {
+function createDictionaryClusterCard(cluster) {
+  const forms = Array.from(new Set(cluster.entries.map((entry) => entry.term))).sort((a, b) => a.localeCompare(b, "fr"));
+
+  return `
+    <article class="dictionary-card dictionary-cluster">
+      <header class="dictionary-cluster-header">
+        <div>
+          <p class="booklet-kicker">${cluster.entries.some((entry) => entry.kind === "phrase") ? "Expression cluster" : "Lemma cluster"}</p>
+          <h2>${escapeHtml(cluster.lemma)}</h2>
+        </div>
+        <div class="dictionary-form-chips" aria-label="Encountered forms">
+          ${forms.map((form) => `<span>${escapeHtml(form)}</span>`).join("")}
+        </div>
+      </header>
+      <div class="dictionary-cluster-entries">
+        ${cluster.entries.map(createDictionaryEntryRow).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function createDictionaryEntryRow(entry) {
   const hasSource = Boolean(entry.sourceSentence || entry.englishSentence || entry.lessonTitle);
   const date = entry.savedAt ? new Date(entry.savedAt).toLocaleDateString() : "";
-  const sourceLabel = entry.sourceType === "fluency" && entry.lessonTitle
+  const sourceLabel = ["fluency", "glossary"].includes(entry.sourceType) && entry.lessonTitle
     ? `${entry.lessonTitle}${entry.lineIndex !== null ? ` - sentence ${entry.lineIndex + 1}` : ""}`
     : "Manual entry";
 
   return `
-    <article class="dictionary-card ${entry.needsPractice ? "needs-practice" : ""}" data-dictionary-entry="${escapeAttribute(entry.id)}">
+    <section class="dictionary-cluster-entry ${entry.needsPractice ? "needs-practice" : ""}" data-dictionary-entry="${escapeAttribute(entry.id)}">
       <div class="dictionary-card-main">
         <div>
           <p class="booklet-kicker">${escapeHtml(sourceLabel)}</p>
-          <h2>${escapeHtml(entry.term)}</h2>
+          <h3>${escapeHtml(entry.term)}${entry.grammar ? ` <span>${escapeHtml(entry.grammar)}</span>` : ""}</h3>
         </div>
         <div class="dictionary-card-actions">
           ${entry.audio ? `<button class="icon-button" type="button" data-dictionary-audio="${escapeAttribute(entry.audio)}" title="Play source audio" aria-label="Play source audio">&#9654;</button>` : ""}
-          <button class="text-button" type="button" data-edit-dictionary-entry="${escapeAttribute(entry.id)}">Edit</button>
+          ${entry.sourceType !== "manual" ? `<button class="text-button" type="button" data-toggle-dictionary-saved="${escapeAttribute(entry.id)}">${entry.saved ? "Saved" : "Save"}</button>` : ""}
+          ${entry.sourceType === "manual" || entry.sourceType === "fluency" ? `<button class="text-button" type="button" data-edit-dictionary-entry="${escapeAttribute(entry.id)}">Edit</button>` : ""}
           <button class="text-button" type="button" data-delete-dictionary-entry="${escapeAttribute(entry.id)}">Delete</button>
         </div>
       </div>
       <div class="dictionary-meanings">
         ${entry.literalTranslation ? `<p><strong>Literal:</strong> ${escapeHtml(entry.literalTranslation)}</p>` : ""}
         ${entry.meaningTranslation ? `<p><strong>Meaning:</strong> ${escapeHtml(entry.meaningTranslation)}</p>` : ""}
+        ${entry.components?.length ? `<p class="dictionary-literal-parts">${entry.components.map((component) => `<span><b>${escapeHtml(component.term)}</b> ${escapeHtml(component.literal)}</span>`).join("")}</p>` : ""}
         ${entry.notes ? `<p><strong>Notes:</strong> ${escapeHtml(entry.notes)}</p>` : ""}
       </div>
       ${hasSource ? `
@@ -4397,9 +4819,9 @@ function createDictionaryEntryCard(entry) {
           <input type="checkbox" data-toggle-dictionary-practice="${escapeAttribute(entry.id)}" ${entry.needsPractice ? "checked" : ""}>
           <span>Needs practice</span>
         </label>
-        ${date ? `<span>Saved ${escapeHtml(date)}</span>` : ""}
+        <span>${entry.saved ? `Saved ${escapeHtml(date)}` : `Seen ${entry.encounterCount || 1} time${entry.encounterCount === 1 ? "" : "s"}`}</span>
       </div>
-    </article>
+    </section>
   `;
 }
 
@@ -4410,7 +4832,7 @@ function bindDictionaryEntryActions(container) {
   container.querySelectorAll("[data-edit-dictionary-entry]").forEach((button) => {
     button.addEventListener("click", () => {
       activeDictionaryEditId = button.dataset.editDictionaryEntry;
-      renderDictionary(getDictionarySearchValue(), getDictionaryNeedsOnlyValue());
+      renderDictionary(getDictionarySearchValue(), getDictionaryFilterValue());
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
@@ -4427,6 +4849,15 @@ function bindDictionaryEntryActions(container) {
     checkbox.addEventListener("change", () => {
       toggleDictionaryNeedsPractice(checkbox.dataset.toggleDictionaryPractice);
       updateDictionaryList();
+    });
+  });
+  container.querySelectorAll("[data-toggle-dictionary-saved]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const entry = getDictionaryEntriesState().entries.find((item) => item.id === button.dataset.toggleDictionarySaved);
+      if (entry) {
+        upsertDictionaryEntry({ ...entry, saved: !entry.saved });
+        updateDictionaryList();
+      }
     });
   });
 }
@@ -4702,6 +5133,193 @@ function closeDictionaryGlossPopover(options = {}) {
   if (!options.keepSelection) {
     clearDictionaryTokenSelection();
   }
+}
+
+function createCourseGlossaryTokenMarkup(lesson, line, lineIndex) {
+  const tokens = tokenizeDictionaryText(line.french);
+  const glossaryLine = getCourseGlossaryLine(lesson.id, lineIndex);
+  let selectableIndex = 0;
+  const tokenMarkup = tokens.map((token) => {
+    if (!token.selectable) {
+      return `<span class="dictionary-token-static">${escapeHtml(token.text)}</span>`;
+    }
+
+    const tokenIndex = selectableIndex;
+    const hasGloss = Boolean(glossaryLine?.words?.some((word) => Number(word.tokenIndex) === tokenIndex));
+    selectableIndex += 1;
+    return `<button class="dictionary-token ${hasGloss ? "has-gloss" : ""}" type="button" data-course-glossary-token="${tokenIndex}">${escapeHtml(token.text)}</button>`;
+  }).join("");
+
+  return `
+    <div class="dictionary-token-line"
+      data-dictionary-source-sentence="${escapeAttribute(line.french)}"
+      data-dictionary-english-sentence="${escapeAttribute(line.english)}"
+      data-dictionary-lesson-id="${escapeAttribute(lesson.id)}"
+      data-dictionary-lesson-title="${escapeAttribute(lesson.title)}"
+      data-dictionary-line-index="${lineIndex}"
+      data-dictionary-audio="${escapeAttribute(line.audio || "")}">
+      <span>${tokenMarkup}</span>
+    </div>
+  `;
+}
+
+function bindCourseGlossaryControls(scope = app) {
+  scope.querySelectorAll("[data-course-glossary-token]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const root = button.closest(".dictionary-token-line");
+      const tokenIndex = Number(button.dataset.courseGlossaryToken);
+      const candidates = getCourseGlossaryCandidates(root?.dataset.dictionaryLessonId, root?.dataset.dictionaryLineIndex, tokenIndex);
+      openCourseGlossaryLookup(root, button, candidates, tokenIndex);
+    });
+  });
+
+  if (!dictionaryDismissBound) {
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".dictionary-lookup-popover, [data-course-glossary-token]")) {
+        closeCourseGlossaryLookup();
+      }
+    });
+    dictionaryDismissBound = true;
+  }
+}
+
+function openCourseGlossaryLookup(root, anchor, candidates, tokenIndex) {
+  closeCourseGlossaryLookup();
+
+  if (!root || !anchor) {
+    return;
+  }
+
+  const popover = document.createElement("aside");
+  popover.className = "dictionary-lookup-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", "Course dictionary lookup");
+  root.appendChild(popover);
+  positionCourseGlossaryLookup(popover, root, anchor);
+
+  if (!candidates.length) {
+    const term = anchor.textContent.trim();
+    popover.innerHTML = `
+      <div class="dictionary-lookup-header">
+        <strong>${escapeHtml(term)}</strong>
+        <button class="icon-button" type="button" data-close-course-lookup title="Close" aria-label="Close">&times;</button>
+      </div>
+      <p class="dictionary-lookup-note">This term is not in the prepared course glossary yet.</p>
+      <button class="text-button" type="button" data-request-missing-gloss>Draft with AI</button>
+    `;
+    popover.querySelector("[data-close-course-lookup]").addEventListener("click", closeCourseGlossaryLookup);
+    popover.querySelector("[data-request-missing-gloss]").addEventListener("click", () => requestMissingCourseGloss(root, popover, term, tokenIndex));
+    return;
+  }
+
+  renderCourseGlossaryCandidate(popover, root, candidates, 0);
+}
+
+function renderCourseGlossaryCandidate(popover, root, candidates, selectedIndex) {
+  const candidate = candidates[selectedIndex];
+  const context = getGlossaryCandidateContext(root, candidate);
+  const entry = recordDictionaryEncounter(context);
+  const startToken = candidate.kind === "phrase" ? Number(candidate.startToken) : Number(candidate.tokenIndex);
+  const endToken = candidate.kind === "phrase" ? Number(candidate.endToken) : Number(candidate.tokenIndex);
+  highlightCourseGlossarySpan(root, startToken, endToken);
+
+  popover.innerHTML = `
+    <div class="dictionary-lookup-header">
+      <div>
+        <span>${candidate.kind === "phrase" ? "Expression" : escapeHtml(candidate.lemma || "Word")}</span>
+        <strong>${escapeHtml(candidate.term)}</strong>
+      </div>
+      <button class="icon-button" type="button" data-close-course-lookup title="Close" aria-label="Close">&times;</button>
+    </div>
+    ${candidates.length > 1 ? `
+      <div class="dictionary-lookup-options" aria-label="Lookup level">
+        ${candidates.map((option, index) => `<button class="${index === selectedIndex ? "active" : ""}" type="button" data-course-candidate="${index}">${option.kind === "phrase" ? "Phrase" : "Word"}: ${escapeHtml(option.term)}</button>`).join("")}
+      </div>
+    ` : ""}
+    <p class="dictionary-lookup-meaning">${escapeHtml(candidate.meaning || "Meaning not available")}</p>
+    ${candidate.literalTranslation ? `<p class="dictionary-lookup-literal"><span>Literal</span>${escapeHtml(candidate.literalTranslation)}</p>` : ""}
+    ${candidate.components?.length ? `<div class="dictionary-lookup-parts">${candidate.components.map((component) => `<span><b>${escapeHtml(component.term)}</b>${escapeHtml(component.literal)}</span>`).join("")}</div>` : ""}
+    ${candidate.grammar ? `<p class="dictionary-lookup-note">${escapeHtml(candidate.grammar)}</p>` : ""}
+    ${candidate.usageNote ? `<p class="dictionary-lookup-note">${escapeHtml(candidate.usageNote)}</p>` : ""}
+    <div class="dictionary-lookup-actions">
+      <button class="text-button" type="button" data-save-course-glossary ${entry.saved ? "disabled" : ""}>${entry.saved ? "Saved" : "Save for later"}</button>
+      <span>Seen ${entry.encounterCount} time${entry.encounterCount === 1 ? "" : "s"}</span>
+    </div>
+  `;
+
+  popover.querySelector("[data-close-course-lookup]").addEventListener("click", closeCourseGlossaryLookup);
+  popover.querySelectorAll("[data-course-candidate]").forEach((button) => {
+    button.addEventListener("click", () => renderCourseGlossaryCandidate(popover, root, candidates, Number(button.dataset.courseCandidate)));
+  });
+  popover.querySelector("[data-save-course-glossary]")?.addEventListener("click", (event) => {
+    const saved = upsertDictionaryEntry({ ...entry, saved: true, needsPractice: true });
+    event.currentTarget.textContent = "Saved";
+    event.currentTarget.disabled = true;
+    entry.saved = saved.saved;
+  });
+}
+
+function positionCourseGlossaryLookup(popover, root, anchor) {
+  const rootRect = root.getBoundingClientRect();
+  const anchorRect = anchor.getBoundingClientRect();
+  const left = Math.max(0, Math.min(anchorRect.left - rootRect.left, Math.max(0, rootRect.width - 320)));
+
+  popover.style.left = `${left}px`;
+  popover.style.top = `${anchorRect.bottom - rootRect.top + 8}px`;
+}
+
+function highlightCourseGlossarySpan(root, startToken, endToken) {
+  app.querySelectorAll("[data-course-glossary-token].selected").forEach((button) => button.classList.remove("selected"));
+  root.querySelectorAll("[data-course-glossary-token]").forEach((button) => {
+    const tokenIndex = Number(button.dataset.courseGlossaryToken);
+    button.classList.toggle("selected", tokenIndex >= startToken && tokenIndex <= endToken);
+  });
+}
+
+async function requestMissingCourseGloss(root, popover, term, tokenIndex) {
+  const button = popover.querySelector("[data-request-missing-gloss]");
+  button.disabled = true;
+  button.textContent = "Loading...";
+
+  try {
+    const session = await getValidAuthSession();
+    const context = getGlossaryCandidateContext(root, { term, lemma: term, kind: "word", tokenIndex });
+    const response = await fetch(dictionaryGlossApiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session?.idToken || ""}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(context)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gloss request failed: ${response.status}`);
+    }
+
+    const gloss = await response.json();
+    const candidate = {
+      id: "",
+      term,
+      lemma: term,
+      kind: "word",
+      tokenIndex,
+      meaning: gloss.meaningTranslation || gloss.contextualMeaning || "",
+      literalTranslation: gloss.literalTranslation || "",
+      usageNote: gloss.usageNote || "",
+      components: []
+    };
+    renderCourseGlossaryCandidate(popover, root, [candidate], 0);
+  } catch (error) {
+    console.warn("Dictionary gloss unavailable.", error);
+    button.textContent = "AI unavailable";
+  }
+}
+
+function closeCourseGlossaryLookup() {
+  app.querySelectorAll(".dictionary-lookup-popover").forEach((popover) => popover.remove());
+  app.querySelectorAll("[data-course-glossary-token].selected").forEach((button) => button.classList.remove("selected"));
 }
 
 function createHistoryItem(item) {
@@ -6892,7 +7510,8 @@ async function initializeApp() {
     return;
   }
 
-  await loadRemoteLessons();
+  await Promise.all([loadRemoteLessons(), loadCourseGlossary()]);
+  indexCourseGlossary();
   await loadCloudState();
   render();
 }
