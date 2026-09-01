@@ -12,7 +12,7 @@ Sign in once on each device. Ogham keeps the Cognito refresh token locally so or
 
 ### Screen OCR hotkey
 
-`Ctrl+Alt+C` now launches **Ogham Screen Capture**:
+`Ctrl+Alt+C` now launches **Ogham Screen Capture**. `Ctrl+Shift+Space` is also registered as a backup for keyboards or utilities that reserve `Ctrl+Alt+C`:
 
 1. The screen darkens and the pointer becomes a crosshair.
 2. Drag a box around the French text.

@@ -35,6 +35,9 @@ namespace OghamScreenCapture
         [DllImport("user32.dll")]
         private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
+        [DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
+
         private delegate bool EnumWindowsCallback(IntPtr hWnd, IntPtr parameter);
 
         [STAThread]
@@ -52,6 +55,10 @@ namespace OghamScreenCapture
             if (args.Length >= 1 && string.Equals(args[0], "--listener", StringComparison.OrdinalIgnoreCase))
             {
                 return RunHotkeyListener();
+            }
+            if (args.Length >= 1 && string.Equals(args[0], "--signal-listener", StringComparison.OrdinalIgnoreCase))
+            {
+                return SignalHotkeyListener();
             }
             bool imageMode = args.Length >= 2 && string.Equals(args[0], "--image", StringComparison.OrdinalIgnoreCase);
 
@@ -260,9 +267,34 @@ namespace OghamScreenCapture
                 {
                     return 0;
                 }
-                Application.Run(new HotkeyListenerForm());
-                return 0;
+                using (HotkeyListenerWindow listener = new HotkeyListenerWindow())
+                {
+                    if (!listener.IsReady)
+                    {
+                        MessageBox.Show(
+                            "Ogham's keyboard shortcuts are already being used by another program. Screen Capture can still be opened from its desktop shortcut.",
+                            "Ogham Screen Capture",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return 3;
+                    }
+                    Application.Run();
+                    return 0;
+                }
             }
+        }
+
+        private static int SignalHotkeyListener()
+        {
+            if (HotkeyListenerWindow.TestMessage == 0)
+            {
+                return 2;
+            }
+            return PostMessage(
+                new IntPtr(0xffff),
+                HotkeyListenerWindow.TestMessage,
+                IntPtr.Zero,
+                IntPtr.Zero) ? 0 : 3;
         }
 
         private static string FindChromePath()
@@ -283,13 +315,31 @@ namespace OghamScreenCapture
         }
     }
 
-    internal sealed class HotkeyListenerForm : Form
+    internal sealed class HotkeyListenerWindow : NativeWindow, IDisposable
     {
-        private const int HotkeyId = 0x4F47;
-        private const int WmHotkey = 0x0312;
+        internal const string ListenerWindowTitle = "Ogham Screen Capture Hotkey Listener";
+        internal const int PrimaryHotkeyId = 0x4F47;
+        internal const int SecondaryHotkeyId = 0x4F48;
+        internal const int WmHotkey = 0x0312;
         private const uint ModifierAlt = 0x0001;
         private const uint ModifierControl = 0x0002;
+        private const uint ModifierShift = 0x0004;
         private const uint KeyC = 0x43;
+        private const uint KeySpace = 0x20;
+
+        private bool primaryRegistered;
+        private bool secondaryRegistered;
+
+        private static string StatusPath
+        {
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Ogham",
+                    "hotkey-listener.status");
+            }
+        }
 
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint virtualKey);
@@ -297,43 +347,58 @@ namespace OghamScreenCapture
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        public HotkeyListenerForm()
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint RegisterWindowMessage(string messageName);
+
+        internal static readonly uint TestMessage = RegisterWindowMessage("Ogham.ScreenCapture.ListenerTest");
+
+        public bool IsReady
         {
-            ShowInTaskbar = false;
-            FormBorderStyle = FormBorderStyle.FixedToolWindow;
-            WindowState = FormWindowState.Minimized;
-            Opacity = 0;
+            get { return primaryRegistered || secondaryRegistered; }
         }
 
-        protected override void OnHandleCreated(EventArgs eventArgs)
+        public HotkeyListenerWindow()
         {
-            base.OnHandleCreated(eventArgs);
-            if (!RegisterHotKey(Handle, HotkeyId, ModifierControl | ModifierAlt, KeyC))
+            CreateParams parameters = new CreateParams();
+            parameters.Caption = ListenerWindowTitle;
+            parameters.X = -32000;
+            parameters.Y = -32000;
+            parameters.Width = 1;
+            parameters.Height = 1;
+            CreateHandle(parameters);
+
+            primaryRegistered = RegisterHotKey(Handle, PrimaryHotkeyId, ModifierControl | ModifierAlt, KeyC);
+            secondaryRegistered = RegisterHotKey(Handle, SecondaryHotkeyId, ModifierControl | ModifierShift, KeySpace);
+            Directory.CreateDirectory(Path.GetDirectoryName(StatusPath));
+            File.WriteAllText(
+                StatusPath,
+                "ready=" + (primaryRegistered || secondaryRegistered) +
+                ";primary=" + primaryRegistered +
+                ";secondary=" + secondaryRegistered +
+                ";handle=" + Handle.ToInt64());
+        }
+
+        public void Dispose()
+        {
+            if (primaryRegistered)
             {
-                MessageBox.Show(
-                    "Ctrl+Alt+C is already being used by another program. Ogham Screen Capture can still be opened from its desktop shortcut.",
-                    "Ogham Screen Capture",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                BeginInvoke(new Action(Close));
+                UnregisterHotKey(Handle, PrimaryHotkeyId);
             }
-        }
-
-        protected override void OnHandleDestroyed(EventArgs eventArgs)
-        {
-            UnregisterHotKey(Handle, HotkeyId);
-            base.OnHandleDestroyed(eventArgs);
-        }
-
-        protected override void SetVisibleCore(bool value)
-        {
-            base.SetVisibleCore(false);
+            if (secondaryRegistered)
+            {
+                UnregisterHotKey(Handle, SecondaryHotkeyId);
+            }
+            DestroyHandle();
         }
 
         protected override void WndProc(ref Message message)
         {
-            if (message.Msg == WmHotkey && message.WParam.ToInt32() == HotkeyId)
+            int hotkeyId = message.WParam.ToInt32();
+            bool registeredHotkey = message.Msg == WmHotkey &&
+                (hotkeyId == PrimaryHotkeyId || hotkeyId == SecondaryHotkeyId);
+            if (registeredHotkey || message.Msg == TestMessage)
             {
+                File.AppendAllText(StatusPath, ";received=" + message.Msg);
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = Assembly.GetExecutingAssembly().Location,

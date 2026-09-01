@@ -46,4 +46,4 @@ Start-Process -FilePath $installedExecutable -ArgumentList '--listener' -WindowS
 
 Write-Output "Installed $installedExecutable"
 Write-Output "Created $screenCaptureShortcut"
-Write-Output "Started the Ctrl+Alt+C listener and added it to Windows startup"
+Write-Output "Started the Ctrl+Alt+C / Ctrl+Shift+Space listener and added it to Windows startup"
