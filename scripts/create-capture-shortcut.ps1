@@ -3,7 +3,7 @@ param(
   [ValidatePattern('^https?://')]
   [string]$AppUrl,
 
-  [string]$Hotkey = 'CTRL+ALT+C'
+  [string]$Hotkey = ''
 )
 
 $chromeCandidates = @(
@@ -30,4 +30,8 @@ $shortcut.Hotkey = $Hotkey
 $shortcut.IconLocation = "$chromePath,0"
 $shortcut.Save()
 
-Write-Output "Created $shortcutPath with hotkey $Hotkey"
+if ($Hotkey) {
+  Write-Output "Created $shortcutPath with hotkey $Hotkey"
+} else {
+  Write-Output "Created $shortcutPath without a global hotkey"
+}

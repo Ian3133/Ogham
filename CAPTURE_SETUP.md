@@ -10,15 +10,31 @@ Sign in once on each device. Ogham keeps the Cognito refresh token locally so or
 
 ## Windows and Chrome
 
-The quickest desktop setup is a small Chrome app window with a keyboard shortcut:
+### Screen OCR hotkey
+
+`Ctrl+Alt+C` now launches **Ogham Screen Capture**:
+
+1. The screen darkens and the pointer becomes a crosshair.
+2. Drag a box around the French text.
+3. Windows recognizes the text locally and copies it to the clipboard.
+4. Ogham Capture opens in Chrome and pastes the text into the focused box.
+5. Review the text, then press Enter to save it to AWS.
+
+Press Escape while the screen is darkened to cancel. The screenshot is never uploaded or stored; only the recognized text reaches Ogham after you choose to save it. If the first use shows the Ogham sign-in page, sign in, then press `Ctrl+V` once—the recognized text remains on the clipboard.
+
+The installed helper lives at `%LOCALAPPDATA%\Ogham\OghamScreenCapture.exe`. Its source and repeatable install script live in `tools/OghamScreenCapture/` and `scripts/install-screen-capture.ps1`.
+
+### Direct Capture shortcut
+
+The separate **Ogham Capture** desktop shortcut still opens the inbox directly without OCR. It no longer owns the hotkey, avoiding a conflict with Screen Capture. It can be recreated with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/create-capture-shortcut.ps1 -AppUrl "https://main.d39wc75md4exup.amplifyapp.com/"
 ```
 
-This creates an **Ogham Capture** shortcut on the desktop, opens `#capture` in a minimal Chrome window, and assigns `Ctrl+Alt+C`. Windows may require the desktop shortcut to remain in place for its hotkey to work. If that key is already taken, open the shortcut's Properties and choose a different Shortcut key.
+The input receives focus automatically, so its normal flow is: open, paste or type, press Enter, close.
 
-You can also bookmark the direct Capture address in any browser. The input receives focus automatically, so the normal flow is: open, paste or type, press Enter, close.
+You can also bookmark the direct Capture address in any browser.
 
 ## iPhone
 
