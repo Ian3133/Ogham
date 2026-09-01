@@ -1,0 +1,19 @@
+{
+  "version": "2.0",
+  "rawPath": "/captures",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/captures"
+    },
+    "authorizer": {
+      "jwt": {
+        "claims": {
+          "sub": "ogham-deployment-smoke-test",
+          "email": "smoke-test@example.invalid"
+        }
+      }
+    }
+  },
+  "body": "{\"captureId\":\"1725192000000-smoke-test\",\"text\":\"Bonjour depuis le test\",\"capturedAt\":\"2026-09-01T12:00:00.000Z\"}"
+}

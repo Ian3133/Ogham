@@ -1,13 +1,16 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { handleCaptureRequest } from "./capture-http.mjs";
 
 const tableName = process.env.USER_STATE_TABLE || "OghamUserState";
+const captureTableName = process.env.CAPTURE_TABLE || "OghamCaptures";
 const openAiSecretId = process.env.OPENAI_SECRET_ID || "odrerir/openai";
 const openAiModel = process.env.OPENAI_GLOSS_MODEL || "gpt-4o-mini";
 const dynamo = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const secrets = new SecretsManagerClient({});
 let cachedOpenAiKey = "";
+const captureStore = createCaptureStore();
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -15,7 +18,7 @@ const json = (statusCode, body) => ({
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
-    "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS"
+    "Access-Control-Allow-Methods": "GET,PUT,POST,PATCH,DELETE,OPTIONS"
   },
   body: JSON.stringify(body)
 });
@@ -37,6 +40,10 @@ export const handler = async (event) => {
   }
 
   try {
+    if (path === "/captures" || path.startsWith("/captures/")) {
+      return await handleCaptureRequest(event, captureStore);
+    }
+
     if (method === "POST" && path === "/dictionary/gloss") {
       return await handleDictionaryGloss(event);
     }
@@ -70,6 +77,111 @@ export const handler = async (event) => {
     return json(500, { message: "Request failed" });
   }
 };
+
+function createCaptureStore() {
+  return {
+    async create(userId, capture) {
+      const item = { userId, ...capture };
+
+      try {
+        await dynamo.send(new PutCommand({
+          TableName: captureTableName,
+          Item: item,
+          ConditionExpression: "attribute_not_exists(userId) AND attribute_not_exists(captureId)"
+        }));
+        return withoutUserId(item);
+      } catch (error) {
+        if (error.name !== "ConditionalCheckFailedException") {
+          throw error;
+        }
+
+        const existing = await dynamo.send(new GetCommand({
+          TableName: captureTableName,
+          Key: { userId, captureId: capture.captureId }
+        }));
+        if (existing.Item?.text === capture.text) {
+          return withoutUserId(existing.Item);
+        }
+
+        throw httpError("Capture ID already exists.", 409);
+      }
+    },
+
+    async list(userId, options = {}) {
+      const exclusiveStartKey = decodeCaptureCursor(options.cursor, userId);
+      const result = await dynamo.send(new QueryCommand({
+        TableName: captureTableName,
+        KeyConditionExpression: "userId = :userId",
+        ExpressionAttributeValues: { ":userId": userId },
+        ScanIndexForward: false,
+        Limit: options.limit || 100,
+        ExclusiveStartKey: exclusiveStartKey
+      }));
+      return {
+        items: (result.Items || []).map(withoutUserId),
+        nextCursor: encodeCaptureCursor(result.LastEvaluatedKey)
+      };
+    },
+
+    async update(userId, captureId, changes) {
+      try {
+        const result = await dynamo.send(new UpdateCommand({
+          TableName: captureTableName,
+          Key: { userId, captureId },
+          UpdateExpression: "SET #text = :text, updatedAt = :updatedAt",
+          ExpressionAttributeNames: { "#text": "text" },
+          ExpressionAttributeValues: {
+            ":text": changes.text,
+            ":updatedAt": changes.updatedAt
+          },
+          ConditionExpression: "attribute_exists(userId) AND attribute_exists(captureId)",
+          ReturnValues: "ALL_NEW"
+        }));
+        return withoutUserId(result.Attributes);
+      } catch (error) {
+        if (error.name === "ConditionalCheckFailedException") {
+          throw httpError("Capture not found.", 404);
+        }
+        throw error;
+      }
+    },
+
+    async delete(userId, captureId) {
+      await dynamo.send(new DeleteCommand({
+        TableName: captureTableName,
+        Key: { userId, captureId }
+      }));
+    }
+  };
+}
+
+function withoutUserId(item = {}) {
+  const { userId: ignoredUserId, ...capture } = item;
+  return capture;
+}
+
+function encodeCaptureCursor(key) {
+  return key ? Buffer.from(JSON.stringify(key), "utf8").toString("base64url") : "";
+}
+
+function decodeCaptureCursor(cursor, userId) {
+  if (!cursor) {
+    return undefined;
+  }
+
+  try {
+    const key = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    return key?.userId === userId && key.captureId ? key : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function httpError(message, statusCode) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
 
 function parseBody(event) {
   const raw = event.isBase64Encoded

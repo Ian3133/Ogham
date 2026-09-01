@@ -1169,6 +1169,18 @@ let dictionaryManualFormOpen = false;
 let dictionaryDismissBound = false;
 let courseGlossary = { version: 1, lessons: {} };
 let courseGlossaryIndex = new Map();
+let fullAppDataReady = false;
+let captureItems = [];
+let activeCaptureEditId = "";
+let captureListMessage = "Loading captures...";
+const captureModule = window.OghamCaptureCore.createCaptureModule({
+  storage: {
+    getItem: (key) => window.localStorage.getItem(getScopedStorageKey(key)),
+    setItem: (key, value) => window.localStorage.setItem(getScopedStorageKey(key), value),
+    removeItem: (key) => window.localStorage.removeItem(getScopedStorageKey(key))
+  },
+  remote: createCaptureRemote()
+});
 
 function getAuthSession() {
   const saved = window.localStorage.getItem(authSessionKey);
@@ -1418,6 +1430,54 @@ async function handleAuthRedirect() {
 function clearAuthCallbackState() {
   window.sessionStorage.removeItem(authStateKey);
   window.sessionStorage.removeItem(authVerifierKey);
+}
+
+function isLocalCaptureDemo() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).get("demo") === "capture";
+}
+
+function createCaptureRemote() {
+  return {
+    create: (capture) => requestCapture("/captures", {
+      method: "POST",
+      body: JSON.stringify(capture)
+    }).then((payload) => payload.capture),
+    list: () => requestCapture("/captures?limit=100"),
+    update: (captureId, text) => requestCapture(`/captures/${encodeURIComponent(captureId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ text })
+    }).then((payload) => payload.capture),
+    delete: (captureId) => requestCapture(`/captures/${encodeURIComponent(captureId)}`, {
+      method: "DELETE"
+    })
+  };
+}
+
+async function requestCapture(path, options = {}) {
+  const session = await getValidAuthSession();
+
+  if (!session?.idToken) {
+    throw new Error("Sign in to save captures to AWS.");
+  }
+
+  const response = await fetch(`${userStateApiUrl}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${session.idToken}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {})
+    }
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.message || `Capture request failed: ${response.status}`);
+  }
+  return payload;
 }
 
 function getStateSnapshot(route = window.location.hash.replace("#", "")) {
@@ -3177,13 +3237,19 @@ function getItem(itemId) {
 }
 
 function render() {
-  if (!getCurrentUser()) {
+  if (!getCurrentUser() && !isLocalCaptureDemo()) {
     renderAuthGate();
     return;
   }
 
   const route = window.location.hash.replace("#", "");
   const routeItem = getItem(route);
+
+  if (route === "capture") {
+    renderCapture();
+    renderAccountControls({ hideActions: true });
+    return;
+  }
 
   if (route === "history") {
     renderHistory();
@@ -3576,6 +3642,10 @@ function renderHome() {
         </div>
         <div class="home-actions">
           <div class="home-tool-grid">
+            <button class="home-section-card compact" type="button" data-capture-home>
+              <span class="booklet-kicker">Capture</span>
+              <span class="home-section-title">Inbox</span>
+            </button>
             <button class="home-section-card compact" type="button" data-tool="dictionary">
               <span class="booklet-kicker">Words</span>
               <span class="home-section-title">Dictionary</span>
@@ -3600,6 +3670,7 @@ function renderHome() {
     </section>
   `;
 
+  app.querySelector("[data-capture-home]").addEventListener("click", () => setRoute("capture"));
   app.querySelector("[data-history]").addEventListener("click", () => setRoute("history"));
   app.querySelector(".booklet").addEventListener("click", () => setRoute(currentItem.id));
   app.querySelector("[data-fluency-home]").addEventListener("click", () => setRoute("fluency"));
@@ -4633,6 +4704,256 @@ function renderHistory() {
   app.querySelectorAll("[data-open-item]").forEach((button) => {
     button.addEventListener("click", () => setRoute(button.dataset.openItem));
   });
+}
+
+function renderCapture() {
+  app.innerHTML = `
+    <section class="shell capture-shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button" data-capture-home>Back home</button>
+      </div>
+      <header class="capture-header">
+        <p class="booklet-kicker">Quick log</p>
+        <h1>Capture Inbox</h1>
+        <p class="lesson-lede">Save a word, phrase, sentence, or short note exactly as you encountered it.</p>
+      </header>
+      <form class="capture-form" data-capture-form>
+        <label for="capture-text">What do you want to remember?</label>
+        <textarea id="capture-text" data-capture-text rows="4" maxlength="${window.OghamCaptureCore.maxCaptureLength}" placeholder="Paste or type here..." autofocus required></textarea>
+        <div class="capture-form-footer">
+          <span data-capture-count>0 / ${window.OghamCaptureCore.maxCaptureLength}</span>
+          <button class="primary-button" type="submit" data-capture-save>Save to AWS</button>
+        </div>
+        <p class="capture-save-status" data-capture-status aria-live="polite">Press Enter to save · Shift+Enter for a new line</p>
+      </form>
+      <section class="capture-browser" aria-label="Saved captures">
+        <div class="capture-browser-header">
+          <div>
+            <p class="booklet-kicker">Review later</p>
+            <h2>Recent captures</h2>
+          </div>
+          <button class="back-link" type="button" data-capture-retry>Refresh</button>
+        </div>
+        <p class="capture-list-message" data-capture-list-message>${escapeHtml(captureListMessage)}</p>
+        <div class="capture-list" data-capture-list></div>
+      </section>
+    </section>
+  `;
+
+  const form = app.querySelector("[data-capture-form]");
+  const input = app.querySelector("[data-capture-text]");
+  app.querySelector("[data-capture-home]").addEventListener("click", () => {
+    window.location.hash = "";
+  });
+  form.addEventListener("submit", handleCaptureSubmit);
+  input.addEventListener("input", updateCaptureCharacterCount);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+  app.querySelector("[data-capture-retry]").addEventListener("click", loadCaptureItems);
+  renderCaptureList();
+  loadCaptureItems();
+  window.requestAnimationFrame(() => input.focus());
+}
+
+function updateCaptureCharacterCount(event) {
+  const count = app.querySelector("[data-capture-count]");
+  if (count) {
+    count.textContent = `${event.currentTarget.value.length} / ${window.OghamCaptureCore.maxCaptureLength}`;
+  }
+}
+
+async function handleCaptureSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = form.querySelector("[data-capture-text]");
+  const button = form.querySelector("[data-capture-save]");
+  const text = input.value;
+
+  button.disabled = true;
+  setCaptureStatus("Saving to AWS...", "saving");
+
+  try {
+    const result = await captureModule.create(text);
+    input.value = "";
+    input.dispatchEvent(new Event("input"));
+    setCaptureStatus(
+      result.status === "saved" ? "Saved to AWS." : "Saved locally as Pending. Ogham will retry automatically.",
+      result.status
+    );
+    await loadCaptureItems();
+  } catch (error) {
+    setCaptureStatus(error.message || "Capture could not be saved.", "error");
+  } finally {
+    button.disabled = false;
+    input.focus();
+  }
+}
+
+function setCaptureStatus(message, state = "") {
+  const status = app.querySelector("[data-capture-status]");
+  if (!status) {
+    return;
+  }
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+async function loadCaptureItems() {
+  const message = app.querySelector("[data-capture-list-message]");
+  const retry = app.querySelector("[data-capture-retry]");
+  if (!message || !retry) {
+    return;
+  }
+
+  message.textContent = "Checking AWS and pending captures...";
+  retry.disabled = true;
+
+  try {
+    await captureModule.flushPending();
+    const result = await captureModule.list();
+    captureItems = result.items;
+    const pendingCount = captureItems.filter((capture) => capture.status === "pending").length;
+    captureListMessage = result.cloudAvailable
+      ? pendingCount
+        ? `${captureItems.length} capture${captureItems.length === 1 ? "" : "s"} · ${pendingCount} pending AWS upload${pendingCount === 1 ? "" : "s"}`
+        : `${captureItems.length} capture${captureItems.length === 1 ? "" : "s"} · synced with AWS`
+      : `${pendingCount} pending capture${pendingCount === 1 ? "" : "s"} · AWS is currently unavailable`;
+  } catch (error) {
+    captureListMessage = error.message || "Captures could not be loaded.";
+  }
+
+  if (window.location.hash.replace("#", "") !== "capture") {
+    return;
+  }
+  message.textContent = captureListMessage;
+  retry.disabled = false;
+  renderCaptureList();
+}
+
+function renderCaptureList() {
+  const list = app.querySelector("[data-capture-list]");
+  if (!list) {
+    return;
+  }
+
+  list.innerHTML = captureItems.length
+    ? captureItems.map(createCaptureCard).join("")
+    : `<article class="capture-empty"><p>Your Capture Inbox is empty. Add anything you want to revisit later.</p></article>`;
+
+  bindCaptureActions(list);
+}
+
+function createCaptureCard(capture) {
+  const isEditing = activeCaptureEditId === capture.captureId;
+  const savedAt = capture.createdAt || capture.capturedAt;
+  const dateLabel = savedAt ? new Date(savedAt).toLocaleString() : "Just now";
+
+  return `
+    <article class="capture-card ${capture.status === "pending" ? "pending" : ""}" data-capture-id="${escapeAttribute(capture.captureId)}">
+      <div class="capture-card-meta">
+        <span class="capture-cloud-state">${capture.status === "pending" ? "Pending" : "Saved to AWS"}</span>
+        <span>${escapeHtml(dateLabel)}</span>
+      </div>
+      ${isEditing ? `
+        <form class="capture-edit-form" data-capture-edit-form>
+          <textarea rows="4" maxlength="${window.OghamCaptureCore.maxCaptureLength}" data-capture-edit-text required>${escapeHtml(capture.text)}</textarea>
+          <div class="capture-card-actions">
+            <button class="primary-button" type="submit">Save changes</button>
+            <button class="back-link" type="button" data-capture-edit-cancel>Cancel</button>
+          </div>
+        </form>
+      ` : `
+        <p class="capture-card-text">${escapeHtml(capture.text)}</p>
+        <div class="capture-card-actions">
+          <button class="back-link" type="button" data-capture-copy>Copy</button>
+          <button class="back-link" type="button" data-capture-edit>Edit</button>
+          <button class="back-link capture-delete" type="button" data-capture-delete>Delete</button>
+        </div>
+      `}
+    </article>
+  `;
+}
+
+function bindCaptureActions(list) {
+  list.querySelectorAll("[data-capture-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const capture = getCaptureForElement(button);
+      if (!capture) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(capture.text);
+        setCaptureStatus("Copied.", "saved");
+      } catch {
+        setCaptureStatus("Clipboard access was unavailable.", "error");
+      }
+    });
+  });
+  list.querySelectorAll("[data-capture-edit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeCaptureEditId = getCaptureForElement(button)?.captureId || "";
+      renderCaptureList();
+      list.querySelector("[data-capture-edit-text]")?.focus();
+    });
+  });
+  list.querySelectorAll("[data-capture-edit-cancel]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeCaptureEditId = "";
+      renderCaptureList();
+    });
+  });
+  list.querySelectorAll("[data-capture-edit-form]").forEach((form) => {
+    form.addEventListener("submit", handleCaptureEdit);
+  });
+  list.querySelectorAll("[data-capture-delete]").forEach((button) => {
+    button.addEventListener("click", handleCaptureDelete);
+  });
+}
+
+function getCaptureForElement(element) {
+  const captureId = element.closest("[data-capture-id]")?.dataset.captureId;
+  return captureItems.find((capture) => capture.captureId === captureId) || null;
+}
+
+async function handleCaptureEdit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const capture = getCaptureForElement(form);
+  const text = form.querySelector("[data-capture-edit-text]").value;
+  if (!capture) {
+    return;
+  }
+
+  try {
+    const updated = await captureModule.update(capture.captureId, text);
+    captureItems = captureItems.map((item) => item.captureId === capture.captureId ? { ...item, ...updated } : item);
+    activeCaptureEditId = "";
+    setCaptureStatus(updated.status === "pending" ? "Pending capture updated locally." : "Changes saved to AWS.", updated.status);
+    renderCaptureList();
+  } catch (error) {
+    setCaptureStatus(error.message || "Capture could not be updated.", "error");
+  }
+}
+
+async function handleCaptureDelete(event) {
+  const capture = getCaptureForElement(event.currentTarget);
+  if (!capture || !window.confirm("Delete this capture?")) {
+    return;
+  }
+
+  try {
+    await captureModule.delete(capture.captureId);
+    captureItems = captureItems.filter((item) => item.captureId !== capture.captureId);
+    setCaptureStatus("Capture deleted.", "saved");
+    renderCaptureList();
+  } catch (error) {
+    setCaptureStatus(error.message || "Capture could not be deleted.", "error");
+  }
 }
 
 function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphabetical") {
@@ -7629,24 +7950,60 @@ async function initializeApp() {
     return;
   }
 
-  if (!getCurrentUser()) {
+  if (!getCurrentUser() && !isLocalCaptureDemo()) {
     renderAuthGate();
+    return;
+  }
+
+  if (window.location.hash.replace("#", "") === "capture") {
+    render();
+    return;
+  }
+
+  await loadFullAppData();
+  render();
+}
+
+async function loadFullAppData() {
+  if (fullAppDataReady) {
     return;
   }
 
   await Promise.all([loadRemoteLessons(), loadCourseGlossary()]);
   indexCourseGlossary();
-  await loadCloudState();
-  render();
+  if (getCurrentUser()) {
+    await loadCloudState();
+  }
+  fullAppDataReady = true;
 }
 
-window.addEventListener("hashchange", () => {
-  queueCloudStateSave();
+window.addEventListener("hashchange", async () => {
+  const route = window.location.hash.replace("#", "");
+  if (route === "capture") {
+    render();
+    return;
+  }
+  if (!fullAppDataReady) {
+    renderLoading();
+    await loadFullAppData();
+  } else {
+    queueCloudStateSave();
+  }
   render();
 });
 window.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && getCurrentUser()) {
+  if (document.visibilityState === "hidden" && getCurrentUser() && fullAppDataReady && window.location.hash.replace("#", "") !== "capture") {
     saveCloudStateNow(undefined, { keepalive: true }).catch(() => {});
+  }
+});
+window.addEventListener("online", () => {
+  if (window.location.hash.replace("#", "") === "capture") {
+    loadCaptureItems();
+  }
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && window.location.hash.replace("#", "") === "capture" && !activeCaptureEditId) {
+    window.close();
   }
 });
 initializeApp();

@@ -1,0 +1,20 @@
+{
+  "AllowCredentials": false,
+  "AllowHeaders": [
+    "authorization",
+    "content-type"
+  ],
+  "AllowMethods": [
+    "GET",
+    "OPTIONS",
+    "PUT",
+    "POST",
+    "PATCH",
+    "DELETE"
+  ],
+  "AllowOrigins": [
+    "http://localhost:8000",
+    "https://main.d39wc75md4exup.amplifyapp.com"
+  ],
+  "MaxAge": 0
+}
