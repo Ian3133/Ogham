@@ -22,7 +22,7 @@ Sign in once on each device. Ogham keeps the Cognito refresh token locally so or
 
 Press Escape while the screen is darkened to cancel. The screenshot is never uploaded or stored; only the recognized text reaches Ogham after you choose to save it. If the first use shows the Ogham sign-in page, sign in, then press `Ctrl+V` once—the recognized text remains on the clipboard.
 
-The installed helper lives at `%LOCALAPPDATA%\Ogham\OghamScreenCapture.exe`. Its source and repeatable install script live in `tools/OghamScreenCapture/` and `scripts/install-screen-capture.ps1`.
+The installed helper lives at `%LOCALAPPDATA%\Ogham\OghamScreenCapture.exe`. A tiny background listener keeps the hotkey reliable and starts automatically with Windows. Its source and repeatable install script live in `tools/OghamScreenCapture/` and `scripts/install-screen-capture.ps1`.
 
 ### Direct Capture shortcut
 
