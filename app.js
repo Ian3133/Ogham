@@ -1058,6 +1058,8 @@ const fluencyDailyReviewKey = "ogham-fluency-daily-review";
 const fluencyReviewScheduleKey = "ogham-fluency-review-schedule";
 const dictionaryEntriesKey = "ogham-dictionary-entries";
 const sentenceStateKey = "ogham-sentence-state";
+const sentencePlaybackRateKey = "ogham-sentence-playback-rate";
+const sentenceAudioVersion = "v1";
 const musicLibraryKey = "ogham-music-library";
 const musicLyricsKey = "ogham-music-lyrics";
 const musicLyricsSourceKey = "ogham-music-lyrics-sources";
@@ -1192,6 +1194,7 @@ let activeSentenceEditCardId = "";
 let sentenceBulkOpen = false;
 let sentenceCloudLoadPromise = null;
 let sentenceReviewSession = null;
+let currentSentenceAudio = null;
 let captureListMessage = "Loading captures...";
 const captureModule = window.OghamCaptureCore.createCaptureModule({
   storage: {
@@ -1345,6 +1348,37 @@ function getSentenceState() {
   return window.OghamSentenceCore.normalizeState(
     readStoredJson(sentenceStateKey, window.OghamSentenceCore.emptyState())
   );
+}
+
+function getSentencePlaybackRate() {
+  const saved = Number(window.localStorage.getItem(sentencePlaybackRateKey));
+  return [1, 0.8, 0.6].includes(saved) ? saved : 1;
+}
+
+function createSentenceSpeedControls(label = "Playback speed") {
+  const selected = getSentencePlaybackRate();
+  return `
+    <div class="sentence-speed-control" aria-label="${escapeAttribute(label)}">
+      <span>${escapeHtml(label)}</span>
+      ${[1, 0.8, 0.6].map((rate) => `
+        <button class="${rate === selected ? "active" : ""}" type="button" data-sentence-speed="${rate}" aria-pressed="${rate === selected}">${rate}&times;</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindSentenceSpeedControls() {
+  app.querySelectorAll("[data-sentence-speed]").forEach((button) => button.addEventListener("click", () => {
+    const rate = Number(button.dataset.sentenceSpeed);
+    if (![1, 0.8, 0.6].includes(rate)) return;
+    window.localStorage.setItem(sentencePlaybackRateKey, String(rate));
+    app.querySelectorAll("[data-sentence-speed]").forEach((item) => {
+      const active = Number(item.dataset.sentenceSpeed) === rate;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    if (currentSentenceAudio) currentSentenceAudio.playbackRate = rate;
+  }));
 }
 
 function saveSentenceState(state, options = {}) {
@@ -5875,7 +5909,7 @@ function createSentenceManagementCard(state, deck, card) {
 function bindSentenceManagementActions(deckId, searchQuery) {
   app.querySelectorAll("[data-sentence-card-speak]").forEach((button) => button.addEventListener("click", () => {
     const card = getSentenceCardForElement(button);
-    if (card) speakSentenceText(card.french);
+    if (card) playSentenceCardAudio(card);
   }));
   app.querySelectorAll("[data-sentence-card-edit]").forEach((button) => button.addEventListener("click", () => {
     activeSentenceEditCardId = getSentenceCardForElement(button)?.id || "";
@@ -5993,12 +6027,14 @@ function renderSentenceReviewRoute(token) {
           <p class="booklet-kicker">${knownOnly ? "Known check" : "Listening-first review"}</p>
           <h1>${escapeHtml(deck?.name || "All Sentence Decks")}</h1>
           <p>${count ? `${count} sentence${count === 1 ? "" : "s"} will play from the lowest mastery score upward.` : "There are no sentences in this review."}</p>
+          ${createSentenceSpeedControls("Review speed")}
           <button class="primary-button" type="button" data-start-sentence-review ${count ? "" : "disabled"}>Start Review</button>
         </section>
       </section>
     `;
     app.querySelector("[data-sentence-review-back]").addEventListener("click", () => setRoute(deck ? `sentence-deck-${deck.id}` : "sentences"));
     app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, knownOnly));
+    bindSentenceSpeedControls();
     return;
   }
   renderSentenceReviewPlayer();
@@ -6044,6 +6080,7 @@ function renderSentenceReviewPlayer() {
         <div class="sentence-review-audio">
           <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio">&#9654;</button>
           <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
+          ${createSentenceSpeedControls("Speed")}
         </div>
         <div class="sentence-review-reveals">
           <section class="sentence-review-pane ${frenchVisible ? "visible" : "hidden"}" lang="fr">
@@ -6072,6 +6109,7 @@ function renderSentenceReviewPlayer() {
   `;
   app.querySelector("[data-exit-sentence-review]").addEventListener("click", exitSentenceReview);
   app.querySelector("[data-sentence-replay]").addEventListener("click", playCurrentSentenceReviewAudio);
+  bindSentenceSpeedControls();
   app.querySelector("[data-sentence-reveal-french]")?.addEventListener("click", () => {
     session.phase = "french";
     renderSentenceReviewPlayer();
@@ -6149,7 +6187,46 @@ function playCurrentSentenceReviewAudio() {
   const session = sentenceReviewSession;
   const cardId = session?.cardIds[session.index];
   const card = window.OghamSentenceCore.activeCards(getSentenceState()).find((item) => item.id === cardId);
-  if (card) speakSentenceText(card.french);
+  if (card) playSentenceCardAudio(card);
+}
+
+function getSentenceCardAudioUrl(card) {
+  if (!card?.id || !window.OghamSentenceCurriculum?.decks) return "";
+  for (const definition of window.OghamSentenceCurriculum.decks) {
+    const index = definition.cards.findIndex((item, cardIndex) => (
+      getSentenceCurriculumCardId(definition.id, cardIndex) === card.id
+      && item.french === card.french
+    ));
+    if (index >= 0) {
+      return getContentUrl(`sentence-audio/${sentenceAudioVersion}/${getSentenceCurriculumCardId(definition.id, index)}.mp3`);
+    }
+  }
+  return "";
+}
+
+function playSentenceCardAudio(card) {
+  stopSentenceSpeech();
+  const audioUrl = getSentenceCardAudioUrl(card);
+  if (!audioUrl) {
+    speakSentenceText(card.french);
+    return;
+  }
+
+  const audio = new Audio(audioUrl);
+  currentSentenceAudio = audio;
+  audio.playbackRate = getSentencePlaybackRate();
+  let usedFallback = false;
+  const fallback = () => {
+    if (usedFallback || currentSentenceAudio !== audio) return;
+    usedFallback = true;
+    currentSentenceAudio = null;
+    speakSentenceText(card.french);
+  };
+  audio.addEventListener("ended", () => {
+    if (currentSentenceAudio === audio) currentSentenceAudio = null;
+  }, { once: true });
+  audio.addEventListener("error", fallback, { once: true });
+  audio.play().catch(fallback);
 }
 
 function speakSentenceText(text) {
@@ -6160,7 +6237,7 @@ function speakSentenceText(text) {
   stopSentenceSpeech();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "fr-FR";
-  utterance.rate = 0.92;
+  utterance.rate = getSentencePlaybackRate();
   const voices = window.speechSynthesis.getVoices();
   utterance.voice = voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang) && /natural|online|neural/i.test(voice.name))
     || voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang))
@@ -6169,6 +6246,11 @@ function speakSentenceText(text) {
 }
 
 function stopSentenceSpeech() {
+  if (currentSentenceAudio) {
+    currentSentenceAudio.pause();
+    currentSentenceAudio.currentTime = 0;
+    currentSentenceAudio = null;
+  }
   window.speechSynthesis?.cancel?.();
 }
 

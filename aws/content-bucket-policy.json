@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadLessonsAndAudio",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": [
+        "arn:aws:s3:::ogham-content-ian-423575705842-us-east-1-an/lessons/*",
+        "arn:aws:s3:::ogham-content-ian-423575705842-us-east-1-an/audio/*",
+        "arn:aws:s3:::ogham-content-ian-423575705842-us-east-1-an/sentence-audio/*"
+      ]
+    }
+  ]
+}

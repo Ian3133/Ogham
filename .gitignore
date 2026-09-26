@@ -8,3 +8,4 @@ aws/*.zip
 aws/live-lambda-inspect/
 aws/lambda-package/
 tools/OghamScreenCapture/bin/
+.ua/sentence-audio/
