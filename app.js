@@ -1057,6 +1057,17 @@ const fluencyCollapsedChaptersKey = "ogham-fluency-collapsed-chapters";
 const fluencyDailyReviewKey = "ogham-fluency-daily-review";
 const fluencyReviewScheduleKey = "ogham-fluency-review-schedule";
 const dictionaryEntriesKey = "ogham-dictionary-entries";
+const sentenceStateKey = "ogham-sentence-state";
+const musicLibraryKey = "ogham-music-library";
+const musicLyricsKey = "ogham-music-lyrics";
+const musicLyricsSourceKey = "ogham-music-lyrics-sources";
+const musicWordStatusKey = "ogham-music-word-status";
+const spotifyClientIdKey = "ogham-spotify-client-id";
+const spotifySessionKey = "ogham-spotify-session";
+const spotifyAuthStateKey = "ogham-spotify-auth-state";
+const spotifyAuthVerifierKey = "ogham-spotify-auth-verifier";
+const spotifyDemoPlaylistId = "37i9dQZEVXbIPWwFssbupI";
+const spotifyDemoPlaylistPath = "music/demo-top-50-france.json";
 const homeGraphModeKey = "odrerir-home-graph-mode";
 const fluencyRatingProgressPrefix = "fluency-rating|";
 const fluencyRevealProgressPrefix = "fluency-reveal|";
@@ -1065,12 +1076,16 @@ const authVerifierKey = "ogham-auth-verifier";
 const authSessionKey = "ogham-auth-session";
 const cognitoDomain = "https://us-east-1lecx3id7z.auth.us-east-1.amazoncognito.com";
 const cognitoClientId = "7ifahuq15bidifgdm57t3389e5";
-const cognitoRedirectUri = `${window.location.origin}/`;
+const cognitoRedirectUri = window.OghamAuthCore.getCognitoRedirectUri(window.location);
+const spotifyRedirectUri = `${window.location.origin}${window.location.pathname}`;
 const authRefreshSkewMs = 60 * 1000;
 const userStateApiUrl = "https://4ei4w1egn9.execute-api.us-east-1.amazonaws.com";
 const dictionaryGlossApiUrl = ["localhost", "127.0.0.1"].includes(window.location.hostname)
   ? `${window.location.origin}/dictionary/gloss`
   : `${userStateApiUrl}/dictionary/gloss`;
+const sentenceTranslationApiUrl = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  ? `${window.location.origin}/sentences/translate`
+  : `${userStateApiUrl}/sentences/translate`;
 const contentBaseUrl = "https://ogham-content-ian-423575705842-us-east-1-an.s3.us-east-1.amazonaws.com/";
 const courseGlossaryPath = "glossary/course-glossary.json";
 const appBrandName = "Odrerir";
@@ -1172,6 +1187,11 @@ let courseGlossaryIndex = new Map();
 let fullAppDataReady = false;
 let captureItems = [];
 let activeCaptureEditId = "";
+let activeSentencePrepareCaptureId = "";
+let activeSentenceEditCardId = "";
+let sentenceBulkOpen = false;
+let sentenceCloudLoadPromise = null;
+let sentenceReviewSession = null;
 let captureListMessage = "Loading captures...";
 const captureModule = window.OghamCaptureCore.createCaptureModule({
   storage: {
@@ -1321,6 +1341,55 @@ function writeStoredJson(key, value) {
   window.localStorage.setItem(getScopedStorageKey(key), JSON.stringify(value));
 }
 
+function getSentenceState() {
+  return window.OghamSentenceCore.normalizeState(
+    readStoredJson(sentenceStateKey, window.OghamSentenceCore.emptyState())
+  );
+}
+
+function saveSentenceState(state, options = {}) {
+  const normalized = window.OghamSentenceCore.normalizeState(state);
+  writeStoredJson(sentenceStateKey, normalized);
+  if (!options.skipCloudSave) {
+    queueCloudStateSave();
+  }
+  return normalized;
+}
+
+async function ensureSentenceCloudStateReady() {
+  if (cloudStateReady || isLocalSentenceDemo() || isLocalCaptureDemo()) {
+    return;
+  }
+  if (!getCurrentUser()) {
+    return;
+  }
+  if (!sentenceCloudLoadPromise) {
+    sentenceCloudLoadPromise = loadCloudState().finally(() => {
+      sentenceCloudLoadPromise = null;
+    });
+  }
+  await sentenceCloudLoadPromise;
+}
+
+async function requestSentenceTranslation(french) {
+  const headers = { "Content-Type": "application/json" };
+  if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    const session = await getValidAuthSession();
+    if (!session?.idToken) throw new Error("Sign in to generate an English draft.");
+    headers.Authorization = `Bearer ${session.idToken}`;
+  }
+  const response = await fetch(sentenceTranslationApiUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ french })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.translation) {
+    throw new Error(payload.message || payload.error || "English draft could not be generated.");
+  }
+  return String(payload.translation).trim();
+}
+
 function escapeHtml(value = "") {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -1432,9 +1501,23 @@ function clearAuthCallbackState() {
   window.sessionStorage.removeItem(authVerifierKey);
 }
 
+function getSpotifyClientId() {
+  return window.localStorage.getItem(spotifyClientIdKey)?.trim() || "";
+}
+
+function isLocalMusicDemo() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).get("demo") === "music";
+}
+
 function isLocalCaptureDemo() {
   return ["localhost", "127.0.0.1"].includes(window.location.hostname)
     && new URLSearchParams(window.location.search).get("demo") === "capture";
+}
+
+function isLocalSentenceDemo() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).get("demo") === "sentences";
 }
 
 function createCaptureRemote() {
@@ -1480,6 +1563,155 @@ async function requestCapture(path, options = {}) {
   return payload;
 }
 
+function getSpotifySession() {
+  const saved = window.localStorage.getItem(getScopedStorageKey(spotifySessionKey));
+
+  if (!saved) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(saved);
+    return session?.accessToken ? session : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveSpotifySession(session) {
+  window.localStorage.setItem(getScopedStorageKey(spotifySessionKey), JSON.stringify(session));
+}
+
+function clearSpotifySession() {
+  window.localStorage.removeItem(getScopedStorageKey(spotifySessionKey));
+}
+
+async function getValidSpotifySession() {
+  const session = getSpotifySession();
+
+  if (!session) {
+    return null;
+  }
+
+  if (Date.now() < Number(session.expiresAt || 0) - authRefreshSkewMs) {
+    return session;
+  }
+
+  const clientId = getSpotifyClientId();
+
+  if (!clientId || !session.refreshToken) {
+    clearSpotifySession();
+    return null;
+  }
+
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: "refresh_token",
+      refresh_token: session.refreshToken
+    })
+  });
+
+  if (!response.ok) {
+    clearSpotifySession();
+    return null;
+  }
+
+  const tokens = await response.json();
+  const refreshedSession = {
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token || session.refreshToken,
+    expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000
+  };
+  saveSpotifySession(refreshedSession);
+  return refreshedSession;
+}
+
+async function startSpotifyLogin() {
+  const clientId = getSpotifyClientId();
+
+  if (!clientId) {
+    throw new Error("Add a Spotify client ID first.");
+  }
+
+  const verifier = createCodeVerifier();
+  const challenge = await createCodeChallenge(verifier);
+  const state = crypto.randomUUID();
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: spotifyRedirectUri,
+    code_challenge_method: "S256",
+    code_challenge: challenge,
+    scope: "playlist-read-private playlist-read-collaborative",
+    state
+  });
+
+  window.sessionStorage.setItem(spotifyAuthVerifierKey, verifier);
+  window.sessionStorage.setItem(spotifyAuthStateKey, state);
+  window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+}
+
+async function handleSpotifyAuthRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  const oauthError = params.get("error");
+  const returnedState = params.get("state");
+  const expectedState = window.sessionStorage.getItem(spotifyAuthStateKey);
+
+  if ((!code && !oauthError) || !expectedState || returnedState !== expectedState) {
+    return false;
+  }
+
+  const verifier = window.sessionStorage.getItem(spotifyAuthVerifierKey);
+  const clientId = getSpotifyClientId();
+
+  try {
+    if (oauthError) {
+      throw new Error(oauthError === "access_denied" ? "Spotify connection was cancelled." : `Spotify returned: ${oauthError}`);
+    }
+
+    if (!verifier || !clientId) {
+      throw new Error("Spotify connection details were missing. Please try again.");
+    }
+
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: spotifyRedirectUri,
+        code_verifier: verifier
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Spotify token exchange failed: ${response.status}`);
+    }
+
+    const tokens = await response.json();
+    saveSpotifySession({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token || "",
+      expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000
+    });
+    window.sessionStorage.setItem("ogham-spotify-message", "Spotify connected. You can now try importing an owned playlist.");
+  } catch (error) {
+    console.warn("Spotify connection could not be completed.", error);
+    window.sessionStorage.setItem("ogham-spotify-message", error.message || "Spotify connection failed.");
+  } finally {
+    window.sessionStorage.removeItem(spotifyAuthVerifierKey);
+    window.sessionStorage.removeItem(spotifyAuthStateKey);
+    window.history.replaceState({}, document.title, `${window.location.pathname}#music`);
+  }
+
+  return true;
+}
+
 function getStateSnapshot(route = window.location.hash.replace("#", "")) {
   return {
     stateVersion: 2,
@@ -1492,7 +1724,8 @@ function getStateSnapshot(route = window.location.hash.replace("#", "")) {
     fluencyReveals: getFluencyReveals(),
     fluencyDailyReview: getFluencyDailyReviewState(),
     fluencyReviewSchedule: getFluencyReviewScheduleState(),
-    dictionaryEntries: serializeDictionaryEntriesState(getDictionaryEntriesState())
+    dictionaryEntries: serializeDictionaryEntriesState(getDictionaryEntriesState()),
+    sentenceState: getSentenceState()
   };
 }
 
@@ -1594,6 +1827,10 @@ function mergeCloudStateWithLocalState(cloudState, localState) {
     cloudState.dictionaryEntries,
     localState.dictionaryEntries
   );
+  mergedState.sentenceState = window.OghamSentenceCore.mergeStates(
+    cloudState.sentenceState,
+    localState.sentenceState
+  );
 
   if (!mergedState.currentRoute && localState.currentRoute) {
     mergedState.currentRoute = localState.currentRoute;
@@ -1645,7 +1882,8 @@ function getEmptyUserState() {
     fluencyReveals: {},
     fluencyDailyReview: {},
     fluencyReviewSchedule: {},
-    dictionaryEntries: { entries: [], deletedEntries: [] }
+    dictionaryEntries: { entries: [], deletedEntries: [] },
+    sentenceState: window.OghamSentenceCore.emptyState()
   };
 }
 
@@ -1690,6 +1928,9 @@ function applyCloudState(state) {
   }
   if (Object.hasOwn(state, "dictionaryEntries")) {
     writeStoredJson(dictionaryEntriesKey, serializeDictionaryEntriesState(normalizeDictionaryEntriesState(state.dictionaryEntries)));
+  }
+  if (Object.hasOwn(state, "sentenceState")) {
+    writeStoredJson(sentenceStateKey, window.OghamSentenceCore.normalizeState(state.sentenceState));
   }
 
   if (!window.location.hash && state.currentRoute) {
@@ -3237,7 +3478,7 @@ function getItem(itemId) {
 }
 
 function render() {
-  if (!getCurrentUser() && !isLocalCaptureDemo()) {
+  if (!getCurrentUser() && !isLocalMusicDemo() && !isLocalCaptureDemo() && !isLocalSentenceDemo()) {
     renderAuthGate();
     return;
   }
@@ -3247,6 +3488,24 @@ function render() {
 
   if (route === "capture") {
     renderCapture();
+    renderAccountControls({ hideActions: true });
+    return;
+  }
+
+  if (route === "sentences") {
+    renderSentenceDecks();
+    renderAccountControls();
+    return;
+  }
+
+  if (route.startsWith("sentence-deck-")) {
+    renderSentenceDeck(route.slice("sentence-deck-".length));
+    renderAccountControls();
+    return;
+  }
+
+  if (route.startsWith("sentence-review-")) {
+    renderSentenceReviewRoute(route.slice("sentence-review-".length));
     renderAccountControls({ hideActions: true });
     return;
   }
@@ -3271,6 +3530,12 @@ function render() {
 
   if (route === "dictionary") {
     renderDictionary();
+    renderAccountControls();
+    return;
+  }
+
+  if (route === "music") {
+    renderMusic();
     renderAccountControls();
     return;
   }
@@ -3643,12 +3908,20 @@ function renderHome() {
         <div class="home-actions">
           <div class="home-tool-grid">
             <button class="home-section-card compact" type="button" data-capture-home>
-              <span class="booklet-kicker">Capture</span>
-              <span class="home-section-title">Inbox</span>
+              <span class="booklet-kicker">Quick add</span>
+              <span class="home-section-title">To Be Sorted</span>
+            </button>
+            <button class="home-section-card compact" type="button" data-sentence-home>
+              <span class="booklet-kicker">Your sentences</span>
+              <span class="home-section-title">Sentence Decks</span>
             </button>
             <button class="home-section-card compact" type="button" data-tool="dictionary">
               <span class="booklet-kicker">Words</span>
               <span class="home-section-title">Dictionary</span>
+            </button>
+            <button class="home-section-card compact" type="button" data-tool="music">
+              <span class="booklet-kicker">Listening</span>
+              <span class="home-section-title">Add Music</span>
             </button>
             <button class="home-section-card compact" type="button" data-history>
               <span class="booklet-kicker">Archive</span>
@@ -3671,6 +3944,7 @@ function renderHome() {
   `;
 
   app.querySelector("[data-capture-home]").addEventListener("click", () => setRoute("capture"));
+  app.querySelector("[data-sentence-home]").addEventListener("click", () => setRoute("sentences"));
   app.querySelector("[data-history]").addEventListener("click", () => setRoute("history"));
   app.querySelector(".booklet").addEventListener("click", () => setRoute(currentItem.id));
   app.querySelector("[data-fluency-home]").addEventListener("click", () => setRoute("fluency"));
@@ -3808,6 +4082,571 @@ function getCurrentFluencyLocationLabel() {
   const lessonNumber = getLessonNumber(lesson);
   return `Chapter ${Math.ceil(lessonNumber / 7)} &middot; Lesson ${lessonNumber}`;
   return `Chapter ${chapterNumber} · Lesson ${getLessonNumber(lesson)}`;
+}
+
+function getMusicLibrary() {
+  const library = readStoredJson(musicLibraryKey, {});
+  return {
+    playlist: library.playlist || null,
+    selectedTrackId: library.selectedTrackId || ""
+  };
+}
+
+function saveMusicLibrary(library) {
+  writeStoredJson(musicLibraryKey, library);
+}
+
+function parseSpotifyPlaylistUrl(value = "") {
+  const trimmed = String(value).trim();
+
+  if (/^spotify:playlist:[A-Za-z0-9]+$/.test(trimmed)) {
+    return trimmed.split(":").pop();
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const segments = url.pathname.split("/").filter(Boolean);
+    const playlistIndex = segments.indexOf("playlist");
+
+    if (!url.hostname.endsWith("spotify.com") || playlistIndex === -1 || !segments[playlistIndex + 1]) {
+      return "";
+    }
+
+    return segments[playlistIndex + 1].match(/^[A-Za-z0-9]+$/)?.[0] || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function getSpotifyTrackId(track = {}) {
+  const match = String(track.spotifyUrl || "").match(/\/track\/([A-Za-z0-9]+)/);
+  return match?.[1] || `${track.title || "track"}-${(track.artists || []).join("-")}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function formatMusicDuration(durationMs) {
+  const seconds = Math.max(0, Math.round(Number(durationMs || 0) / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function getMusicDurationSeconds(duration = "") {
+  const parts = String(duration).split(":").map(Number);
+
+  if (parts.length !== 2 || parts.some((part) => !Number.isFinite(part))) {
+    return 0;
+  }
+
+  return parts[0] * 60 + parts[1];
+}
+
+async function loadPublicMusicPlaylist(playlistId, spotifyUrl) {
+  if (playlistId === spotifyDemoPlaylistId) {
+    const response = await fetch(spotifyDemoPlaylistPath);
+
+    if (!response.ok) {
+      throw new Error("The demo playlist snapshot could not be loaded.");
+    }
+
+    return {
+      ...(await response.json()),
+      source: "public-snapshot"
+    };
+  }
+
+  return {
+    id: playlistId,
+    name: "Spotify playlist",
+    description: "The public playlist is ready in the Spotify player below. Connect Spotify to import its songs as individual learning items.",
+    owner: "Spotify",
+    spotifyUrl,
+    tracks: [],
+    source: "public-embed"
+  };
+}
+
+async function fetchSpotifyPlaylist(playlistId, spotifyUrl) {
+  const session = await getValidSpotifySession();
+
+  if (!session) {
+    throw new Error("Connect Spotify before importing this playlist's song list.");
+  }
+
+  const headers = { Authorization: `Bearer ${session.accessToken}` };
+  const [playlistResponse, itemsResponse] = await Promise.all([
+    fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}`, { headers }),
+    fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items?limit=50`, { headers })
+  ]);
+
+  if (!playlistResponse.ok || !itemsResponse.ok) {
+    throw new Error("Spotify did not allow this playlist to be imported. New developer apps may be limited to playlists you own or collaborate on.");
+  }
+
+  const playlist = await playlistResponse.json();
+  const items = await itemsResponse.json();
+  const tracks = (items.items || []).map((entry) => entry.item || entry.track).filter((track) => track?.id).map((track) => ({
+    title: track.name || "Untitled",
+    artists: (track.artists || []).map((artist) => artist.name).filter(Boolean),
+    album: track.album?.name || "",
+    duration: formatMusicDuration(track.duration_ms),
+    image: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || "",
+    spotifyUrl: track.external_urls?.spotify || `https://open.spotify.com/track/${track.id}`
+  }));
+
+  return {
+    id: playlistId,
+    name: playlist.name || "Spotify playlist",
+    description: playlist.description || "",
+    owner: playlist.owner?.display_name || "Spotify",
+    image: playlist.images?.[0]?.url || tracks[0]?.image || "",
+    spotifyUrl: playlist.external_urls?.spotify || spotifyUrl,
+    tracks,
+    source: "spotify-api"
+  };
+}
+
+function createMusicConnectionMarkup() {
+  const clientId = getSpotifyClientId();
+  const connected = Boolean(getSpotifySession());
+  const callbackUrl = spotifyRedirectUri;
+
+  return `
+    <section class="music-connection-card" aria-labelledby="spotify-connection-title">
+      <div>
+        <p class="booklet-kicker">Version 2</p>
+        <h2 id="spotify-connection-title">${connected ? "Spotify connected" : "Connect Spotify"}</h2>
+        <p>${connected ? "Owned and collaborative playlists can be requested through Spotify's API." : "Optional for the demo. Add a Spotify developer client ID when you are ready to test private or owned playlists."}</p>
+      </div>
+      <div class="music-connection-actions">
+        <label>
+          <span>Spotify client ID</span>
+          <input type="text" value="${escapeAttribute(clientId)}" placeholder="Paste client ID" data-spotify-client-id autocomplete="off">
+        </label>
+        <p class="music-callback"><strong>Redirect URL:</strong> ${escapeHtml(callbackUrl)}</p>
+        <div>
+          <button class="text-button" type="button" data-save-spotify-client>Save client ID</button>
+          ${connected
+            ? `<button class="back-link" type="button" data-disconnect-spotify>Disconnect</button>`
+            : `<button class="back-link" type="button" data-connect-spotify ${clientId ? "" : "disabled"}>Connect Spotify</button>`}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function createMusicPlaylistMarkup(playlist, selectedTrackId) {
+  if (!playlist) {
+    return `
+      <section class="music-empty-state">
+        <p class="booklet-kicker">Ready when you are</p>
+        <h2>Add a public playlist</h2>
+        <p>The Spotify player will appear here. The supplied Top 50 France example also has a verified song-list snapshot for the full learning demo.</p>
+      </section>
+    `;
+  }
+
+  const selectedTrack = playlist.tracks.find((track) => getSpotifyTrackId(track) === selectedTrackId) || null;
+  const sourceLabel = playlist.source === "spotify-api"
+    ? "Imported through Spotify"
+    : playlist.source === "public-snapshot"
+      ? `Public preview captured ${playlist.snapshotDate || "for this demo"}`
+      : "Public Spotify player";
+
+  return `
+    <section class="music-playlist" aria-labelledby="music-playlist-title">
+      <header class="music-playlist-header">
+        <div>
+          <p class="booklet-kicker">${escapeHtml(sourceLabel)}</p>
+          <h2 id="music-playlist-title">${escapeHtml(playlist.name)}</h2>
+          <p>${escapeHtml(stripHtml(playlist.description || ""))}</p>
+        </div>
+        <a class="back-link music-open-link" href="${escapeAttribute(playlist.spotifyUrl)}" target="_blank" rel="noopener noreferrer">Open Spotify</a>
+      </header>
+      <iframe class="music-spotify-embed" title="${escapeAttribute(playlist.name)} on Spotify" src="https://open.spotify.com/embed/playlist/${encodeURIComponent(playlist.id)}?utm_source=generator" width="100%" height="352" frameborder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      ${playlist.tracks.length ? `
+        <div class="music-learning-layout">
+          <section class="music-track-panel" aria-label="Imported songs">
+            <div class="music-section-heading">
+              <div>
+                <p class="booklet-kicker">Choose a song</p>
+                <h3>${playlist.tracks.length} songs available</h3>
+              </div>
+            </div>
+            <div class="music-track-list">
+              ${playlist.tracks.map((track, index) => createMusicTrackMarkup(track, index, selectedTrackId)).join("")}
+            </div>
+          </section>
+          ${selectedTrack ? createMusicReaderMarkup(selectedTrack) : `
+            <section class="music-reader music-reader-empty">
+              <p class="booklet-kicker">Read along</p>
+              <h3>Select a song</h3>
+              <p>Then add authorized lyrics and mark each word as new, learning, or known.</p>
+            </section>
+          `}
+        </div>
+      ` : `
+        <div class="music-import-note">
+          <strong>The playlist is playable above.</strong>
+          <span>Connect Spotify to turn its songs into selectable learning items. Spotify currently limits some public-playlist API access for new developer apps.</span>
+        </div>
+      `}
+    </section>
+  `;
+}
+
+function createMusicTrackMarkup(track, index, selectedTrackId) {
+  const trackId = getSpotifyTrackId(track);
+  const selected = trackId === selectedTrackId;
+
+  return `
+    <button class="music-track ${selected ? "active" : ""}" type="button" data-music-track="${escapeAttribute(trackId)}" aria-pressed="${selected}">
+      <span class="music-track-number">${String(index + 1).padStart(2, "0")}</span>
+      ${track.image ? `<img src="${escapeAttribute(track.image)}" alt="" loading="lazy">` : ""}
+      <span class="music-track-copy">
+        <strong>${escapeHtml(track.title)}</strong>
+        <span>${escapeHtml((track.artists || []).join(", "))}</span>
+      </span>
+      <span class="music-track-duration">${escapeHtml(track.duration || "")}</span>
+    </button>
+  `;
+}
+
+function createMusicReaderMarkup(track) {
+  const trackId = getSpotifyTrackId(track);
+  const lyrics = readStoredJson(musicLyricsKey, {})[trackId] || "";
+  const lyricsSource = readStoredJson(musicLyricsSourceKey, {})[trackId] || null;
+  const lyricsSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`"${track.title}" ${(track.artists || []).join(" ")} lyrics paroles`)}`;
+
+  return `
+    <section class="music-reader" aria-labelledby="music-reader-title">
+      <div class="music-reader-heading">
+        <div>
+          <p class="booklet-kicker">Read along</p>
+          <h3 id="music-reader-title">${escapeHtml(track.title)}</h3>
+          <p>${escapeHtml((track.artists || []).join(", "))}</p>
+        </div>
+        <div class="music-reader-actions">
+          <button class="back-link music-fetch-lyrics" type="button" data-fetch-music-lyrics>${lyrics ? "Refetch lyrics" : "Fetch lyrics"}</button>
+          <a class="back-link music-find-lyrics" href="${escapeAttribute(lyricsSearchUrl)}" target="_blank" rel="noopener noreferrer">Find lyrics online</a>
+          ${track.spotifyUrl ? `<a class="icon-button music-track-open" href="${escapeAttribute(track.spotifyUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeAttribute(track.title)} on Spotify">&#9654;</a>` : ""}
+        </div>
+      </div>
+      <p class="music-fetch-status" data-music-fetch-status aria-live="polite"></p>
+      <details class="music-lyrics-editor" ${lyrics ? "" : "open"}>
+        <summary data-music-edit-lyrics>${lyrics ? "Edit lyrics" : "Add lyrics"}</summary>
+        <div class="music-lyrics-editor-body">
+          <label class="music-lyrics-input">
+            <span>Lyrics you have permission to use</span>
+            <textarea rows="8" data-music-lyrics placeholder="Paste lyrics here to create the marked read-along…">${escapeHtml(lyrics)}</textarea>
+          </label>
+          <button class="text-button" type="button" data-save-music-lyrics="${escapeAttribute(trackId)}">${lyrics ? "Save corrections" : "Create read-along"}</button>
+          <p class="music-rights-note">Lyrics stay in this browser for the demo. Ogham does not scrape or republish them.</p>
+        </div>
+      </details>
+      ${lyricsSource?.provider === "LRCLIB" ? `
+        <p class="music-lyrics-source">
+          <span>Matched by LRCLIB: ${escapeHtml(lyricsSource.trackName || track.title)} — ${escapeHtml(lyricsSource.artistName || (track.artists || []).join(", "))}${lyricsSource.edited ? " · edited in Ogham" : ""}</span>
+          <a href="https://lrclib.net/search/${encodeURIComponent(`${track.title} ${(track.artists || []).join(" ")}`)}" target="_blank" rel="noopener noreferrer">Check source</a>
+        </p>
+      ` : ""}
+      ${lyrics ? `
+        <div class="music-word-legend" aria-label="Word status legend">
+          <span class="new">New</span><span class="learning">Learning</span><span class="known">Known</span>
+        </div>
+        <div class="music-lyrics-reader" data-music-lyrics-reader>${createMusicLyricsMarkup(lyrics)}</div>
+        <p class="music-rights-note">Tap a word to move it from new → learning → known.</p>
+      ` : ""}
+    </section>
+  `;
+}
+
+function getMusicLyricsMatchScore(track, candidate) {
+  const wantedTitle = normalizeMusicWord(track.title).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const candidateTitle = normalizeMusicWord(candidate.trackName).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const wantedArtists = normalizeMusicWord((track.artists || []).join(" ")).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const candidateArtist = normalizeMusicWord(candidate.artistName).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const wantedAlbum = normalizeMusicWord(track.album || "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const candidateAlbum = normalizeMusicWord(candidate.albumName || "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const durationDifference = Math.abs(getMusicDurationSeconds(track.duration) - Number(candidate.duration || 0));
+  let score = 0;
+
+  if (wantedTitle && candidateTitle === wantedTitle) {
+    score += 8;
+  } else if (wantedTitle && (candidateTitle.includes(wantedTitle) || wantedTitle.includes(candidateTitle))) {
+    score += 4;
+  }
+
+  if (wantedArtists && candidateArtist === wantedArtists) {
+    score += 6;
+  } else if (wantedArtists && (candidateArtist.includes(wantedArtists) || wantedArtists.includes(candidateArtist))) {
+    score += 3;
+  }
+
+  if (wantedAlbum && candidateAlbum === wantedAlbum) {
+    score += 3;
+  }
+
+  if (durationDifference <= 2) {
+    score += 4;
+  } else if (durationDifference <= 6) {
+    score += 2;
+  }
+
+  return score;
+}
+
+async function fetchFreeMusicLyrics(track, button) {
+  const status = app.querySelector("[data-music-fetch-status]");
+  const params = new URLSearchParams({
+    track_name: track.title,
+    artist_name: (track.artists || []).join(", ")
+  });
+
+  button.disabled = true;
+  button.textContent = "Searching…";
+  status.classList.remove("error");
+  status.textContent = "Checking LRCLIB for a close title, artist, and duration match…";
+
+  try {
+    const response = await fetch(`https://lrclib.net/api/search?${params.toString()}`);
+
+    if (!response.ok) {
+      throw new Error(`The free lyrics service returned ${response.status}.`);
+    }
+
+    const candidates = (await response.json()).filter((candidate) => !candidate.instrumental && candidate.plainLyrics);
+
+    if (!candidates.length) {
+      throw new Error("No free lyrics match was found. Try Find lyrics online instead.");
+    }
+
+    const matches = candidates
+      .map((candidate) => ({ candidate, score: getMusicLyricsMatchScore(track, candidate) }))
+      .sort((left, right) => right.score - left.score);
+    const bestMatch = matches[0];
+
+    if (!bestMatch || bestMatch.score < 8) {
+      throw new Error("Results were found, but none matched confidently enough. Try Find lyrics online instead.");
+    }
+
+    const trackId = getSpotifyTrackId(track);
+    const lyricsState = readStoredJson(musicLyricsKey, {});
+    const sourceState = readStoredJson(musicLyricsSourceKey, {});
+    lyricsState[trackId] = bestMatch.candidate.plainLyrics.trim();
+    sourceState[trackId] = {
+      provider: "LRCLIB",
+      id: bestMatch.candidate.id,
+      trackName: bestMatch.candidate.trackName || "",
+      artistName: bestMatch.candidate.artistName || "",
+      albumName: bestMatch.candidate.albumName || "",
+      duration: bestMatch.candidate.duration || 0,
+      score: bestMatch.score,
+      fetchedAt: new Date().toISOString(),
+      edited: false
+    };
+    writeStoredJson(musicLyricsKey, lyricsState);
+    writeStoredJson(musicLyricsSourceKey, sourceState);
+    renderMusic();
+    renderAccountControls();
+  } catch (error) {
+    status.textContent = error.message || "Lyrics could not be fetched.";
+    status.classList.add("error");
+    button.disabled = false;
+    button.textContent = "Try again";
+  }
+}
+
+function tokenizeMusicLyrics(text = "") {
+  return String(text).match(/\p{L}+(?:['’\-]\p{L}+)*|\s+|[^\s\p{L}]+/gu) || [];
+}
+
+function normalizeMusicWord(word = "") {
+  return String(word).toLocaleLowerCase("fr").normalize("NFC");
+}
+
+function getMusicWordStatus(word) {
+  const normalized = normalizeMusicWord(word);
+  const savedStatus = readStoredJson(musicWordStatusKey, {})[normalized];
+
+  if (["new", "learning", "known"].includes(savedStatus)) {
+    return savedStatus;
+  }
+
+  const dictionaryEntry = getDictionaryEntriesState().entries.find((entry) => {
+    const terms = [entry.term, entry.lemma].filter(Boolean).map(normalizeMusicWord);
+    return terms.includes(normalized);
+  });
+
+  if (dictionaryEntry?.saved) {
+    return dictionaryEntry.needsPractice ? "learning" : "known";
+  }
+
+  return "new";
+}
+
+function createMusicLyricsMarkup(lyrics) {
+  return tokenizeMusicLyrics(lyrics).map((token) => {
+    if (!/\p{L}/u.test(token)) {
+      return escapeHtml(token);
+    }
+
+    const status = getMusicWordStatus(token);
+    return `<button class="music-word ${status}" type="button" data-music-word="${escapeAttribute(normalizeMusicWord(token))}" data-word-status="${status}" title="${escapeAttribute(status)}">${escapeHtml(token)}</button>`;
+  }).join("");
+}
+
+function cycleMusicWordStatus(button) {
+  const order = ["new", "learning", "known"];
+  const current = button.dataset.wordStatus || "new";
+  const next = order[(order.indexOf(current) + 1) % order.length];
+  const word = button.dataset.musicWord;
+  const statuses = readStoredJson(musicWordStatusKey, {});
+  statuses[word] = next;
+  writeStoredJson(musicWordStatusKey, statuses);
+
+  app.querySelectorAll("[data-music-word]").forEach((wordButton) => {
+    if (wordButton.dataset.musicWord !== word) {
+      return;
+    }
+    wordButton.classList.remove("new", "learning", "known");
+    wordButton.classList.add(next);
+    wordButton.dataset.wordStatus = next;
+    wordButton.title = next;
+  });
+}
+
+async function importMusicPlaylist(form) {
+  const input = form.querySelector("[data-music-playlist-url]");
+  const status = form.querySelector("[data-music-import-status]");
+  const spotifyUrl = input.value.trim();
+  const playlistId = parseSpotifyPlaylistUrl(spotifyUrl);
+
+  if (!playlistId) {
+    status.textContent = "Paste a valid Spotify playlist link.";
+    status.classList.add("error");
+    return;
+  }
+
+  status.classList.remove("error");
+  status.textContent = "Opening playlist…";
+  form.querySelector("button[type='submit']").disabled = true;
+
+  try {
+    let playlist;
+
+    if (playlistId === spotifyDemoPlaylistId) {
+      playlist = await loadPublicMusicPlaylist(playlistId, spotifyUrl);
+    } else if (getSpotifySession()) {
+      try {
+        playlist = await fetchSpotifyPlaylist(playlistId, spotifyUrl);
+      } catch (error) {
+        playlist = await loadPublicMusicPlaylist(playlistId, spotifyUrl);
+        playlist.importNote = error.message;
+      }
+    } else {
+      playlist = await loadPublicMusicPlaylist(playlistId, spotifyUrl);
+    }
+
+    saveMusicLibrary({
+      playlist,
+      selectedTrackId: playlist.tracks[0] ? getSpotifyTrackId(playlist.tracks[0]) : ""
+    });
+    renderMusic();
+    renderAccountControls();
+  } catch (error) {
+    status.textContent = error.message || "The playlist could not be opened.";
+    status.classList.add("error");
+    form.querySelector("button[type='submit']").disabled = false;
+  }
+}
+
+function renderMusic() {
+  const library = getMusicLibrary();
+  const spotifyMessage = window.sessionStorage.getItem("ogham-spotify-message") || "";
+  window.sessionStorage.removeItem("ogham-spotify-message");
+
+  app.innerHTML = `
+    <section class="shell music-shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button" data-music-back>Back home</button>
+      </div>
+      <header class="lesson-header music-page-header">
+        <p class="booklet-kicker">Music lab</p>
+        <h1>Add your music</h1>
+        <p class="lesson-lede">Bring in a French playlist, choose a song, and turn authorized lyrics into a read-along marked with the words you know.</p>
+      </header>
+      <form class="music-import-form" data-music-import-form>
+        <label for="music-playlist-url">Spotify playlist link</label>
+        <div>
+          <input id="music-playlist-url" type="url" data-music-playlist-url placeholder="https://open.spotify.com/playlist/…" value="${escapeAttribute(library.playlist?.spotifyUrl || "")}" required>
+          <button class="text-button" type="submit">Add playlist</button>
+        </div>
+        <p class="music-import-status ${spotifyMessage ? "visible" : ""}" data-music-import-status aria-live="polite">${escapeHtml(spotifyMessage)}</p>
+      </form>
+      ${createMusicPlaylistMarkup(library.playlist, library.selectedTrackId)}
+      ${createMusicConnectionMarkup()}
+    </section>
+  `;
+
+  app.querySelector("[data-music-back]").addEventListener("click", () => setRoute(""));
+  app.querySelector("[data-music-import-form]").addEventListener("submit", (event) => {
+    event.preventDefault();
+    importMusicPlaylist(event.currentTarget);
+  });
+  app.querySelector("[data-save-spotify-client]").addEventListener("click", () => {
+    const clientId = app.querySelector("[data-spotify-client-id]").value.trim();
+    window.localStorage.setItem(spotifyClientIdKey, clientId);
+    window.sessionStorage.setItem("ogham-spotify-message", clientId ? "Client ID saved. Add the redirect URL shown here in Spotify's dashboard, then connect." : "Client ID cleared.");
+    renderMusic();
+    renderAccountControls();
+  });
+  app.querySelector("[data-connect-spotify]")?.addEventListener("click", async () => {
+    const status = app.querySelector("[data-music-import-status]");
+    status.textContent = "Opening Spotify…";
+    status.classList.add("visible");
+    try {
+      await startSpotifyLogin();
+    } catch (error) {
+      status.textContent = error.message;
+      status.classList.add("error");
+    }
+  });
+  app.querySelector("[data-disconnect-spotify]")?.addEventListener("click", () => {
+    clearSpotifySession();
+    window.sessionStorage.setItem("ogham-spotify-message", "Spotify disconnected.");
+    renderMusic();
+    renderAccountControls();
+  });
+  app.querySelectorAll("[data-music-track]").forEach((button) => {
+    button.addEventListener("click", () => {
+      saveMusicLibrary({ ...getMusicLibrary(), selectedTrackId: button.dataset.musicTrack });
+      renderMusic();
+      renderAccountControls();
+    });
+  });
+  app.querySelector("[data-save-music-lyrics]")?.addEventListener("click", (event) => {
+    const trackId = event.currentTarget.dataset.saveMusicLyrics;
+    const lyricsState = readStoredJson(musicLyricsKey, {});
+    const sourceState = readStoredJson(musicLyricsSourceKey, {});
+    lyricsState[trackId] = app.querySelector("[data-music-lyrics]").value.trim();
+    sourceState[trackId] = sourceState[trackId]
+      ? { ...sourceState[trackId], edited: true }
+      : { provider: "manual", edited: true, fetchedAt: new Date().toISOString() };
+    writeStoredJson(musicLyricsKey, lyricsState);
+    writeStoredJson(musicLyricsSourceKey, sourceState);
+    renderMusic();
+    renderAccountControls();
+  });
+  app.querySelector("[data-fetch-music-lyrics]")?.addEventListener("click", (event) => {
+    const currentLibrary = getMusicLibrary();
+    const selectedTrack = currentLibrary.playlist?.tracks?.find((track) => getSpotifyTrackId(track) === currentLibrary.selectedTrackId);
+
+    if (selectedTrack) {
+      fetchFreeMusicLyrics(selectedTrack, event.currentTarget);
+    }
+  });
+  app.querySelectorAll("[data-music-word]").forEach((button) => {
+    button.addEventListener("click", () => cycleMusicWordStatus(button));
+  });
 }
 
 function getToolRoute(route) {
@@ -4706,7 +5545,639 @@ function renderHistory() {
   });
 }
 
+function renderSentenceDecks() {
+  const state = getSentenceState();
+  const decks = window.OghamSentenceCore.activeDecks(state);
+  const activeTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "active").length;
+  const knownTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "known").length;
+  const queuedTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "queued").length;
+  const curriculumStatus = getSentenceCurriculumStatus(state);
+
+  app.innerHTML = `
+    <section class="shell sentence-shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button" data-sentence-back>Back home</button>
+      </div>
+      <header class="lesson-header sentence-page-header">
+        <div>
+          <p class="booklet-kicker">Personal listening practice</p>
+          <h1>Sentence Decks</h1>
+          <p class="lesson-lede">Hear the French first, reveal it in stages, and keep the scoring transparent.</p>
+        </div>
+        <div class="sentence-header-actions">
+          <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
+          <button class="back-link" type="button" data-install-sentence-curriculum ${curriculumStatus.missingCards ? "" : "disabled"}>${curriculumStatus.missingCards ? `Add structure curriculum · ${curriculumStatus.missingCards}` : "Structure curriculum added"}</button>
+          <button class="primary-button" type="button" data-review-all ${activeTotal ? "" : "disabled"}>Review All · ${activeTotal}</button>
+        </div>
+      </header>
+      <section class="sentence-overview" aria-label="Sentence review summary">
+        <div><strong>${decks.length}</strong><span>Decks</span></div>
+        <div><strong>${activeTotal}</strong><span>Active</span></div>
+        <div><strong>${queuedTotal}</strong><span>Queued</span></div>
+        <div><strong>${knownTotal}</strong><span>Known</span></div>
+        <div><strong>${captureItems.filter((capture) => !window.OghamSentenceCore.isCaptureProcessed(state, capture.captureId)).length || "—"}</strong><span>To sort</span></div>
+      </section>
+      <form class="sentence-deck-create" data-sentence-deck-create>
+        <label>
+          <span>New deck</span>
+          <input type="text" name="name" maxlength="80" placeholder="For example: Forms of manger" required>
+        </label>
+        <label>
+          <span>Suggest Known at</span>
+          <input type="number" name="threshold" min="1" max="1024" step="1" value="8" required>
+        </label>
+        <button class="primary-button" type="submit">Create deck</button>
+        <p class="sentence-inline-status" data-sentence-deck-status aria-live="polite"></p>
+      </form>
+      <section class="sentence-deck-grid" aria-label="Your sentence decks">
+        ${decks.length ? decks.map((deck) => createSentenceDeckCard(state, deck)).join("") : `
+          <article class="sentence-empty-card">
+            <h2>Create your first deck</h2>
+            <p>Decks stay independent, and every active sentence is reviewed from the lowest mastery score upward.</p>
+          </article>
+        `}
+      </section>
+    </section>
+  `;
+
+  app.querySelector("[data-sentence-back]").addEventListener("click", () => setRoute(""));
+  app.querySelector("[data-open-sentence-inbox]").addEventListener("click", () => setRoute("capture"));
+  app.querySelector("[data-install-sentence-curriculum]").addEventListener("click", handleSentenceCurriculumInstall);
+  app.querySelector("[data-review-all]").addEventListener("click", () => setRoute("sentence-review-all"));
+  app.querySelector("[data-sentence-deck-create]").addEventListener("submit", handleSentenceDeckCreate);
+  app.querySelectorAll("[data-open-sentence-deck]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`sentence-deck-${button.dataset.openSentenceDeck}`));
+  });
+  app.querySelectorAll("[data-review-sentence-deck]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`sentence-review-${button.dataset.reviewSentenceDeck}`));
+  });
+  app.querySelectorAll("[data-review-known-deck]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`sentence-review-known-${button.dataset.reviewKnownDeck}`));
+  });
+  app.querySelectorAll("[data-activate-sentence-batch]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activateNextSentenceBatch(button.dataset.activateSentenceBatch);
+      renderSentenceDecks();
+      renderAccountControls();
+    });
+  });
+}
+
+function createSentenceDeckCard(state, deck) {
+  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id);
+  const scores = window.OghamSentenceCore.activeCards(state)
+    .filter((card) => card.deckId === deck.id && card.lifecycle === "active")
+    .reduce((counts, card) => {
+      const label = formatMasteryScore(card.masteryScore);
+      counts[label] = (counts[label] || 0) + 1;
+      return counts;
+    }, {});
+  return `
+    <article class="sentence-deck-card">
+      <div class="sentence-deck-card-heading">
+        <div>
+          <p class="booklet-kicker">Known suggestion · ${formatMasteryScore(deck.knownThreshold)}</p>
+          <h2>${escapeHtml(deck.name)}</h2>
+        </div>
+        <button class="back-link" type="button" data-open-sentence-deck="${escapeAttribute(deck.id)}">Manage</button>
+      </div>
+      <div class="sentence-deck-counts">
+        <span><strong>${stats.active}</strong> active</span>
+        <span><strong>${stats.queued}</strong> queued</span>
+        <span><strong>${stats.known}</strong> known</span>
+        <span><strong>${stats.eligible}</strong> ready to mark</span>
+      </div>
+      <div class="sentence-score-strip" aria-label="Mastery score distribution">
+        ${Object.keys(scores).length ? Object.entries(scores).sort((a, b) => Number(a[0]) - Number(b[0])).map(([score, count]) => `<span>${escapeHtml(score)} · ${count}</span>`).join("") : `<span>No active sentences</span>`}
+      </div>
+      <div class="sentence-deck-actions">
+        <button class="primary-button" type="button" data-review-sentence-deck="${escapeAttribute(deck.id)}" ${stats.active ? "" : "disabled"}>Review deck</button>
+        <button class="back-link" type="button" data-activate-sentence-batch="${escapeAttribute(deck.id)}" ${stats.queued ? "" : "disabled"}>Activate next ${Math.min(5, stats.queued)}</button>
+        <button class="text-button" type="button" data-review-known-deck="${escapeAttribute(deck.id)}" ${stats.known ? "" : "disabled"}>Review Known</button>
+      </div>
+    </article>
+  `;
+}
+
+function handleSentenceDeckCreate(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = form.querySelector("[data-sentence-deck-status]");
+  try {
+    const result = window.OghamSentenceCore.createDeck(getSentenceState(), {
+      name: form.elements.name.value,
+      knownThreshold: form.elements.threshold.value
+    });
+    saveSentenceState(result.state);
+    renderSentenceDecks();
+    renderAccountControls();
+  } catch (error) {
+    status.textContent = error.message || "Deck could not be created.";
+  }
+}
+
+function getSentenceCurriculumStatus(state) {
+  const curriculum = window.OghamSentenceCurriculum;
+  if (!curriculum?.decks) return { missingDecks: 0, missingCards: 0 };
+  const decks = window.OghamSentenceCore.activeDecks(state);
+  const cards = new Set(window.OghamSentenceCore.activeCards(state).map((card) => card.id));
+  return curriculum.decks.reduce((status, definition) => {
+    if (!decks.some((deck) => deck.id === definition.id || deck.name === definition.name)) status.missingDecks += 1;
+    definition.cards.forEach((card, index) => {
+      if (!cards.has(getSentenceCurriculumCardId(definition.id, index))) status.missingCards += 1;
+    });
+    return status;
+  }, { missingDecks: 0, missingCards: 0 });
+}
+
+function getSentenceCurriculumCardId(deckId, index) {
+  return `${deckId}-card-${String(index + 1).padStart(2, "0")}`;
+}
+
+async function handleSentenceCurriculumInstall(event) {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = "Adding curriculum...";
+  try {
+    await ensureSentenceCloudStateReady();
+    let state = getSentenceState();
+    let cards = window.OghamSentenceCore.activeCards(state);
+    for (const definition of window.OghamSentenceCurriculum.decks) {
+      let targetDeck = window.OghamSentenceCore.activeDecks(state)
+        .find((deck) => deck.id === definition.id || deck.name === definition.name);
+      if (!targetDeck) {
+        const created = window.OghamSentenceCore.createDeck(state, {
+          name: definition.name,
+          knownThreshold: definition.knownThreshold
+        }, { id: definition.id });
+        state = created.state;
+        targetDeck = created.deck;
+      }
+      for (let index = 0; index < definition.cards.length; index += 1) {
+        const definitionCard = definition.cards[index];
+        const cardId = getSentenceCurriculumCardId(definition.id, index);
+        if (cards.some((card) => card.id === cardId)) continue;
+        const created = window.OghamSentenceCore.createCard(state, {
+          deckId: targetDeck.id,
+          french: definitionCard.french,
+          english: definitionCard.english,
+          note: definitionCard.note,
+          lifecycle: index < definition.initialActive ? "active" : "queued",
+          sourceType: `curriculum-v${window.OghamSentenceCurriculum.version}`
+        }, { id: cardId });
+        state = created.state;
+        cards = window.OghamSentenceCore.activeCards(state);
+      }
+    }
+    saveSentenceState(state);
+    await saveCloudStateNow("sentences");
+    renderSentenceDecks();
+    renderAccountControls();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Try adding curriculum again";
+    window.alert(error.message || "The sentence curriculum could not be added.");
+  }
+}
+
+function activateNextSentenceBatch(deckId, count = 5) {
+  let state = getSentenceState();
+  const queued = window.OghamSentenceCore.activeCards(state)
+    .filter((card) => card.deckId === deckId && card.lifecycle === "queued")
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .slice(0, count);
+  queued.forEach((card) => {
+    state = window.OghamSentenceCore.setCardLifecycle(state, card.id, "active").state;
+  });
+  saveSentenceState(state);
+  return queued.length;
+}
+
+function renderSentenceDeck(deckId, searchQuery = "") {
+  const state = getSentenceState();
+  const deck = window.OghamSentenceCore.activeDecks(state).find((item) => item.id === deckId);
+  if (!deck) {
+    setRoute("sentences");
+    return;
+  }
+  const cards = window.OghamSentenceCore.activeCards(state)
+    .filter((card) => card.deckId === deck.id)
+    .filter((card) => !searchQuery || `${card.french} ${card.english} ${card.note}`.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase()))
+    .sort((left, right) => left.masteryScore - right.masteryScore || left.french.localeCompare(right.french));
+  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id);
+
+  app.innerHTML = `
+    <section class="shell sentence-shell">
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <button class="back-link" type="button" data-sentence-decks-back>All decks</button>
+      </div>
+      <header class="lesson-header sentence-page-header">
+        <div>
+          <p class="booklet-kicker">${stats.active} active · ${stats.queued} queued · ${stats.known} known</p>
+          <h1>${escapeHtml(deck.name)}</h1>
+        </div>
+        <div class="sentence-header-actions">
+          <button class="primary-button" type="button" data-review-current-deck ${stats.active ? "" : "disabled"}>Review deck</button>
+          <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
+        </div>
+      </header>
+      <form class="sentence-deck-settings" data-sentence-deck-settings>
+        <label><span>Deck name</span><input name="name" maxlength="80" value="${escapeAttribute(deck.name)}" required></label>
+        <label><span>Suggest Known at</span><input name="threshold" type="number" min="1" max="1024" step="1" value="${escapeAttribute(deck.knownThreshold)}" required></label>
+        <button class="text-button" type="submit">Save settings</button>
+        <button class="back-link capture-delete" type="button" data-delete-sentence-deck ${stats.total ? "disabled" : ""}>Delete empty deck</button>
+        <p class="sentence-inline-status" data-sentence-deck-settings-status aria-live="polite"></p>
+      </form>
+      <div class="sentence-card-toolbar">
+        <input type="search" data-sentence-card-search placeholder="Search this deck" value="${escapeAttribute(searchQuery)}">
+        <button class="back-link" type="button" data-activate-next-batch ${stats.queued ? "" : "disabled"}>Activate next ${Math.min(5, stats.queued)}</button>
+        <button class="text-button" type="button" data-review-known-current ${stats.known ? "" : "disabled"}>Review Known</button>
+      </div>
+      <section class="sentence-card-list" aria-label="Sentences in ${escapeAttribute(deck.name)}">
+        ${cards.length ? cards.map((card) => createSentenceManagementCard(state, deck, card)).join("") : `<article class="sentence-empty-card"><p>${searchQuery ? "No sentences match that search." : "Move a prepared sentence here from To Be Sorted."}</p></article>`}
+      </section>
+    </section>
+  `;
+
+  app.querySelector("[data-sentence-decks-back]").addEventListener("click", () => setRoute("sentences"));
+  app.querySelector("[data-open-sentence-inbox]").addEventListener("click", () => setRoute("capture"));
+  app.querySelector("[data-review-current-deck]").addEventListener("click", () => setRoute(`sentence-review-${deck.id}`));
+  app.querySelector("[data-review-known-current]").addEventListener("click", () => setRoute(`sentence-review-known-${deck.id}`));
+  app.querySelector("[data-activate-next-batch]").addEventListener("click", () => {
+    activateNextSentenceBatch(deck.id);
+    renderSentenceDeck(deck.id, searchQuery);
+    renderAccountControls();
+  });
+  app.querySelector("[data-sentence-deck-settings]").addEventListener("submit", (event) => handleSentenceDeckSettings(event, deck.id));
+  app.querySelector("[data-delete-sentence-deck]").addEventListener("click", () => handleSentenceDeckDelete(deck.id));
+  app.querySelector("[data-sentence-card-search]").addEventListener("input", (event) => {
+    renderSentenceDeck(deck.id, event.currentTarget.value);
+    renderAccountControls();
+    app.querySelector("[data-sentence-card-search]")?.focus();
+  });
+  bindSentenceManagementActions(deck.id, searchQuery);
+}
+
+function createSentenceManagementCard(state, deck, card) {
+  const editing = activeSentenceEditCardId === card.id;
+  const decks = window.OghamSentenceCore.activeDecks(state);
+  const eligible = card.masteryScore >= deck.knownThreshold;
+  if (editing) {
+    return `
+      <article class="sentence-management-card" data-sentence-card-id="${escapeAttribute(card.id)}">
+        <form class="sentence-card-edit" data-sentence-card-edit-form>
+          <label><span>French</span><textarea name="french" rows="3" required>${escapeHtml(card.french)}</textarea></label>
+          <label><span>English</span><textarea name="english" rows="3" required>${escapeHtml(card.english)}</textarea></label>
+          <label><span>Optional grammar note</span><textarea name="note" rows="2">${escapeHtml(card.note)}</textarea></label>
+          <label><span>Deck</span><select name="deckId">${decks.map((item) => `<option value="${escapeAttribute(item.id)}" ${item.id === card.deckId ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+          <div class="capture-card-actions"><button class="primary-button" type="submit">Save sentence</button><button class="back-link" type="button" data-sentence-card-edit-cancel>Cancel</button></div>
+        </form>
+      </article>
+    `;
+  }
+  return `
+    <article class="sentence-management-card ${card.lifecycle}" data-sentence-card-id="${escapeAttribute(card.id)}">
+      <div class="sentence-management-meta">
+        <span>Mastery ${formatMasteryScore(card.masteryScore)}</span>
+        <span>${card.lifecycle === "queued" ? "Queued · not yet in review" : card.lifecycle === "known" ? "Known" : eligible ? "Ready to mark Known" : "Active"}</span>
+      </div>
+      <p class="sentence-management-french" lang="fr">${escapeHtml(card.french)}</p>
+      <p class="sentence-management-english">${escapeHtml(card.english)}</p>
+      ${card.note ? `<p class="sentence-management-note">${escapeHtml(card.note)}</p>` : ""}
+      <div class="capture-card-actions">
+        <button class="back-link" type="button" data-sentence-card-speak>Play audio</button>
+        <button class="back-link" type="button" data-sentence-card-edit>Edit or move</button>
+        ${card.lifecycle === "queued" ? `<button class="text-button" type="button" data-sentence-card-activate>Activate</button>` : `<button class="text-button" type="button" data-sentence-card-known>${card.lifecycle === "known" ? "Restore" : "Mark Known"}</button>`}
+        <button class="back-link capture-delete" type="button" data-sentence-card-delete>Delete</button>
+      </div>
+    </article>
+  `;
+}
+
+function bindSentenceManagementActions(deckId, searchQuery) {
+  app.querySelectorAll("[data-sentence-card-speak]").forEach((button) => button.addEventListener("click", () => {
+    const card = getSentenceCardForElement(button);
+    if (card) speakSentenceText(card.french);
+  }));
+  app.querySelectorAll("[data-sentence-card-edit]").forEach((button) => button.addEventListener("click", () => {
+    activeSentenceEditCardId = getSentenceCardForElement(button)?.id || "";
+    renderSentenceDeck(deckId, searchQuery);
+    renderAccountControls();
+  }));
+  app.querySelectorAll("[data-sentence-card-edit-cancel]").forEach((button) => button.addEventListener("click", () => {
+    activeSentenceEditCardId = "";
+    renderSentenceDeck(deckId, searchQuery);
+    renderAccountControls();
+  }));
+  app.querySelectorAll("[data-sentence-card-edit-form]").forEach((form) => form.addEventListener("submit", (event) => handleSentenceCardEdit(event, deckId, searchQuery)));
+  app.querySelectorAll("[data-sentence-card-known]").forEach((button) => button.addEventListener("click", () => handleSentenceCardKnown(button, deckId, searchQuery)));
+  app.querySelectorAll("[data-sentence-card-activate]").forEach((button) => button.addEventListener("click", () => handleSentenceCardActivate(button, deckId, searchQuery)));
+  app.querySelectorAll("[data-sentence-card-delete]").forEach((button) => button.addEventListener("click", () => handleSentenceCardDelete(button, deckId, searchQuery)));
+}
+
+function getSentenceCardForElement(element) {
+  const id = element.closest("[data-sentence-card-id]")?.dataset.sentenceCardId;
+  return window.OghamSentenceCore.activeCards(getSentenceState()).find((card) => card.id === id) || null;
+}
+
+function handleSentenceDeckSettings(event, deckId) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  try {
+    const result = window.OghamSentenceCore.updateDeck(getSentenceState(), deckId, {
+      name: form.elements.name.value,
+      knownThreshold: form.elements.threshold.value
+    });
+    saveSentenceState(result.state);
+    renderSentenceDeck(deckId);
+    renderAccountControls();
+  } catch (error) {
+    form.querySelector("[data-sentence-deck-settings-status]").textContent = error.message || "Deck settings could not be saved.";
+  }
+}
+
+function handleSentenceDeckDelete(deckId) {
+  if (!window.confirm("Delete this empty deck?")) return;
+  try {
+    saveSentenceState(window.OghamSentenceCore.deleteDeck(getSentenceState(), deckId));
+    setRoute("sentences");
+  } catch (error) {
+    window.alert(error.message || "Deck could not be deleted.");
+  }
+}
+
+function handleSentenceCardEdit(event, deckId, searchQuery) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const card = getSentenceCardForElement(form);
+  if (!card) return;
+  try {
+    const result = window.OghamSentenceCore.updateCard(getSentenceState(), card.id, {
+      french: form.elements.french.value,
+      english: form.elements.english.value,
+      note: form.elements.note.value,
+      deckId: form.elements.deckId.value
+    });
+    saveSentenceState(result.state);
+    activeSentenceEditCardId = "";
+    if (result.card.deckId !== deckId) setRoute(`sentence-deck-${result.card.deckId}`);
+    else {
+      renderSentenceDeck(deckId, searchQuery);
+      renderAccountControls();
+    }
+  } catch (error) {
+    window.alert(error.message || "Sentence could not be saved.");
+  }
+}
+
+function handleSentenceCardKnown(button, deckId, searchQuery) {
+  const card = getSentenceCardForElement(button);
+  if (!card) return;
+  const result = window.OghamSentenceCore.setKnown(getSentenceState(), card.id, card.lifecycle !== "known");
+  saveSentenceState(result.state);
+  renderSentenceDeck(deckId, searchQuery);
+  renderAccountControls();
+}
+
+function handleSentenceCardActivate(button, deckId, searchQuery) {
+  const card = getSentenceCardForElement(button);
+  if (!card) return;
+  const result = window.OghamSentenceCore.setCardLifecycle(getSentenceState(), card.id, "active");
+  saveSentenceState(result.state);
+  renderSentenceDeck(deckId, searchQuery);
+  renderAccountControls();
+}
+
+function handleSentenceCardDelete(button, deckId, searchQuery) {
+  const card = getSentenceCardForElement(button);
+  if (!card || !window.confirm("Delete this sentence card?")) return;
+  saveSentenceState(window.OghamSentenceCore.deleteCard(getSentenceState(), card.id));
+  renderSentenceDeck(deckId, searchQuery);
+  renderAccountControls();
+}
+
+function renderSentenceReviewRoute(token) {
+  const knownOnly = token.startsWith("known-");
+  const deckId = knownOnly ? token.slice("known-".length) : token;
+  const state = getSentenceState();
+  const deck = deckId === "all" ? null : window.OghamSentenceCore.activeDecks(state).find((item) => item.id === deckId);
+  if (deckId !== "all" && !deck) {
+    setRoute("sentences");
+    return;
+  }
+  if (!sentenceReviewSession || sentenceReviewSession.token !== token) {
+    sentenceReviewSession = null;
+    const count = window.OghamSentenceCore.getReviewQueue(state, { deckId, knownOnly }).length;
+    app.innerHTML = `
+      <section class="shell sentence-review-shell">
+        <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-sentence-review-back>Back</button></div>
+        <section class="sentence-review-start">
+          <p class="booklet-kicker">${knownOnly ? "Known check" : "Listening-first review"}</p>
+          <h1>${escapeHtml(deck?.name || "All Sentence Decks")}</h1>
+          <p>${count ? `${count} sentence${count === 1 ? "" : "s"} will play from the lowest mastery score upward.` : "There are no sentences in this review."}</p>
+          <button class="primary-button" type="button" data-start-sentence-review ${count ? "" : "disabled"}>Start Review</button>
+        </section>
+      </section>
+    `;
+    app.querySelector("[data-sentence-review-back]").addEventListener("click", () => setRoute(deck ? `sentence-deck-${deck.id}` : "sentences"));
+    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, knownOnly));
+    return;
+  }
+  renderSentenceReviewPlayer();
+}
+
+function startSentenceReview(token, deckId, knownOnly) {
+  const queue = window.OghamSentenceCore.getReviewQueue(getSentenceState(), { deckId, knownOnly });
+  sentenceReviewSession = {
+    token,
+    deckId,
+    knownOnly,
+    cardIds: queue.map((card) => card.id),
+    index: 0,
+    phase: "audio",
+    ratings: { missed: 0, neutral: 0, understood: 0 },
+    eligible: 0
+  };
+  renderSentenceReviewPlayer();
+  window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function renderSentenceReviewPlayer() {
+  const session = sentenceReviewSession;
+  const state = getSentenceState();
+  const card = window.OghamSentenceCore.activeCards(state).find((item) => item.id === session?.cardIds[session.index]);
+  if (!session || !card) {
+    renderSentenceReviewComplete();
+    return;
+  }
+  const deck = window.OghamSentenceCore.activeDecks(state).find((item) => item.id === card.deckId);
+  const frenchVisible = ["french", "english"].includes(session.phase);
+  const englishVisible = session.phase === "english";
+
+  app.innerHTML = `
+    <section class="shell sentence-review-shell">
+      <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-exit-sentence-review>Exit review</button></div>
+      <header class="sentence-review-progress">
+        <div><span>${session.index + 1} / ${session.cardIds.length}</span><strong>${escapeHtml(deck?.name || "Sentence deck")}</strong></div>
+        <div class="sentence-review-progress-track"><span style="width:${((session.index + 1) / session.cardIds.length) * 100}%"></span></div>
+        <span>Mastery ${formatMasteryScore(card.masteryScore)}</span>
+      </header>
+      <article class="sentence-review-card" data-sentence-review-card="${escapeAttribute(card.id)}">
+        <div class="sentence-review-audio">
+          <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio">&#9654;</button>
+          <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
+        </div>
+        <div class="sentence-review-reveals">
+          <section class="sentence-review-pane ${frenchVisible ? "visible" : "hidden"}" lang="fr">
+            <span>French</span>
+            <p>${frenchVisible ? escapeHtml(card.french) : "French sentence hidden"}</p>
+          </section>
+          <section class="sentence-review-pane ${englishVisible ? "visible" : "hidden"}">
+            <span>English</span>
+            <p>${englishVisible ? escapeHtml(card.english) : "English meaning hidden"}</p>
+          </section>
+        </div>
+        <div class="sentence-review-controls">
+          ${!frenchVisible ? `<button class="primary-button" type="button" data-sentence-reveal-french>Reveal French</button>` : !englishVisible ? `<button class="primary-button" type="button" data-sentence-reveal-english>Reveal English</button>` : `
+            ${card.note ? `<details class="sentence-review-note"><summary>Grammar note</summary><p>${escapeHtml(card.note)}</p></details>` : ""}
+            <p class="sentence-rating-prompt">Rate your original audio-only understanding</p>
+            <div class="sentence-rating-buttons">
+              <button class="sentence-rating missed" type="button" data-sentence-rating="missed"><strong>×</strong><span>Missed · halve</span></button>
+              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral"><strong>●</strong><span>Neutral · keep</span></button>
+              <button class="sentence-rating understood" type="button" data-sentence-rating="understood"><strong>✓</strong><span>Understood · double</span></button>
+            </div>
+            ${card.masteryScore >= (deck?.knownThreshold || 8) ? `<button class="text-button" type="button" data-sentence-mark-known>Mark Known</button>` : ""}
+          `}
+        </div>
+      </article>
+    </section>
+  `;
+  app.querySelector("[data-exit-sentence-review]").addEventListener("click", exitSentenceReview);
+  app.querySelector("[data-sentence-replay]").addEventListener("click", playCurrentSentenceReviewAudio);
+  app.querySelector("[data-sentence-reveal-french]")?.addEventListener("click", () => {
+    session.phase = "french";
+    renderSentenceReviewPlayer();
+  });
+  app.querySelector("[data-sentence-reveal-english]")?.addEventListener("click", () => {
+    session.phase = "english";
+    renderSentenceReviewPlayer();
+  });
+  app.querySelectorAll("[data-sentence-rating]").forEach((button) => button.addEventListener("click", () => handleSentenceReviewRating(button.dataset.sentenceRating)));
+  app.querySelector("[data-sentence-mark-known]")?.addEventListener("click", handleSentenceReviewKnown);
+}
+
+function handleSentenceReviewRating(rating) {
+  const session = sentenceReviewSession;
+  const cardId = session?.cardIds[session.index];
+  if (!cardId) return;
+  const before = window.OghamSentenceCore.activeCards(getSentenceState()).find((card) => card.id === cardId);
+  const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, { reviewingKnown: session.knownOnly });
+  const deck = window.OghamSentenceCore.activeDecks(result.state).find((item) => item.id === result.card.deckId);
+  if (before && before.masteryScore < (deck?.knownThreshold || 8) && result.card.masteryScore >= (deck?.knownThreshold || 8)) session.eligible += 1;
+  session.ratings[rating] += 1;
+  saveSentenceState(result.state);
+  session.index += 1;
+  session.phase = "audio";
+  renderSentenceReviewPlayer();
+  window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function handleSentenceReviewKnown() {
+  const session = sentenceReviewSession;
+  const cardId = session?.cardIds[session.index];
+  if (!cardId) return;
+  const result = window.OghamSentenceCore.setKnown(getSentenceState(), cardId, true);
+  saveSentenceState(result.state);
+  session.index += 1;
+  session.phase = "audio";
+  renderSentenceReviewPlayer();
+  window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function renderSentenceReviewComplete() {
+  stopSentenceSpeech();
+  const session = sentenceReviewSession;
+  if (!session) {
+    setRoute("sentences");
+    return;
+  }
+  app.innerHTML = `
+    <section class="shell sentence-review-shell">
+      <div class="topbar">${createBrandMarkup()}</div>
+      <section class="sentence-review-complete">
+        <p class="booklet-kicker">Session complete</p>
+        <h1>${session.cardIds.length} sentence${session.cardIds.length === 1 ? "" : "s"} reviewed</h1>
+        <div class="sentence-session-results">
+          <span><strong>${session.ratings.missed}</strong> Missed</span>
+          <span><strong>${session.ratings.neutral}</strong> Neutral</span>
+          <span><strong>${session.ratings.understood}</strong> Understood</span>
+          <span><strong>${session.eligible}</strong> Newly eligible for Known</span>
+        </div>
+        <button class="primary-button" type="button" data-finish-sentence-review>Finish</button>
+      </section>
+    </section>
+  `;
+  app.querySelector("[data-finish-sentence-review]").addEventListener("click", exitSentenceReview);
+}
+
+function exitSentenceReview() {
+  const session = sentenceReviewSession;
+  stopSentenceSpeech();
+  sentenceReviewSession = null;
+  setRoute(session?.deckId && session.deckId !== "all" ? `sentence-deck-${session.deckId}` : "sentences");
+}
+
+function playCurrentSentenceReviewAudio() {
+  const session = sentenceReviewSession;
+  const cardId = session?.cardIds[session.index];
+  const card = window.OghamSentenceCore.activeCards(getSentenceState()).find((item) => item.id === cardId);
+  if (card) speakSentenceText(card.french);
+}
+
+function speakSentenceText(text) {
+  if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== "function") {
+    window.alert("French speech is not available in this browser. You can still reveal and rate the sentence.");
+    return;
+  }
+  stopSentenceSpeech();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "fr-FR";
+  utterance.rate = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  utterance.voice = voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang) && /natural|online|neural/i.test(voice.name))
+    || voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang))
+    || null;
+  window.speechSynthesis.speak(utterance);
+}
+
+function stopSentenceSpeech() {
+  window.speechSynthesis?.cancel?.();
+}
+
+function formatMasteryScore(value) {
+  const number = Number(value) || 0;
+  return Number.isInteger(number) ? String(number) : String(Math.round(number * 100) / 100);
+}
+
 function renderCapture() {
+  const bulkPanel = sentenceBulkOpen ? `
+    <form class="capture-form sentence-bulk-form" data-sentence-bulk-form>
+      <div>
+        <p class="booklet-kicker">Bulk Add</p>
+        <h2>Add several French sentences</h2>
+        <p class="sentence-form-help">Use one French sentence per line. To include English, paste French, a tab, then English.</p>
+      </div>
+      <label for="sentence-bulk-text">Sentences to add</label>
+      <textarea id="sentence-bulk-text" name="sentences" rows="8" maxlength="50000" placeholder="Je mange une pomme.&#9;I am eating an apple.&#10;Nous mangerons ensemble demain." required></textarea>
+      <div class="capture-form-footer">
+        <span>Everything lands in To Be Sorted first.</span>
+        <button class="primary-button" type="submit" data-sentence-bulk-save>Add to inbox</button>
+      </div>
+      <p class="capture-save-status" data-sentence-bulk-status aria-live="polite"></p>
+    </form>
+  ` : "";
   app.innerHTML = `
     <section class="shell capture-shell">
       <div class="topbar">
@@ -4714,24 +6185,29 @@ function renderCapture() {
         <button class="back-link" type="button" data-capture-home>Back home</button>
       </div>
       <header class="capture-header">
-        <p class="booklet-kicker">Quick log</p>
-        <h1>Capture Inbox</h1>
-        <p class="lesson-lede">Save a word, phrase, sentence, or short note exactly as you encountered it.</p>
+        <p class="booklet-kicker">Sentence intake</p>
+        <h1>To Be Sorted</h1>
+        <p class="lesson-lede">Capture French quickly, then confirm the meaning and move each sentence into a review deck.</p>
+        <div class="sentence-header-actions">
+          <button class="text-button" type="button" data-open-sentence-decks>Sentence Decks</button>
+          <button class="back-link" type="button" data-toggle-sentence-bulk>${sentenceBulkOpen ? "Close Bulk Add" : "Bulk Add"}</button>
+        </div>
       </header>
+      ${bulkPanel}
       <form class="capture-form" data-capture-form>
-        <label for="capture-text">What do you want to remember?</label>
-        <textarea id="capture-text" data-capture-text rows="4" maxlength="${window.OghamCaptureCore.maxCaptureLength}" placeholder="Paste or type here..." autofocus required></textarea>
+        <label for="capture-text">Quick add</label>
+        <textarea id="capture-text" data-capture-text rows="4" maxlength="${window.OghamCaptureCore.maxCaptureLength}" placeholder="Paste or type a French sentence..." ${sentenceBulkOpen ? "" : "autofocus"} required></textarea>
         <div class="capture-form-footer">
           <span data-capture-count>0 / ${window.OghamCaptureCore.maxCaptureLength}</span>
-          <button class="primary-button" type="submit" data-capture-save>Save to AWS</button>
+          <button class="primary-button" type="submit" data-capture-save>Save to inbox</button>
         </div>
         <p class="capture-save-status" data-capture-status aria-live="polite">Press Enter to save · Shift+Enter for a new line</p>
       </form>
       <section class="capture-browser" aria-label="Saved captures">
         <div class="capture-browser-header">
           <div>
-            <p class="booklet-kicker">Review later</p>
-            <h2>Recent captures</h2>
+            <p class="booklet-kicker">Prepare for review</p>
+            <h2>Unsorted sentences</h2>
           </div>
           <button class="back-link" type="button" data-capture-retry>Refresh</button>
         </div>
@@ -4746,6 +6222,13 @@ function renderCapture() {
   app.querySelector("[data-capture-home]").addEventListener("click", () => {
     window.location.hash = "";
   });
+  app.querySelector("[data-open-sentence-decks]").addEventListener("click", () => setRoute("sentences"));
+  app.querySelector("[data-toggle-sentence-bulk]").addEventListener("click", () => {
+    sentenceBulkOpen = !sentenceBulkOpen;
+    renderCapture();
+    app.querySelector(sentenceBulkOpen ? "[data-sentence-bulk-form] textarea" : "[data-capture-text]")?.focus();
+  });
+  app.querySelector("[data-sentence-bulk-form]")?.addEventListener("submit", handleSentenceBulkSubmit);
   form.addEventListener("submit", handleCaptureSubmit);
   input.addEventListener("input", updateCaptureCharacterCount);
   input.addEventListener("keydown", (event) => {
@@ -4757,7 +6240,61 @@ function renderCapture() {
   app.querySelector("[data-capture-retry]").addEventListener("click", loadCaptureItems);
   renderCaptureList();
   loadCaptureItems();
-  window.requestAnimationFrame(() => input.focus());
+  if (!sentenceBulkOpen) window.requestAnimationFrame(() => input.focus());
+}
+
+async function handleSentenceBulkSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector("[data-sentence-bulk-save]");
+  const status = form.querySelector("[data-sentence-bulk-status]");
+  const parsed = window.OghamSentenceCore.parseBulkText(form.elements.sentences.value);
+  const existing = new Set([
+    ...captureItems.map((capture) => capture.text.trim().toLocaleLowerCase()),
+    ...window.OghamSentenceCore.activeCards(getSentenceState()).map((card) => card.french.trim().toLocaleLowerCase())
+  ]);
+  const rows = parsed.rows.filter((row) => !existing.has(row.french.toLocaleLowerCase()));
+  const duplicateCount = parsed.rows.length - rows.length;
+
+  if (!rows.length) {
+    status.textContent = parsed.errors.length || duplicateCount
+      ? "Nothing was added. Remove duplicates or fix the lines and try again."
+      : "Paste at least one French sentence.";
+    status.dataset.state = "error";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = `Adding ${rows.length} sentence${rows.length === 1 ? "" : "s"}...`;
+  status.dataset.state = "saving";
+  try {
+    await ensureSentenceCloudStateReady();
+    let state = getSentenceState();
+    let pendingCount = 0;
+    for (const row of rows) {
+      const capture = await captureModule.create(row.french);
+      existing.add(row.french.toLocaleLowerCase());
+      if (capture.status === "pending") pendingCount += 1;
+      if (row.english) {
+        state = window.OghamSentenceCore.saveDraft(state, {
+          captureId: capture.captureId,
+          english: row.english,
+          sourceType: "bulk"
+        });
+      }
+    }
+    saveSentenceState(state);
+    form.reset();
+    const skipped = parsed.errors.length + duplicateCount;
+    status.textContent = `Added ${rows.length}.${skipped ? ` Skipped ${skipped} duplicate or invalid line${skipped === 1 ? "" : "s"}.` : ""}${pendingCount ? ` ${pendingCount} will sync when AWS is available.` : ""}`;
+    status.dataset.state = pendingCount ? "pending" : "saved";
+    await loadCaptureItems();
+  } catch (error) {
+    status.textContent = error.message || "The sentences could not be added.";
+    status.dataset.state = "error";
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function updateCaptureCharacterCount(event) {
@@ -4814,9 +6351,11 @@ async function loadCaptureItems() {
   retry.disabled = true;
 
   try {
+    await ensureSentenceCloudStateReady().catch((error) => console.warn("Sentence state could not be refreshed.", error));
     await captureModule.flushPending();
     const result = await captureModule.list();
-    captureItems = result.items;
+    const sentenceState = getSentenceState();
+    captureItems = result.items.filter((capture) => !window.OghamSentenceCore.isCaptureProcessed(sentenceState, capture.captureId));
     const pendingCount = captureItems.filter((capture) => capture.status === "pending").length;
     captureListMessage = result.cloudAvailable
       ? pendingCount
@@ -4843,13 +6382,17 @@ function renderCaptureList() {
 
   list.innerHTML = captureItems.length
     ? captureItems.map(createCaptureCard).join("")
-    : `<article class="capture-empty"><p>Your Capture Inbox is empty. Add anything you want to revisit later.</p></article>`;
+    : `<article class="capture-empty"><p>To Be Sorted is empty. Quick add a sentence, use Bulk Add, or press Ctrl+Alt+C anywhere to capture French text.</p></article>`;
 
   bindCaptureActions(list);
 }
 
 function createCaptureCard(capture) {
   const isEditing = activeCaptureEditId === capture.captureId;
+  const isPreparing = activeSentencePrepareCaptureId === capture.captureId;
+  const sentenceState = getSentenceState();
+  const decks = window.OghamSentenceCore.activeDecks(sentenceState);
+  const draft = sentenceState.drafts.find((item) => item.id === capture.captureId) || {};
   const savedAt = capture.createdAt || capture.capturedAt;
   const dateLabel = savedAt ? new Date(savedAt).toLocaleString() : "Just now";
 
@@ -4867,9 +6410,36 @@ function createCaptureCard(capture) {
             <button class="back-link" type="button" data-capture-edit-cancel>Cancel</button>
           </div>
         </form>
+      ` : isPreparing ? `
+        <form class="sentence-prepare-form" data-sentence-prepare-form>
+          <div class="sentence-prepare-french">
+            <span>French</span>
+            <p lang="fr">${escapeHtml(capture.text)}</p>
+          </div>
+          ${decks.length ? `
+            <label><span>English meaning</span><textarea name="english" rows="3" maxlength="${window.OghamSentenceCore.maximumSentenceLength}" required>${escapeHtml(draft.english || "")}</textarea></label>
+            <div class="sentence-translation-row">
+              <button class="back-link" type="button" data-sentence-generate-draft>Generate English draft</button>
+              <span class="sentence-inline-status" data-sentence-translation-status aria-live="polite">Check the draft before adding the card.</span>
+            </div>
+            <label><span>Optional grammar note</span><textarea name="note" rows="2" maxlength="${window.OghamSentenceCore.maximumSentenceLength}" placeholder="For example: future simple of manger">${escapeHtml(draft.note || "")}</textarea></label>
+            <label><span>Deck</span><select name="deckId" required>${decks.map((deck) => `<option value="${escapeAttribute(deck.id)}">${escapeHtml(deck.name)}</option>`).join("")}</select></label>
+            <div class="capture-card-actions">
+              <button class="primary-button" type="submit">Add to deck</button>
+              <button class="back-link" type="button" data-sentence-prepare-cancel>Cancel</button>
+            </div>
+          ` : `
+            <div class="sentence-no-decks">
+              <p>Create a deck before preparing your first review card.</p>
+              <button class="primary-button" type="button" data-open-sentence-decks>Create a deck</button>
+              <button class="back-link" type="button" data-sentence-prepare-cancel>Cancel</button>
+            </div>
+          `}
+        </form>
       ` : `
         <p class="capture-card-text">${escapeHtml(capture.text)}</p>
         <div class="capture-card-actions">
+          <button class="primary-button" type="button" data-sentence-prepare>Prepare card</button>
           <button class="back-link" type="button" data-capture-copy>Copy</button>
           <button class="back-link" type="button" data-capture-edit>Edit</button>
           <button class="back-link capture-delete" type="button" data-capture-delete>Delete</button>
@@ -4880,6 +6450,30 @@ function createCaptureCard(capture) {
 }
 
 function bindCaptureActions(list) {
+  list.querySelectorAll("[data-sentence-prepare]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await ensureSentenceCloudStateReady();
+      activeCaptureEditId = "";
+      activeSentencePrepareCaptureId = getCaptureForElement(button)?.captureId || "";
+      renderCaptureList();
+      list.querySelector("[data-sentence-prepare-form] textarea")?.focus();
+    });
+  });
+  list.querySelectorAll("[data-sentence-prepare-cancel]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeSentencePrepareCaptureId = "";
+      renderCaptureList();
+    });
+  });
+  list.querySelectorAll("[data-sentence-prepare-form]").forEach((form) => {
+    form.addEventListener("submit", handleSentencePrepareSubmit);
+  });
+  list.querySelectorAll("[data-sentence-generate-draft]").forEach((button) => {
+    button.addEventListener("click", handleSentenceGenerateDraft);
+  });
+  list.querySelectorAll("[data-open-sentence-decks]").forEach((button) => {
+    button.addEventListener("click", () => setRoute("sentences"));
+  });
   list.querySelectorAll("[data-capture-copy]").forEach((button) => {
     button.addEventListener("click", async () => {
       const capture = getCaptureForElement(button);
@@ -4896,6 +6490,7 @@ function bindCaptureActions(list) {
   });
   list.querySelectorAll("[data-capture-edit]").forEach((button) => {
     button.addEventListener("click", () => {
+      activeSentencePrepareCaptureId = "";
       activeCaptureEditId = getCaptureForElement(button)?.captureId || "";
       renderCaptureList();
       list.querySelector("[data-capture-edit-text]")?.focus();
@@ -4915,6 +6510,67 @@ function bindCaptureActions(list) {
   });
 }
 
+async function handleSentenceGenerateDraft(event) {
+  const button = event.currentTarget;
+  const form = button.closest("[data-sentence-prepare-form]");
+  const capture = getCaptureForElement(button);
+  const status = form?.querySelector("[data-sentence-translation-status]");
+  if (!form || !capture || !status) return;
+  button.disabled = true;
+  status.textContent = "Generating an editable English draft...";
+  try {
+    const english = await requestSentenceTranslation(capture.text);
+    form.elements.english.value = english;
+    const state = window.OghamSentenceCore.saveDraft(getSentenceState(), {
+      captureId: capture.captureId,
+      english,
+      note: form.elements.note.value,
+      sourceType: "generated"
+    });
+    saveSentenceState(state);
+    status.textContent = "Draft generated. Check or edit it before adding the card.";
+  } catch (error) {
+    status.textContent = error.message || "English draft could not be generated.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleSentencePrepareSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const capture = getCaptureForElement(form);
+  const submit = form.querySelector('[type="submit"]');
+  if (!capture) return;
+  submit.disabled = true;
+  try {
+    await ensureSentenceCloudStateReady();
+    const result = window.OghamSentenceCore.createCard(getSentenceState(), {
+      captureId: capture.captureId,
+      deckId: form.elements.deckId.value,
+      french: capture.text,
+      english: form.elements.english.value,
+      note: form.elements.note.value,
+      sourceType: "capture"
+    });
+    saveSentenceState(result.state);
+    try {
+      await captureModule.delete(capture.captureId);
+    } catch (error) {
+      console.warn("The prepared capture could not be removed from AWS, but it is hidden from the inbox.", error);
+    }
+    captureItems = captureItems.filter((item) => item.captureId !== capture.captureId);
+    activeSentencePrepareCaptureId = "";
+    setCaptureStatus(`Added to ${window.OghamSentenceCore.activeDecks(result.state).find((deck) => deck.id === result.card.deckId)?.name || "deck"}.`, "saved");
+    await loadCaptureItems();
+  } catch (error) {
+    const status = form.querySelector("[data-sentence-translation-status]");
+    if (status) status.textContent = error.message || "Sentence card could not be created.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
 function getCaptureForElement(element) {
   const captureId = element.closest("[data-capture-id]")?.dataset.captureId;
   return captureItems.find((capture) => capture.captureId === captureId) || null;
@@ -4931,6 +6587,14 @@ async function handleCaptureEdit(event) {
 
   try {
     const updated = await captureModule.update(capture.captureId, text);
+    if (getSentenceState().drafts.some((draft) => draft.id === capture.captureId)) {
+      saveSentenceState(window.OghamSentenceCore.saveDraft(getSentenceState(), {
+        captureId: capture.captureId,
+        english: "",
+        note: "",
+        sourceType: "capture"
+      }));
+    }
     captureItems = captureItems.map((item) => item.captureId === capture.captureId ? { ...item, ...updated } : item);
     activeCaptureEditId = "";
     setCaptureStatus(updated.status === "pending" ? "Pending capture updated locally." : "Changes saved to AWS.", updated.status);
@@ -4948,6 +6612,14 @@ async function handleCaptureDelete(event) {
 
   try {
     await captureModule.delete(capture.captureId);
+    if (getSentenceState().drafts.some((draft) => draft.id === capture.captureId)) {
+      saveSentenceState(window.OghamSentenceCore.saveDraft(getSentenceState(), {
+        captureId: capture.captureId,
+        english: "",
+        note: "",
+        sourceType: "capture"
+      }));
+    }
     captureItems = captureItems.filter((item) => item.captureId !== capture.captureId);
     setCaptureStatus("Capture deleted.", "saved");
     renderCaptureList();
@@ -7942,6 +9614,7 @@ async function initializeApp() {
   renderLoading();
 
   try {
+    await handleSpotifyAuthRedirect();
     await handleAuthRedirect();
     await getValidAuthSession();
   } catch (error) {
@@ -7950,12 +9623,14 @@ async function initializeApp() {
     return;
   }
 
-  if (!getCurrentUser() && !isLocalCaptureDemo()) {
+  if (!getCurrentUser() && !isLocalMusicDemo() && !isLocalCaptureDemo() && !isLocalSentenceDemo()) {
     renderAuthGate();
     return;
   }
 
-  if (window.location.hash.replace("#", "") === "capture") {
+  const initialRoute = window.location.hash.replace("#", "");
+  if (initialRoute === "capture" || initialRoute.startsWith("sentence")) {
+    if (initialRoute.startsWith("sentence")) await ensureSentenceCloudStateReady();
     render();
     return;
   }
@@ -7983,6 +9658,11 @@ window.addEventListener("hashchange", async () => {
     render();
     return;
   }
+  if (route.startsWith("sentence")) {
+    await ensureSentenceCloudStateReady();
+    render();
+    return;
+  }
   if (!fullAppDataReady) {
     renderLoading();
     await loadFullAppData();
@@ -7992,7 +9672,8 @@ window.addEventListener("hashchange", async () => {
   render();
 });
 window.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && getCurrentUser() && fullAppDataReady && window.location.hash.replace("#", "") !== "capture") {
+  const route = window.location.hash.replace("#", "");
+  if (document.visibilityState === "hidden" && getCurrentUser() && (fullAppDataReady || route.startsWith("sentence")) && route !== "capture") {
     saveCloudStateNow(undefined, { keepalive: true }).catch(() => {});
   }
 });
@@ -8002,8 +9683,17 @@ window.addEventListener("online", () => {
   }
 });
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && window.location.hash.replace("#", "") === "capture" && !activeCaptureEditId) {
-    window.close();
+  if (event.key !== "Escape" || window.location.hash.replace("#", "") !== "capture") return;
+  if (activeSentencePrepareCaptureId) {
+    activeSentencePrepareCaptureId = "";
+    renderCaptureList();
+    return;
   }
+  if (sentenceBulkOpen) {
+    sentenceBulkOpen = false;
+    renderCapture();
+    return;
+  }
+  if (!activeCaptureEditId) window.close();
 });
 initializeApp();

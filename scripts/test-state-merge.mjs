@@ -50,8 +50,14 @@ const context = vm.createContext({
   fetch: async () => { throw new Error("Network is disabled in state merge tests."); }
 });
 
+const authSource = readFileSync(new URL("../auth-core.js", import.meta.url), "utf8");
+vm.runInContext(authSource, context, { filename: "auth-core.js" });
 const captureSource = readFileSync(new URL("../capture-core.js", import.meta.url), "utf8");
 vm.runInContext(captureSource, context, { filename: "capture-core.js" });
+const sentenceSource = readFileSync(new URL("../sentence-core.js", import.meta.url), "utf8");
+vm.runInContext(sentenceSource, context, { filename: "sentence-core.js" });
+const curriculumSource = readFileSync(new URL("../sentence-curriculum.js", import.meta.url), "utf8");
+vm.runInContext(curriculumSource, context, { filename: "sentence-curriculum.js" });
 const source = readFileSync(new URL("../app.js", import.meta.url), "utf8").replace(/initializeApp\(\);\s*$/, "");
 vm.runInContext(source, context, { filename: "app.js" });
 
