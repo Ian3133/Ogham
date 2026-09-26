@@ -6076,18 +6076,18 @@ function renderSentenceReviewPlayer() {
         <div class="sentence-review-progress-track"><span style="width:${((session.index + 1) / session.cardIds.length) * 100}%"></span></div>
         <span>Mastery ${formatMasteryScore(card.masteryScore)}</span>
       </header>
-      <article class="sentence-review-card" data-sentence-review-card="${escapeAttribute(card.id)}">
+      <article class="sentence-review-card ${session.phase === "audio" ? "entering" : ""}" data-sentence-review-card="${escapeAttribute(card.id)}">
         <div class="sentence-review-audio">
           <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio">&#9654;</button>
           <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
           ${createSentenceSpeedControls("Speed")}
         </div>
         <div class="sentence-review-reveals">
-          <section class="sentence-review-pane ${frenchVisible ? "visible" : "hidden"}" lang="fr">
+          <section class="sentence-review-pane ${frenchVisible ? "visible" : "hidden"} ${session.phase === "french" ? "just-revealed" : ""}" lang="fr">
             <span>French</span>
             <p>${frenchVisible ? escapeHtml(card.french) : "French sentence hidden"}</p>
           </section>
-          <section class="sentence-review-pane ${englishVisible ? "visible" : "hidden"}">
+          <section class="sentence-review-pane ${englishVisible ? "visible" : "hidden"} ${session.phase === "english" ? "just-revealed" : ""}">
             <span>English</span>
             <p>${englishVisible ? escapeHtml(card.english) : "English meaning hidden"}</p>
           </section>
@@ -6097,9 +6097,9 @@ function renderSentenceReviewPlayer() {
             ${card.note ? `<details class="sentence-review-note"><summary>Grammar note</summary><p>${escapeHtml(card.note)}</p></details>` : ""}
             <p class="sentence-rating-prompt">Rate your original audio-only understanding</p>
             <div class="sentence-rating-buttons">
-              <button class="sentence-rating missed" type="button" data-sentence-rating="missed"><strong>×</strong><span>Missed · halve</span></button>
-              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral"><strong>●</strong><span>Neutral · keep</span></button>
-              <button class="sentence-rating understood" type="button" data-sentence-rating="understood"><strong>✓</strong><span>Understood · double</span></button>
+              <button class="sentence-rating missed" type="button" data-sentence-rating="missed" aria-pressed="false"><strong>×</strong><span>Missed · halve</span></button>
+              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral" aria-pressed="false"><strong>●</strong><span>Neutral · keep</span></button>
+              <button class="sentence-rating understood" type="button" data-sentence-rating="understood" aria-pressed="false"><strong>✓</strong><span>Understood · double</span></button>
             </div>
             ${card.masteryScore >= (deck?.knownThreshold || 8) ? `<button class="text-button" type="button" data-sentence-mark-known>Mark Known</button>` : ""}
           `}
@@ -6118,24 +6118,33 @@ function renderSentenceReviewPlayer() {
     session.phase = "english";
     renderSentenceReviewPlayer();
   });
-  app.querySelectorAll("[data-sentence-rating]").forEach((button) => button.addEventListener("click", () => handleSentenceReviewRating(button.dataset.sentenceRating)));
+  app.querySelectorAll("[data-sentence-rating]").forEach((button) => button.addEventListener("click", () => handleSentenceReviewRating(button.dataset.sentenceRating, button)));
   app.querySelector("[data-sentence-mark-known]")?.addEventListener("click", handleSentenceReviewKnown);
 }
 
-function handleSentenceReviewRating(rating) {
+function handleSentenceReviewRating(rating, button) {
   const session = sentenceReviewSession;
   const cardId = session?.cardIds[session.index];
-  if (!cardId) return;
-  const before = window.OghamSentenceCore.activeCards(getSentenceState()).find((card) => card.id === cardId);
-  const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, { reviewingKnown: session.knownOnly });
-  const deck = window.OghamSentenceCore.activeDecks(result.state).find((item) => item.id === result.card.deckId);
-  if (before && before.masteryScore < (deck?.knownThreshold || 8) && result.card.masteryScore >= (deck?.knownThreshold || 8)) session.eligible += 1;
-  session.ratings[rating] += 1;
-  saveSentenceState(result.state);
-  session.index += 1;
-  session.phase = "audio";
-  renderSentenceReviewPlayer();
-  window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+  if (!cardId || session.ratingPending || !["missed", "neutral", "understood"].includes(rating)) return;
+  session.ratingPending = true;
+  stopSentenceSpeech();
+  button?.classList.add("selected");
+  button?.setAttribute("aria-pressed", "true");
+  app.querySelector("[data-sentence-review-card]")?.classList.add(`rating-${rating}`);
+  window.setTimeout(() => {
+    if (sentenceReviewSession !== session) return;
+    const before = window.OghamSentenceCore.activeCards(getSentenceState()).find((card) => card.id === cardId);
+    const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, { reviewingKnown: session.knownOnly });
+    const deck = window.OghamSentenceCore.activeDecks(result.state).find((item) => item.id === result.card.deckId);
+    if (before && before.masteryScore < (deck?.knownThreshold || 8) && result.card.masteryScore >= (deck?.knownThreshold || 8)) session.eligible += 1;
+    session.ratings[rating] += 1;
+    saveSentenceState(result.state);
+    session.index += 1;
+    session.phase = "audio";
+    session.ratingPending = false;
+    renderSentenceReviewPlayer();
+    window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+  }, 320);
 }
 
 function handleSentenceReviewKnown() {
@@ -6215,15 +6224,18 @@ function playSentenceCardAudio(card) {
   const audio = new Audio(audioUrl);
   currentSentenceAudio = audio;
   audio.playbackRate = getSentencePlaybackRate();
+  setSentenceReplayPlaying(true);
   let usedFallback = false;
   const fallback = () => {
     if (usedFallback || currentSentenceAudio !== audio) return;
     usedFallback = true;
     currentSentenceAudio = null;
+    setSentenceReplayPlaying(false);
     speakSentenceText(card.french);
   };
   audio.addEventListener("ended", () => {
     if (currentSentenceAudio === audio) currentSentenceAudio = null;
+    setSentenceReplayPlaying(false);
   }, { once: true });
   audio.addEventListener("error", fallback, { once: true });
   audio.play().catch(fallback);
@@ -6242,7 +6254,17 @@ function speakSentenceText(text) {
   utterance.voice = voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang) && /natural|online|neural/i.test(voice.name))
     || voices.find((voice) => /^fr([-_]|$)/i.test(voice.lang))
     || null;
+  utterance.onstart = () => setSentenceReplayPlaying(true);
+  utterance.onend = () => setSentenceReplayPlaying(false);
+  utterance.onerror = () => setSentenceReplayPlaying(false);
   window.speechSynthesis.speak(utterance);
+}
+
+function setSentenceReplayPlaying(playing) {
+  const button = app.querySelector("[data-sentence-replay]");
+  if (!button) return;
+  button.classList.toggle("playing", Boolean(playing));
+  button.setAttribute("aria-label", playing ? "Replay French audio · currently playing" : "Replay French audio");
 }
 
 function stopSentenceSpeech() {
@@ -6252,6 +6274,7 @@ function stopSentenceSpeech() {
     currentSentenceAudio = null;
   }
   window.speechSynthesis?.cancel?.();
+  setSentenceReplayPlaying(false);
 }
 
 function formatMasteryScore(value) {

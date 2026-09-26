@@ -1215,12 +1215,19 @@ h1 {
   cursor: pointer;
   font: 700 0.82rem Arial, sans-serif;
   padding: 7px 11px;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 120ms ease;
 }
 
 .sentence-speed-control button.active {
   background: var(--accent-dark);
   border-color: var(--accent-dark);
+  box-shadow: 0 5px 14px rgba(24, 78, 72, 0.2);
   color: white;
+  transform: translateY(-1px);
+}
+
+.sentence-speed-control button:active {
+  transform: translateY(1px) scale(0.94);
 }
 
 .sentence-review-progress {
@@ -1251,7 +1258,14 @@ h1 {
   border-radius: 10px;
   box-shadow: var(--shadow);
   min-height: 520px;
+  overflow: hidden;
   padding: clamp(22px, 5vw, 44px);
+  position: relative;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.sentence-review-card.entering {
+  animation: sentence-card-enter 420ms cubic-bezier(0.2, 0.78, 0.28, 1);
 }
 
 .sentence-review-audio {
@@ -1284,6 +1298,24 @@ h1 {
   height: 62px;
   justify-content: center;
   padding-left: 5px;
+  position: relative;
+  transition: background 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+}
+
+.sentence-replay-button:hover,
+.sentence-replay-button:focus-visible {
+  box-shadow: 0 8px 22px rgba(39, 108, 99, 0.28);
+  transform: translateY(-2px) scale(1.03);
+}
+
+.sentence-replay-button:active {
+  transform: scale(0.9);
+}
+
+.sentence-replay-button.playing {
+  animation: sentence-audio-pulse 1.25s ease-in-out infinite;
+  background: var(--warm);
+  box-shadow: 0 0 0 8px rgba(197, 107, 60, 0.12);
 }
 
 .sentence-review-reveals {
@@ -1298,6 +1330,14 @@ h1 {
   border-radius: 8px;
   min-height: 150px;
   padding: 18px;
+  transform-origin: center;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.sentence-review-pane.just-revealed {
+  animation: sentence-pane-flip 480ms cubic-bezier(0.18, 0.72, 0.24, 1);
+  border-color: rgba(197, 107, 60, 0.6);
+  box-shadow: 0 12px 28px rgba(112, 74, 48, 0.13);
 }
 
 .sentence-review-pane > span {
@@ -1360,6 +1400,17 @@ h1 {
   display: grid;
   gap: 4px;
   padding: 15px 10px;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 120ms ease;
+}
+
+.sentence-rating:hover,
+.sentence-rating:focus-visible {
+  box-shadow: 0 7px 18px rgba(31, 61, 55, 0.12);
+  transform: translateY(-2px);
+}
+
+.sentence-rating:active {
+  transform: translateY(1px) scale(0.97);
 }
 
 .sentence-rating strong {
@@ -1381,6 +1432,84 @@ h1 {
 
 .sentence-rating.understood strong {
   color: var(--accent);
+}
+
+.sentence-rating.selected {
+  animation: sentence-rating-confirm 320ms ease-out both;
+  color: white;
+}
+
+.sentence-rating.selected strong {
+  color: white;
+}
+
+.sentence-rating.missed.selected {
+  background: #9b342a;
+  border-color: #9b342a;
+  box-shadow: 0 0 0 5px rgba(155, 52, 42, 0.14);
+}
+
+.sentence-rating.neutral.selected {
+  background: #b57b10;
+  border-color: #b57b10;
+  box-shadow: 0 0 0 5px rgba(194, 139, 24, 0.15);
+}
+
+.sentence-rating.understood.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px rgba(39, 108, 99, 0.15);
+}
+
+.sentence-review-card.rating-missed {
+  border-color: rgba(155, 52, 42, 0.55);
+}
+
+.sentence-review-card.rating-neutral {
+  border-color: rgba(194, 139, 24, 0.6);
+}
+
+.sentence-review-card.rating-understood {
+  border-color: rgba(39, 108, 99, 0.65);
+}
+
+@keyframes sentence-card-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes sentence-pane-flip {
+  0% { opacity: 0.2; transform: perspective(700px) rotateY(-18deg) scale(0.98); }
+  70% { transform: perspective(700px) rotateY(2deg) scale(1.01); }
+  100% { opacity: 1; transform: perspective(700px) rotateY(0) scale(1); }
+}
+
+@keyframes sentence-audio-pulse {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(197, 107, 60, 0.1); transform: scale(1); }
+  50% { box-shadow: 0 0 0 14px rgba(197, 107, 60, 0.02); transform: scale(1.045); }
+}
+
+@keyframes sentence-rating-confirm {
+  0% { transform: scale(0.96); }
+  55% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentence-review-card.entering,
+  .sentence-review-pane.just-revealed,
+  .sentence-replay-button.playing,
+  .sentence-rating.selected {
+    animation: none;
+  }
+
+  .sentence-review-card,
+  .sentence-review-pane,
+  .sentence-replay-button,
+  .sentence-rating,
+  .sentence-speed-control button {
+    transition: none;
+  }
 }
 
 .sentence-session-results {
