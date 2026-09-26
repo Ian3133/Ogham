@@ -3907,13 +3907,18 @@ function renderHome() {
         </div>
         <div class="home-actions">
           <div class="home-tool-grid">
+            <button class="home-section-card home-section-card-large home-section-card-primary" type="button" data-sentence-home>
+              <span class="booklet-kicker">Your sentences</span>
+              <span class="home-section-title">Sentence Decks</span>
+              <span class="booklet-footer">${getHomeSentenceDeckLabel()}</span>
+            </button>
             <button class="home-section-card compact" type="button" data-capture-home>
               <span class="booklet-kicker">Quick add</span>
               <span class="home-section-title">To Be Sorted</span>
             </button>
-            <button class="home-section-card compact" type="button" data-sentence-home>
-              <span class="booklet-kicker">Your sentences</span>
-              <span class="home-section-title">Sentence Decks</span>
+            <button class="home-section-card compact" type="button" data-fluency-home>
+              <span class="booklet-kicker">Recall</span>
+              <span class="home-section-title">Fluency Review</span>
             </button>
             <button class="home-section-card compact" type="button" data-tool="dictionary">
               <span class="booklet-kicker">Words</span>
@@ -3926,11 +3931,6 @@ function renderHome() {
             <button class="home-section-card compact" type="button" data-history>
               <span class="booklet-kicker">Archive</span>
               <span class="home-section-title">Chronicle</span>
-            </button>
-            <button class="home-section-card home-section-card-large" type="button" data-fluency-home>
-              <span class="booklet-kicker">Listening</span>
-              <span class="home-section-title">Fluency Review</span>
-              <span class="booklet-footer">${getCurrentFluencyLocationLabel()}</span>
             </button>
           </div>
           <button class="booklet ${isLocked ? "locked" : ""}" type="button" aria-label="Open ${currentItem.title}" ${isLocked ? "disabled" : ""}>
@@ -3958,6 +3958,22 @@ function renderHome() {
   app.querySelectorAll("[data-tool]").forEach((button) => {
     button.addEventListener("click", () => setRoute(button.dataset.tool));
   });
+}
+
+function getHomeSentenceDeckLabel() {
+  const state = getSentenceState();
+  const activeDeckIds = new Set(state.decks.filter((deck) => !deck.deletedAt).map((deck) => deck.id));
+  const activeCount = state.cards.filter((card) => (
+    !card.deletedAt
+    && card.lifecycle === "active"
+    && activeDeckIds.has(card.deckId)
+  )).length;
+
+  if (!activeDeckIds.size) {
+    return "Build your first listening deck";
+  }
+
+  return `${activeDeckIds.size} deck${activeDeckIds.size === 1 ? "" : "s"} · ${activeCount} active`;
 }
 
 function getItemStatusLabel(item) {

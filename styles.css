@@ -400,8 +400,23 @@ h1 {
 
 .home-section-card-large {
   grid-column: 2;
-  grid-row: 1 / span 4;
+  grid-row: 1 / span 5;
   min-height: 178px;
+}
+
+.home-section-card-primary {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.home-section-card-primary .booklet-kicker,
+.home-section-card-primary .home-section-title,
+.home-section-card-primary .booklet-footer {
+  color: #fffdf7;
+}
+
+.home-section-card-primary .booklet-kicker {
+  color: #efba8b;
 }
 
 .home-section-card.compact .home-section-title {
