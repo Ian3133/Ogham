@@ -1,6 +1,6 @@
 (function attachSentenceCore(root) {
-  const defaultKnownThreshold = 8;
-  const minimumMasteryScore = 0.25;
+  const defaultKnownThreshold = 4;
+  const maximumMasteryStreak = 4;
   const maximumSentenceLength = 4000;
 
   function emptyState() {
@@ -122,14 +122,16 @@
       french,
       english,
       note: String(input.note || "").trim(),
-      masteryScore: 1,
+      masteryScore: 0,
+      masteryStreak: 0,
       lifecycle: input.lifecycle === "queued" ? "queued" : "active",
       audio: { type: "speech-synthesis", language: "fr-FR" },
       sourceCaptureId: captureId,
       sourceType: input.sourceType || (captureId ? "capture" : "manual"),
       createdAt: timestamp,
       updatedAt: timestamp,
-      lastReviewedAt: ""
+      lastReviewedAt: "",
+      lastReviewedDay: ""
     });
     current.cards.push(card);
     if (captureId) {
@@ -173,17 +175,19 @@
     if (index < 0) throw new Error("Sentence not found.");
     const card = current.cards[index];
     const nextScore = rating === "missed"
-      ? Math.max(minimumMasteryScore, card.masteryScore / 2)
+      ? 0
       : rating === "understood"
-        ? card.masteryScore * 2
-        : card.masteryScore;
+        ? Math.min(maximumMasteryStreak, card.masteryStreak + 1)
+        : card.masteryStreak;
     const timestamp = getTimestamp(options.now);
     current.cards[index] = normalizeCard({
       ...card,
       masteryScore: nextScore,
+      masteryStreak: nextScore,
       lifecycle: rating === "missed" && options.reviewingKnown ? "active" : card.lifecycle,
       lastRating: rating,
       lastReviewedAt: timestamp,
+      lastReviewedDay: normalizeDayKey(options.dayKey) || timestamp.slice(0, 10),
       reviewCount: card.reviewCount + 1,
       updatedAt: timestamp
     });
@@ -220,22 +224,36 @@
     const lifecycle = options.knownOnly ? "known" : "active";
     const deckId = options.deckId || "all";
     const random = options.random || Math.random;
+    const dayKey = normalizeDayKey(options.dayKey);
     return activeCards(current)
-      .filter((card) => card.lifecycle === lifecycle && (deckId === "all" || card.deckId === deckId))
+      .filter((card) => {
+        if (card.lifecycle !== lifecycle || (deckId !== "all" && card.deckId !== deckId)) return false;
+        if (!dayKey || options.knownOnly) return true;
+        if (options.reviewedTodayOnly) return card.lastReviewedDay === dayKey;
+        return options.includeReviewedToday || card.lastReviewedDay !== dayKey;
+      })
       .map((card) => ({ card, tie: random() }))
-      .sort((left, right) => left.card.masteryScore - right.card.masteryScore || left.tie - right.tie)
+      .sort((left, right) => left.card.masteryStreak - right.card.masteryStreak || left.tie - right.tie)
       .map((entry) => entry.card);
   }
 
-  function getDeckStats(state, deckId) {
+  function getDeckStats(state, deckId, options = {}) {
     const cards = activeCards(normalizeState(state)).filter((card) => card.deckId === deckId);
     const active = cards.filter((card) => card.lifecycle === "active");
+    const dayKey = normalizeDayKey(options.dayKey);
+    const reviewedToday = dayKey ? active.filter((card) => card.lastReviewedDay === dayKey).length : 0;
     return {
       total: cards.length,
       active: active.length,
       known: cards.filter((card) => card.lifecycle === "known").length,
       queued: cards.filter((card) => card.lifecycle === "queued").length,
-      eligible: active.filter((card) => card.masteryScore >= getDeckThreshold(state, deckId)).length
+      eligible: active.filter((card) => card.masteryStreak >= maximumMasteryStreak).length,
+      mastered: active.filter((card) => card.masteryStreak >= maximumMasteryStreak).length,
+      reviewedToday,
+      remainingToday: Math.max(0, active.length - reviewedToday),
+      averageMastery: active.length
+        ? active.reduce((total, card) => total + card.masteryStreak, 0) / active.length
+        : 0
     };
   }
 
@@ -318,13 +336,16 @@
   function normalizeCard(value = {}) {
     const id = String(value.id || "").trim();
     if (!id) return null;
+    const masteryStreak = normalizeMasteryStreak(value.masteryStreak, value.masteryScore);
+    const lastReviewedAt = normalizeTimestamp(value.lastReviewedAt);
     return {
       id,
       deckId: String(value.deckId || ""),
       french: String(value.french || "").trim(),
       english: String(value.english || "").trim(),
       note: String(value.note || "").trim(),
-      masteryScore: normalizeMasteryScore(value.masteryScore),
+      masteryScore: masteryStreak,
+      masteryStreak,
       lifecycle: ["active", "known", "queued"].includes(value.lifecycle) ? value.lifecycle : "active",
       audio: value.audio && typeof value.audio === "object"
         ? { type: String(value.audio.type || "speech-synthesis"), language: String(value.audio.language || "fr-FR"), reference: String(value.audio.reference || "") }
@@ -333,7 +354,8 @@
       sourceType: String(value.sourceType || "manual"),
       reviewCount: Math.max(0, Number(value.reviewCount) || 0),
       lastRating: ["missed", "neutral", "understood"].includes(value.lastRating) ? value.lastRating : "",
-      lastReviewedAt: normalizeTimestamp(value.lastReviewedAt),
+      lastReviewedAt,
+      lastReviewedDay: normalizeDayKey(value.lastReviewedDay) || lastReviewedAt.slice(0, 10),
       createdAt: normalizeTimestamp(value.createdAt),
       updatedAt: normalizeTimestamp(value.updatedAt || value.createdAt),
       deletedAt: normalizeTimestamp(value.deletedAt)
@@ -372,9 +394,20 @@
     return Number.isFinite(number) && number >= 1 ? Math.min(1024, number) : defaultKnownThreshold;
   }
 
-  function normalizeMasteryScore(value) {
+  function normalizeMasteryStreak(value, legacyScore) {
     const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.max(minimumMasteryScore, Math.min(1_048_576, number)) : 1;
+    if (Number.isFinite(number)) return Math.max(0, Math.min(maximumMasteryStreak, Math.floor(number)));
+    const legacy = Number(legacyScore);
+    if (!Number.isFinite(legacy) || legacy <= 1) return 0;
+    if (legacy <= 2) return 1;
+    if (legacy <= 4) return 2;
+    if (legacy <= 8) return 3;
+    return maximumMasteryStreak;
+  }
+
+  function normalizeDayKey(value) {
+    const text = String(value || "");
+    return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
   }
 
   function validateSentence(value, message) {
@@ -403,7 +436,7 @@
 
   root.OghamSentenceCore = {
     defaultKnownThreshold,
-    minimumMasteryScore,
+    maximumMasteryStreak,
     maximumSentenceLength,
     emptyState,
     normalizeState,

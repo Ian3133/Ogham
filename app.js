@@ -5598,7 +5598,11 @@ function renderHistory() {
 function renderSentenceDecks() {
   const state = getSentenceState();
   const decks = window.OghamSentenceCore.activeDecks(state);
+  const dayKey = getSentenceTodayKey();
   const activeTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "active").length;
+  const reviewedTodayTotal = window.OghamSentenceCore.activeCards(state)
+    .filter((card) => card.lifecycle === "active" && card.lastReviewedDay === dayKey).length;
+  const remainingTodayTotal = Math.max(0, activeTotal - reviewedTodayTotal);
   const knownTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "known").length;
   const queuedTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "queued").length;
   const curriculumStatus = getSentenceCurriculumStatus(state);
@@ -5613,29 +5617,26 @@ function renderSentenceDecks() {
         <div>
           <p class="booklet-kicker">Personal listening practice</p>
           <h1>Sentence Decks</h1>
-          <p class="lesson-lede">Hear the French first, reveal it in stages, and keep the scoring transparent.</p>
+          <p class="lesson-lede">Hear the French first, reveal it in stages, and build a correct streak from 0 to 4.</p>
         </div>
         <div class="sentence-header-actions">
           <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
           <button class="back-link" type="button" data-install-sentence-curriculum ${curriculumStatus.missingCards ? "" : "disabled"}>${curriculumStatus.missingCards ? `Add structure curriculum · ${curriculumStatus.missingCards}` : "Structure curriculum added"}</button>
-          <button class="primary-button" type="button" data-review-all ${activeTotal ? "" : "disabled"}>Review All · ${activeTotal}</button>
+          <button class="primary-button" type="button" data-review-all ${remainingTodayTotal ? "" : "disabled"}>Review All · ${remainingTodayTotal} left</button>
         </div>
       </header>
       <section class="sentence-overview" aria-label="Sentence review summary">
         <div><strong>${decks.length}</strong><span>Decks</span></div>
-        <div><strong>${activeTotal}</strong><span>Active</span></div>
+        <div><strong>${reviewedTodayTotal}</strong><span>Done today</span></div>
+        <div><strong>${remainingTodayTotal}</strong><span>Left today</span></div>
         <div><strong>${queuedTotal}</strong><span>Queued</span></div>
-        <div><strong>${knownTotal}</strong><span>Known</span></div>
+        <div><strong>${knownTotal}</strong><span>Complete</span></div>
         <div><strong>${captureItems.filter((capture) => !window.OghamSentenceCore.isCaptureProcessed(state, capture.captureId)).length || "—"}</strong><span>To sort</span></div>
       </section>
       <form class="sentence-deck-create" data-sentence-deck-create>
         <label>
           <span>New deck</span>
           <input type="text" name="name" maxlength="80" placeholder="For example: Forms of manger" required>
-        </label>
-        <label>
-          <span>Suggest Known at</span>
-          <input type="number" name="threshold" min="1" max="1024" step="1" value="8" required>
         </label>
         <button class="primary-button" type="submit">Create deck</button>
         <p class="sentence-inline-status" data-sentence-deck-status aria-live="polite"></p>
@@ -5644,7 +5645,7 @@ function renderSentenceDecks() {
         ${decks.length ? decks.map((deck) => createSentenceDeckCard(state, deck)).join("") : `
           <article class="sentence-empty-card">
             <h2>Create your first deck</h2>
-            <p>Decks stay independent, and every active sentence is reviewed from the lowest mastery score upward.</p>
+            <p>Decks stay independent, and every active sentence is reviewed from the lowest correct streak upward.</p>
           </article>
         `}
       </section>
@@ -5665,6 +5666,9 @@ function renderSentenceDecks() {
   app.querySelectorAll("[data-review-known-deck]").forEach((button) => {
     button.addEventListener("click", () => setRoute(`sentence-review-known-${button.dataset.reviewKnownDeck}`));
   });
+  app.querySelectorAll("[data-review-today-deck]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`sentence-review-today-${button.dataset.reviewTodayDeck}`));
+  });
   app.querySelectorAll("[data-activate-sentence-batch]").forEach((button) => {
     button.addEventListener("click", () => {
       activateNextSentenceBatch(button.dataset.activateSentenceBatch);
@@ -5675,19 +5679,21 @@ function renderSentenceDecks() {
 }
 
 function createSentenceDeckCard(state, deck) {
-  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id);
+  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id, { dayKey: getSentenceTodayKey() });
+  const doneToday = stats.active > 0 && stats.remainingToday === 0;
+  const dailyPercent = stats.active ? Math.round((stats.reviewedToday / stats.active) * 100) : 0;
   const scores = window.OghamSentenceCore.activeCards(state)
     .filter((card) => card.deckId === deck.id && card.lifecycle === "active")
     .reduce((counts, card) => {
-      const label = formatMasteryScore(card.masteryScore);
+      const label = formatMasteryScore(card.masteryStreak);
       counts[label] = (counts[label] || 0) + 1;
       return counts;
     }, {});
   return `
-    <article class="sentence-deck-card">
+    <article class="sentence-deck-card ${doneToday ? "done-today" : ""}">
       <div class="sentence-deck-card-heading">
         <div>
-          <p class="booklet-kicker">Known suggestion · ${formatMasteryScore(deck.knownThreshold)}</p>
+          <p class="booklet-kicker">${doneToday ? "✓ Done today" : `${stats.remainingToday} left today`}</p>
           <h2>${escapeHtml(deck.name)}</h2>
         </div>
         <button class="back-link" type="button" data-open-sentence-deck="${escapeAttribute(deck.id)}">Manage</button>
@@ -5696,15 +5702,20 @@ function createSentenceDeckCard(state, deck) {
         <span><strong>${stats.active}</strong> active</span>
         <span><strong>${stats.queued}</strong> queued</span>
         <span><strong>${stats.known}</strong> known</span>
-        <span><strong>${stats.eligible}</strong> ready to mark</span>
+        <span><strong>${formatSentenceAverage(stats.averageMastery)}</strong> avg streak</span>
       </div>
-      <div class="sentence-score-strip" aria-label="Mastery score distribution">
+      <div class="sentence-daily-progress" aria-label="${stats.reviewedToday} of ${stats.active} sentences done today">
+        <span style="width:${dailyPercent}%"></span>
+      </div>
+      <p class="sentence-daily-copy">${stats.reviewedToday} of ${stats.active} done today · ${dailyPercent}%</p>
+      <div class="sentence-score-strip" aria-label="Correct streak distribution">
         ${Object.keys(scores).length ? Object.entries(scores).sort((a, b) => Number(a[0]) - Number(b[0])).map(([score, count]) => `<span>${escapeHtml(score)} · ${count}</span>`).join("") : `<span>No active sentences</span>`}
       </div>
       <div class="sentence-deck-actions">
-        <button class="primary-button" type="button" data-review-sentence-deck="${escapeAttribute(deck.id)}" ${stats.active ? "" : "disabled"}>Review deck</button>
+        <button class="primary-button" type="button" data-review-sentence-deck="${escapeAttribute(deck.id)}" ${stats.remainingToday ? "" : "disabled"}>${doneToday ? "✓ Done today" : `Review · ${stats.remainingToday} left`}</button>
+        <button class="back-link" type="button" data-review-today-deck="${escapeAttribute(deck.id)}" ${stats.reviewedToday ? "" : "disabled"}>Review done today</button>
         <button class="back-link" type="button" data-activate-sentence-batch="${escapeAttribute(deck.id)}" ${stats.queued ? "" : "disabled"}>Activate next ${Math.min(5, stats.queued)}</button>
-        <button class="text-button" type="button" data-review-known-deck="${escapeAttribute(deck.id)}" ${stats.known ? "" : "disabled"}>Review Known</button>
+        <button class="text-button" type="button" data-review-known-deck="${escapeAttribute(deck.id)}" ${stats.known ? "" : "disabled"}>Review Completed</button>
       </div>
     </article>
   `;
@@ -5717,7 +5728,7 @@ function handleSentenceDeckCreate(event) {
   try {
     const result = window.OghamSentenceCore.createDeck(getSentenceState(), {
       name: form.elements.name.value,
-      knownThreshold: form.elements.threshold.value
+      knownThreshold: 4
     });
     saveSentenceState(result.state);
     renderSentenceDecks();
@@ -5814,8 +5825,10 @@ function renderSentenceDeck(deckId, searchQuery = "") {
   const cards = window.OghamSentenceCore.activeCards(state)
     .filter((card) => card.deckId === deck.id)
     .filter((card) => !searchQuery || `${card.french} ${card.english} ${card.note}`.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase()))
-    .sort((left, right) => left.masteryScore - right.masteryScore || left.french.localeCompare(right.french));
-  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id);
+    .sort((left, right) => left.masteryStreak - right.masteryStreak || left.french.localeCompare(right.french));
+  const stats = window.OghamSentenceCore.getDeckStats(state, deck.id, { dayKey: getSentenceTodayKey() });
+  const doneToday = stats.active > 0 && stats.remainingToday === 0;
+  const dailyPercent = stats.active ? Math.round((stats.reviewedToday / stats.active) * 100) : 0;
 
   app.innerHTML = `
     <section class="shell sentence-shell">
@@ -5825,17 +5838,19 @@ function renderSentenceDeck(deckId, searchQuery = "") {
       </div>
       <header class="lesson-header sentence-page-header">
         <div>
-          <p class="booklet-kicker">${stats.active} active · ${stats.queued} queued · ${stats.known} known</p>
+          <p class="booklet-kicker">${doneToday ? "✓ Done today" : `${stats.remainingToday} left today`} · ${formatSentenceAverage(stats.averageMastery)} average streak</p>
           <h1>${escapeHtml(deck.name)}</h1>
+          <div class="sentence-daily-progress" aria-label="${stats.reviewedToday} of ${stats.active} sentences done today"><span style="width:${dailyPercent}%"></span></div>
+          <p class="sentence-daily-copy">${stats.reviewedToday} of ${stats.active} done today</p>
         </div>
         <div class="sentence-header-actions">
-          <button class="primary-button" type="button" data-review-current-deck ${stats.active ? "" : "disabled"}>Review deck</button>
+          <button class="primary-button" type="button" data-review-current-deck ${stats.remainingToday ? "" : "disabled"}>${doneToday ? "✓ Done today" : `Review · ${stats.remainingToday} left`}</button>
+          <button class="back-link" type="button" data-review-today-current ${stats.reviewedToday ? "" : "disabled"}>Review done today</button>
           <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
         </div>
       </header>
       <form class="sentence-deck-settings" data-sentence-deck-settings>
         <label><span>Deck name</span><input name="name" maxlength="80" value="${escapeAttribute(deck.name)}" required></label>
-        <label><span>Suggest Known at</span><input name="threshold" type="number" min="1" max="1024" step="1" value="${escapeAttribute(deck.knownThreshold)}" required></label>
         <button class="text-button" type="submit">Save settings</button>
         <button class="back-link capture-delete" type="button" data-delete-sentence-deck ${stats.total ? "disabled" : ""}>Delete empty deck</button>
         <p class="sentence-inline-status" data-sentence-deck-settings-status aria-live="polite"></p>
@@ -5843,7 +5858,7 @@ function renderSentenceDeck(deckId, searchQuery = "") {
       <div class="sentence-card-toolbar">
         <input type="search" data-sentence-card-search placeholder="Search this deck" value="${escapeAttribute(searchQuery)}">
         <button class="back-link" type="button" data-activate-next-batch ${stats.queued ? "" : "disabled"}>Activate next ${Math.min(5, stats.queued)}</button>
-        <button class="text-button" type="button" data-review-known-current ${stats.known ? "" : "disabled"}>Review Known</button>
+        <button class="text-button" type="button" data-review-known-current ${stats.known ? "" : "disabled"}>Review Completed</button>
       </div>
       <section class="sentence-card-list" aria-label="Sentences in ${escapeAttribute(deck.name)}">
         ${cards.length ? cards.map((card) => createSentenceManagementCard(state, deck, card)).join("") : `<article class="sentence-empty-card"><p>${searchQuery ? "No sentences match that search." : "Move a prepared sentence here from To Be Sorted."}</p></article>`}
@@ -5854,6 +5869,7 @@ function renderSentenceDeck(deckId, searchQuery = "") {
   app.querySelector("[data-sentence-decks-back]").addEventListener("click", () => setRoute("sentences"));
   app.querySelector("[data-open-sentence-inbox]").addEventListener("click", () => setRoute("capture"));
   app.querySelector("[data-review-current-deck]").addEventListener("click", () => setRoute(`sentence-review-${deck.id}`));
+  app.querySelector("[data-review-today-current]").addEventListener("click", () => setRoute(`sentence-review-today-${deck.id}`));
   app.querySelector("[data-review-known-current]").addEventListener("click", () => setRoute(`sentence-review-known-${deck.id}`));
   app.querySelector("[data-activate-next-batch]").addEventListener("click", () => {
     activateNextSentenceBatch(deck.id);
@@ -5873,7 +5889,6 @@ function renderSentenceDeck(deckId, searchQuery = "") {
 function createSentenceManagementCard(state, deck, card) {
   const editing = activeSentenceEditCardId === card.id;
   const decks = window.OghamSentenceCore.activeDecks(state);
-  const eligible = card.masteryScore >= deck.knownThreshold;
   if (editing) {
     return `
       <article class="sentence-management-card" data-sentence-card-id="${escapeAttribute(card.id)}">
@@ -5890,8 +5905,8 @@ function createSentenceManagementCard(state, deck, card) {
   return `
     <article class="sentence-management-card ${card.lifecycle}" data-sentence-card-id="${escapeAttribute(card.id)}">
       <div class="sentence-management-meta">
-        <span>Mastery ${formatMasteryScore(card.masteryScore)}</span>
-        <span>${card.lifecycle === "queued" ? "Queued · not yet in review" : card.lifecycle === "known" ? "Known" : eligible ? "Ready to mark Known" : "Active"}</span>
+        <span>Correct streak ${formatMasteryScore(card.masteryStreak)} / 4</span>
+        <span>${card.lifecycle === "queued" ? "Queued · not yet in review" : card.lifecycle === "known" ? "Complete" : card.lastReviewedDay === getSentenceTodayKey() ? "Done today" : "Ready today"}</span>
       </div>
       <p class="sentence-management-french" lang="fr">${escapeHtml(card.french)}</p>
       <p class="sentence-management-english">${escapeHtml(card.english)}</p>
@@ -5899,7 +5914,7 @@ function createSentenceManagementCard(state, deck, card) {
       <div class="capture-card-actions">
         <button class="back-link" type="button" data-sentence-card-speak>Play audio</button>
         <button class="back-link" type="button" data-sentence-card-edit>Edit or move</button>
-        ${card.lifecycle === "queued" ? `<button class="text-button" type="button" data-sentence-card-activate>Activate</button>` : `<button class="text-button" type="button" data-sentence-card-known>${card.lifecycle === "known" ? "Restore" : "Mark Known"}</button>`}
+        ${card.lifecycle === "queued" ? `<button class="text-button" type="button" data-sentence-card-activate>Activate</button>` : `<button class="text-button" type="button" data-sentence-card-known>${card.lifecycle === "known" ? "Restore to review" : "Mark complete"}</button>`}
         <button class="back-link capture-delete" type="button" data-sentence-card-delete>Delete</button>
       </div>
     </article>
@@ -5938,7 +5953,7 @@ function handleSentenceDeckSettings(event, deckId) {
   try {
     const result = window.OghamSentenceCore.updateDeck(getSentenceState(), deckId, {
       name: form.elements.name.value,
-      knownThreshold: form.elements.threshold.value
+      knownThreshold: 4
     });
     saveSentenceState(result.state);
     renderSentenceDeck(deckId);
@@ -6009,8 +6024,10 @@ function handleSentenceCardDelete(button, deckId, searchQuery) {
 }
 
 function renderSentenceReviewRoute(token) {
-  const knownOnly = token.startsWith("known-");
-  const deckId = knownOnly ? token.slice("known-".length) : token;
+  const mode = token.startsWith("known-") ? "known" : token.startsWith("today-") ? "today" : "daily";
+  const knownOnly = mode === "known";
+  const reviewedTodayOnly = mode === "today";
+  const deckId = knownOnly ? token.slice("known-".length) : reviewedTodayOnly ? token.slice("today-".length) : token;
   const state = getSentenceState();
   const deck = deckId === "all" ? null : window.OghamSentenceCore.activeDecks(state).find((item) => item.id === deckId);
   if (deckId !== "all" && !deck) {
@@ -6019,38 +6036,52 @@ function renderSentenceReviewRoute(token) {
   }
   if (!sentenceReviewSession || sentenceReviewSession.token !== token) {
     sentenceReviewSession = null;
-    const count = window.OghamSentenceCore.getReviewQueue(state, { deckId, knownOnly }).length;
+    const count = window.OghamSentenceCore.getReviewQueue(state, {
+      deckId,
+      knownOnly,
+      reviewedTodayOnly,
+      dayKey: getSentenceTodayKey()
+    }).length;
     app.innerHTML = `
       <section class="shell sentence-review-shell">
         <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-sentence-review-back>Back</button></div>
         <section class="sentence-review-start">
-          <p class="booklet-kicker">${knownOnly ? "Known check" : "Listening-first review"}</p>
+          <p class="booklet-kicker">${knownOnly ? "Completed check" : reviewedTodayOnly ? "Review again today" : "Today's listening review"}</p>
           <h1>${escapeHtml(deck?.name || "All Sentence Decks")}</h1>
-          <p>${count ? `${count} sentence${count === 1 ? "" : "s"} will play from the lowest mastery score upward.` : "There are no sentences in this review."}</p>
+          <p>${count ? `${count} sentence${count === 1 ? "" : "s"} will play from the lowest correct streak upward. Misses return at the end until you get them right.` : knownOnly ? "There are no completed sentences in this deck." : reviewedTodayOnly ? "You have not completed any sentences here today yet." : "Everything in this deck is done for today."}</p>
           ${createSentenceSpeedControls("Review speed")}
           <button class="primary-button" type="button" data-start-sentence-review ${count ? "" : "disabled"}>Start Review</button>
         </section>
       </section>
     `;
     app.querySelector("[data-sentence-review-back]").addEventListener("click", () => setRoute(deck ? `sentence-deck-${deck.id}` : "sentences"));
-    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, knownOnly));
+    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, { knownOnly, reviewedTodayOnly }));
     bindSentenceSpeedControls();
     return;
   }
   renderSentenceReviewPlayer();
 }
 
-function startSentenceReview(token, deckId, knownOnly) {
-  const queue = window.OghamSentenceCore.getReviewQueue(getSentenceState(), { deckId, knownOnly });
+function startSentenceReview(token, deckId, options = {}) {
+  const queue = window.OghamSentenceCore.getReviewQueue(getSentenceState(), {
+    deckId,
+    knownOnly: options.knownOnly,
+    reviewedTodayOnly: options.reviewedTodayOnly,
+    dayKey: getSentenceTodayKey()
+  });
   sentenceReviewSession = {
     token,
     deckId,
-    knownOnly,
+    knownOnly: Boolean(options.knownOnly),
+    reviewedTodayOnly: Boolean(options.reviewedTodayOnly),
     cardIds: queue.map((card) => card.id),
+    initialTotal: queue.length,
+    passedCardIds: [],
     index: 0,
     phase: "audio",
     ratings: { missed: 0, neutral: 0, understood: 0 },
-    eligible: 0
+    attempts: 0,
+    completed: 0
   };
   renderSentenceReviewPlayer();
   window.requestAnimationFrame(playCurrentSentenceReviewAudio);
@@ -6067,16 +6098,21 @@ function renderSentenceReviewPlayer() {
   const deck = window.OghamSentenceCore.activeDecks(state).find((item) => item.id === card.deckId);
   const frenchVisible = ["french", "english"].includes(session.phase);
   const englishVisible = session.phase === "english";
+  const cleared = session.passedCardIds.length;
+  const leftToClear = Math.max(0, session.initialTotal - cleared);
+  const attemptsQueued = Math.max(1, session.cardIds.length - session.index);
+  const progressPercent = session.initialTotal ? (cleared / session.initialTotal) * 100 : 100;
 
   app.innerHTML = `
     <section class="shell sentence-review-shell">
       <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-exit-sentence-review>Exit review</button></div>
       <header class="sentence-review-progress">
-        <div><span>${session.index + 1} / ${session.cardIds.length}</span><strong>${escapeHtml(deck?.name || "Sentence deck")}</strong></div>
-        <div class="sentence-review-progress-track"><span style="width:${((session.index + 1) / session.cardIds.length) * 100}%"></span></div>
-        <span>Mastery ${formatMasteryScore(card.masteryScore)}</span>
+        <div><span>${leftToClear} to clear · ${attemptsQueued} queued</span><strong>${escapeHtml(deck?.name || "Sentence deck")}</strong></div>
+        <div class="sentence-review-progress-track"><span style="width:${progressPercent}%"></span></div>
+        <span>Correct streak ${formatMasteryScore(card.masteryStreak)} / 4${session.cardIds.indexOf(card.id) < session.index ? " · Relearn" : ""}</span>
       </header>
       <article class="sentence-review-card ${session.phase === "audio" ? "entering" : ""}" data-sentence-review-card="${escapeAttribute(card.id)}">
+        ${session.knownOnly ? "" : `<button class="sentence-complete-button" type="button" data-sentence-mark-known title="Remove this sentence from future review queues">✓ Complete</button>`}
         <div class="sentence-review-audio">
           <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio">&#9654;</button>
           <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
@@ -6097,13 +6133,13 @@ function renderSentenceReviewPlayer() {
             ${card.note ? `<details class="sentence-review-note"><summary>Grammar note</summary><p>${escapeHtml(card.note)}</p></details>` : ""}
             <p class="sentence-rating-prompt">Rate your original audio-only understanding</p>
             <div class="sentence-rating-buttons">
-              <button class="sentence-rating missed" type="button" data-sentence-rating="missed" aria-pressed="false"><strong>×</strong><span>Missed · halve</span></button>
-              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral" aria-pressed="false"><strong>●</strong><span>Neutral · keep</span></button>
-              <button class="sentence-rating understood" type="button" data-sentence-rating="understood" aria-pressed="false"><strong>✓</strong><span>Understood · double</span></button>
+              <button class="sentence-rating missed" type="button" data-sentence-rating="missed" aria-pressed="false"><strong>×</strong><span>Missed · reset to 0</span><kbd>Z</kbd></button>
+              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral" aria-pressed="false"><strong>●</strong><span>Unsure · keep streak</span><kbd>X</kbd></button>
+              <button class="sentence-rating understood" type="button" data-sentence-rating="understood" aria-pressed="false"><strong>✓</strong><span>Correct · streak +1</span><kbd>C</kbd></button>
             </div>
-            ${card.masteryScore >= (deck?.knownThreshold || 8) ? `<button class="text-button" type="button" data-sentence-mark-known>Mark Known</button>` : ""}
           `}
         </div>
+        <div class="sentence-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>Space</kbd> reveal</span><span><kbd>S</kbd> replay</span><span><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> rate</span></div>
       </article>
     </section>
   `;
@@ -6133,11 +6169,17 @@ function handleSentenceReviewRating(rating, button) {
   app.querySelector("[data-sentence-review-card]")?.classList.add(`rating-${rating}`);
   window.setTimeout(() => {
     if (sentenceReviewSession !== session) return;
-    const before = window.OghamSentenceCore.activeCards(getSentenceState()).find((card) => card.id === cardId);
-    const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, { reviewingKnown: session.knownOnly });
-    const deck = window.OghamSentenceCore.activeDecks(result.state).find((item) => item.id === result.card.deckId);
-    if (before && before.masteryScore < (deck?.knownThreshold || 8) && result.card.masteryScore >= (deck?.knownThreshold || 8)) session.eligible += 1;
+    const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, {
+      reviewingKnown: session.knownOnly,
+      dayKey: getSentenceTodayKey()
+    });
     session.ratings[rating] += 1;
+    session.attempts += 1;
+    if (rating === "understood") {
+      if (!session.passedCardIds.includes(cardId)) session.passedCardIds.push(cardId);
+    } else {
+      session.cardIds.push(cardId);
+    }
     saveSentenceState(result.state);
     session.index += 1;
     session.phase = "audio";
@@ -6150,9 +6192,13 @@ function handleSentenceReviewRating(rating, button) {
 function handleSentenceReviewKnown() {
   const session = sentenceReviewSession;
   const cardId = session?.cardIds[session.index];
-  if (!cardId) return;
+  if (!cardId || session.ratingPending) return;
+  stopSentenceSpeech();
   const result = window.OghamSentenceCore.setKnown(getSentenceState(), cardId, true);
   saveSentenceState(result.state);
+  if (!session.passedCardIds.includes(cardId)) session.passedCardIds.push(cardId);
+  session.completed += 1;
+  session.cardIds = session.cardIds.filter((id, index) => index <= session.index || id !== cardId);
   session.index += 1;
   session.phase = "audio";
   renderSentenceReviewPlayer();
@@ -6171,12 +6217,13 @@ function renderSentenceReviewComplete() {
       <div class="topbar">${createBrandMarkup()}</div>
       <section class="sentence-review-complete">
         <p class="booklet-kicker">Session complete</p>
-        <h1>${session.cardIds.length} sentence${session.cardIds.length === 1 ? "" : "s"} reviewed</h1>
+        <h1>${session.initialTotal} sentence${session.initialTotal === 1 ? "" : "s"} cleared</h1>
+        <p>Every missed or unsure sentence was repeated until you marked it correct.</p>
         <div class="sentence-session-results">
           <span><strong>${session.ratings.missed}</strong> Missed</span>
-          <span><strong>${session.ratings.neutral}</strong> Neutral</span>
-          <span><strong>${session.ratings.understood}</strong> Understood</span>
-          <span><strong>${session.eligible}</strong> Newly eligible for Known</span>
+          <span><strong>${session.ratings.neutral}</strong> Unsure</span>
+          <span><strong>${session.ratings.understood}</strong> Correct</span>
+          <span><strong>${session.completed}</strong> Marked complete</span>
         </div>
         <button class="primary-button" type="button" data-finish-sentence-review>Finish</button>
       </section>
@@ -6278,8 +6325,43 @@ function stopSentenceSpeech() {
 }
 
 function formatMasteryScore(value) {
-  const number = Number(value) || 0;
-  return Number.isInteger(number) ? String(number) : String(Math.round(number * 100) / 100);
+  return String(Math.max(0, Math.min(4, Math.floor(Number(value) || 0))));
+}
+
+function formatSentenceAverage(value) {
+  return `${(Math.round((Number(value) || 0) * 10) / 10).toFixed(1)} / 4`;
+}
+
+function getSentenceTodayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function handleSentenceReviewShortcut(event) {
+  const session = sentenceReviewSession;
+  if (!session || event.altKey || event.ctrlKey || event.metaKey || isEditableSentenceShortcutTarget(event.target)) return;
+  const key = event.key.toLocaleLowerCase();
+  if (key === "s") {
+    event.preventDefault();
+    playCurrentSentenceReviewAudio();
+    return;
+  }
+  if ((event.key === " " || event.code === "Space") && session.phase !== "english") {
+    event.preventDefault();
+    app.querySelector(session.phase === "audio" ? "[data-sentence-reveal-french]" : "[data-sentence-reveal-english]")?.click();
+    return;
+  }
+  if (session.phase !== "english") return;
+  const rating = { z: "missed", x: "neutral", c: "understood" }[key];
+  if (!rating) return;
+  event.preventDefault();
+  app.querySelector(`[data-sentence-rating="${rating}"]`)?.click();
+}
+
+function isEditableSentenceShortcutTarget(target) {
+  return target instanceof Element && Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
 function renderCapture() {
@@ -9792,6 +9874,7 @@ window.addEventListener("hashchange", async () => {
   }
   render();
 });
+document.addEventListener("keydown", handleSentenceReviewShortcut);
 window.addEventListener("visibilitychange", () => {
   const route = window.location.hash.replace("#", "");
   if (document.visibilityState === "hidden" && getCurrentUser() && (fullAppDataReady || route.startsWith("sentence")) && route !== "capture") {

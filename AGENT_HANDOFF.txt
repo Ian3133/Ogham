@@ -51,6 +51,9 @@ Recent behavior changes
 -----------------------
 - Sentence Decks include 10 built-in structure decks and 256 curriculum cards. All 256 have permanent Léa fr-FR generative recordings at s3://ogham-content-ian-423575705842-us-east-1-an/sentence-audio/v1/.
 - Sentence review and deck management prefer the permanent MP3 and fall back to browser speech for personal or edited sentences. Review speed choices are 1x, 0.8x, and 0.6x and persist locally.
+- Sentence mastery is a 0-4 consecutive-correct streak. A miss resets it to 0, unsure preserves it, correct adds one up to 4, and legacy doubling scores migrate onto the new scale.
+- Normal deck queues exclude sentences already rated on the user's local calendar day. Deck cards show done/remaining counts, a daily progress bar, average streak, and a check when the deck is done; Review done today remains available.
+- Missed and unsure cards are appended to the end of the current review until answered correctly. The small Complete action permanently removes a card from normal queues, and review shortcuts are Space (reveal), S (replay), and Z/X/C (missed/unsure/correct).
 - Lesson page has one Test button instead of Part 1 / Part 2 buttons.
 - Test button unlocks after the final story audio finishes.
 - Part 1 starts with an intro modal over question 1; closing it starts the first test audio.
