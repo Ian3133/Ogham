@@ -45,7 +45,23 @@ assert(core.activeCards(state)[0].masteryStreak === 4, "Understood did not stop 
 assert(core.activeCards(state)[0].masteryStreak === 4, "Neutral changed the streak");
 ({ state } = core.rateCard(state, "card-1", "missed", { dayKey: "2026-09-26", now: "2026-09-26T12:09:00Z" }));
 assert(core.activeCards(state)[0].masteryStreak === 0, "Missed did not reset the streak");
+const reviewCountBeforeCorrection = core.activeCards(state)[0].reviewCount;
+({ state } = core.rateCard(state, "card-1", "understood", {
+  baseMasteryStreak: 4,
+  replaceExisting: true,
+  dayKey: "2026-09-26",
+  now: "2026-09-26T12:09:30Z"
+}));
+assert(core.activeCards(state)[0].masteryStreak === 4, "Corrected rating did not recalculate from the session starting streak");
+assert(core.activeCards(state)[0].reviewCount === reviewCountBeforeCorrection, "Corrected rating counted as another review");
+({ state } = core.rateCard(state, "card-1", "missed", {
+  baseMasteryStreak: 4,
+  replaceExisting: true,
+  dayKey: "2026-09-26",
+  now: "2026-09-26T12:09:45Z"
+}));
 assert(core.getReviewQueue(state, { deckId: "deck-1", dayKey: "2026-09-26" }).length === 0, "Reviewed card returned to today's normal queue");
+assert(core.getReviewQueue(state, { deckId: "deck-1", dayKey: "2026-09-26", includeReviewedToday: true }).length === 1, "Whole-deck queue did not include a card reviewed today");
 assert(core.getReviewQueue(state, { deckId: "deck-1", dayKey: "2026-09-26", reviewedTodayOnly: true }).length === 1, "Review-again queue missed today's card");
 assert(core.getReviewQueue(state, { deckId: "deck-1", dayKey: "2026-09-27" }).length === 1, "Reviewed card did not return on the next day");
 

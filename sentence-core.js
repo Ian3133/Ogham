@@ -174,11 +174,14 @@
     const index = current.cards.findIndex((card) => card.id === cardId && !card.deletedAt);
     if (index < 0) throw new Error("Sentence not found.");
     const card = current.cards[index];
+    const startingStreak = options.baseMasteryStreak === undefined
+      ? card.masteryStreak
+      : normalizeMasteryStreak(options.baseMasteryStreak);
     const nextScore = rating === "missed"
       ? 0
       : rating === "understood"
-        ? Math.min(maximumMasteryStreak, card.masteryStreak + 1)
-        : card.masteryStreak;
+        ? Math.min(maximumMasteryStreak, startingStreak + 1)
+        : startingStreak;
     const timestamp = getTimestamp(options.now);
     current.cards[index] = normalizeCard({
       ...card,
@@ -188,7 +191,7 @@
       lastRating: rating,
       lastReviewedAt: timestamp,
       lastReviewedDay: normalizeDayKey(options.dayKey) || timestamp.slice(0, 10),
-      reviewCount: card.reviewCount + 1,
+      reviewCount: card.reviewCount + (options.replaceExisting ? 0 : 1),
       updatedAt: timestamp
     });
     return { state: current, card: current.cards[index] };

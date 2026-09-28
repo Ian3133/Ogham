@@ -1194,6 +1194,8 @@ let activeSentenceEditCardId = "";
 let sentenceBulkOpen = false;
 let sentenceCloudLoadPromise = null;
 let sentenceReviewSession = null;
+let sentenceReviewScope = "due";
+let sentenceReviewScopeToken = "";
 let currentSentenceAudio = null;
 let captureListMessage = "Loading captures...";
 const captureModule = window.OghamCaptureCore.createCaptureModule({
@@ -6023,6 +6025,32 @@ function handleSentenceCardDelete(button, deckId, searchQuery) {
   renderAccountControls();
 }
 
+function getSentenceReviewScopeDetails(scope = "due") {
+  const scopes = {
+    due: { label: "Today's remaining", description: "cards you have not reviewed today" },
+    all: { label: "Whole deck", description: "every active card in the deck" },
+    "below-2": { label: "Below 2", description: "active cards with a correct streak below 2" },
+    "below-3": { label: "Below 3", description: "active cards with a correct streak below 3" },
+    "below-4": { label: "Below 4", description: "active cards with a correct streak below 4" }
+  };
+  return scopes[scope] || scopes.due;
+}
+
+function getSentenceReviewQueueForScope(state, options = {}) {
+  const scope = options.scope || "due";
+  const threshold = scope.startsWith("below-") ? Number(scope.slice("below-".length)) : null;
+  const queue = window.OghamSentenceCore.getReviewQueue(state, {
+    deckId: options.deckId,
+    knownOnly: options.knownOnly,
+    reviewedTodayOnly: options.reviewedTodayOnly,
+    includeReviewedToday: !options.knownOnly && !options.reviewedTodayOnly && scope !== "due",
+    dayKey: getSentenceTodayKey()
+  });
+  return Number.isFinite(threshold)
+    ? queue.filter((card) => card.masteryStreak < threshold)
+    : queue;
+}
+
 function renderSentenceReviewRoute(token) {
   const mode = token.startsWith("known-") ? "known" : token.startsWith("today-") ? "today" : "daily";
   const knownOnly = mode === "known";
@@ -6036,11 +6064,17 @@ function renderSentenceReviewRoute(token) {
   }
   if (!sentenceReviewSession || sentenceReviewSession.token !== token) {
     sentenceReviewSession = null;
-    const count = window.OghamSentenceCore.getReviewQueue(state, {
+    if (sentenceReviewScopeToken !== token) {
+      sentenceReviewScopeToken = token;
+      sentenceReviewScope = "due";
+    }
+    const scope = mode === "daily" ? sentenceReviewScope : "due";
+    const scopeDetails = getSentenceReviewScopeDetails(scope);
+    const count = getSentenceReviewQueueForScope(state, {
       deckId,
       knownOnly,
       reviewedTodayOnly,
-      dayKey: getSentenceTodayKey()
+      scope
     }).length;
     app.innerHTML = `
       <section class="shell sentence-review-shell">
@@ -6048,14 +6082,27 @@ function renderSentenceReviewRoute(token) {
         <section class="sentence-review-start">
           <p class="booklet-kicker">${knownOnly ? "Completed check" : reviewedTodayOnly ? "Review again today" : "Today's listening review"}</p>
           <h1>${escapeHtml(deck?.name || "All Sentence Decks")}</h1>
-          <p>${count ? `${count} sentence${count === 1 ? "" : "s"} will play from the lowest correct streak upward. Misses return at the end until you get them right.` : knownOnly ? "There are no completed sentences in this deck." : reviewedTodayOnly ? "You have not completed any sentences here today yet." : "Everything in this deck is done for today."}</p>
+          ${mode === "daily" ? `
+            <div class="sentence-review-scope" role="group" aria-label="Choose which sentences to review">
+              ${["due", "all", "below-2", "below-3", "below-4"].map((value) => `
+                <button type="button" data-sentence-review-scope="${value}" class="${scope === value ? "active" : ""}" aria-pressed="${scope === value}">${escapeHtml(getSentenceReviewScopeDetails(value).label)}</button>
+              `).join("")}
+            </div>
+          ` : ""}
+          <p>${count ? `${count} sentence${count === 1 ? "" : "s"} — ${escapeHtml(scopeDetails.description)}. The first pass shows each once; mistakes then repeat in a separate review until correct.` : knownOnly ? "There are no completed sentences in this deck." : reviewedTodayOnly ? "You have not completed any sentences here today yet." : scope === "due" ? "Everything in this deck is done for today." : `There are no ${escapeHtml(scopeDetails.description)}.`}</p>
           ${createSentenceSpeedControls("Review speed")}
           <button class="primary-button" type="button" data-start-sentence-review ${count ? "" : "disabled"}>Start Review</button>
         </section>
       </section>
     `;
     app.querySelector("[data-sentence-review-back]").addEventListener("click", () => setRoute(deck ? `sentence-deck-${deck.id}` : "sentences"));
-    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, { knownOnly, reviewedTodayOnly }));
+    app.querySelectorAll("[data-sentence-review-scope]").forEach((button) => {
+      button.addEventListener("click", () => {
+        sentenceReviewScope = button.dataset.sentenceReviewScope;
+        renderSentenceReviewRoute(token);
+      });
+    });
+    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, { knownOnly, reviewedTodayOnly, scope }));
     bindSentenceSpeedControls();
     return;
   }
@@ -6063,25 +6110,35 @@ function renderSentenceReviewRoute(token) {
 }
 
 function startSentenceReview(token, deckId, options = {}) {
-  const queue = window.OghamSentenceCore.getReviewQueue(getSentenceState(), {
+  const queue = getSentenceReviewQueueForScope(getSentenceState(), {
     deckId,
     knownOnly: options.knownOnly,
     reviewedTodayOnly: options.reviewedTodayOnly,
-    dayKey: getSentenceTodayKey()
+    scope: options.scope
   });
   sentenceReviewSession = {
     token,
     deckId,
     knownOnly: Boolean(options.knownOnly),
     reviewedTodayOnly: Boolean(options.reviewedTodayOnly),
-    cardIds: queue.map((card) => card.id),
+    reviewScope: options.scope || "due",
+    stage: "first-pass",
+    firstPassCardIds: queue.map((card) => card.id),
     initialTotal: queue.length,
-    passedCardIds: [],
+    baseStreaks: Object.fromEntries(queue.map((card) => [card.id, card.masteryStreak])),
+    originalLifecycles: Object.fromEntries(queue.map((card) => [card.id, card.lifecycle])),
+    answers: {},
+    completedCardIds: [],
     index: 0,
+    furthestIndex: 0,
     phase: "audio",
-    ratings: { missed: 0, neutral: 0, understood: 0 },
-    attempts: 0,
-    completed: 0
+    mistakeCardIds: [],
+    relearnCardIds: [],
+    relearnRemainingCardIds: [],
+    relearnIndex: 0,
+    relearnRatings: { missed: 0, neutral: 0, understood: 0 },
+    endedEarly: false,
+    ratingPending: false
   };
   renderSentenceReviewPlayer();
   window.requestAnimationFrame(playCurrentSentenceReviewAudio);
@@ -6089,8 +6146,13 @@ function startSentenceReview(token, deckId, options = {}) {
 
 function renderSentenceReviewPlayer() {
   const session = sentenceReviewSession;
+  if (session?.stage === "transition") {
+    renderSentenceRelearnTransition();
+    return;
+  }
   const state = getSentenceState();
-  const card = window.OghamSentenceCore.activeCards(state).find((item) => item.id === session?.cardIds[session.index]);
+  const cardId = getCurrentSentenceReviewCardId(session);
+  const card = window.OghamSentenceCore.activeCards(state).find((item) => item.id === cardId);
   if (!session || !card) {
     renderSentenceReviewComplete();
     return;
@@ -6098,23 +6160,40 @@ function renderSentenceReviewPlayer() {
   const deck = window.OghamSentenceCore.activeDecks(state).find((item) => item.id === card.deckId);
   const frenchVisible = ["french", "english"].includes(session.phase);
   const englishVisible = session.phase === "english";
-  const cleared = session.passedCardIds.length;
-  const leftToClear = Math.max(0, session.initialTotal - cleared);
-  const attemptsQueued = Math.max(1, session.cardIds.length - session.index);
-  const progressPercent = session.initialTotal ? (cleared / session.initialTotal) * 100 : 100;
+  const isFirstPass = session.stage === "first-pass";
+  const answeredCount = new Set([...Object.keys(session.answers), ...session.completedCardIds]).size;
+  const relearnRemaining = session.relearnRemainingCardIds.length;
+  const progressPercent = isFirstPass
+    ? (session.initialTotal ? (answeredCount / session.initialTotal) * 100 : 100)
+    : (session.mistakeCardIds.length ? ((session.mistakeCardIds.length - relearnRemaining) / session.mistakeCardIds.length) * 100 : 100);
+  const canGoBack = isFirstPass && session.index > 0;
+  const canGoForward = isFirstPass && session.index < session.furthestIndex;
+  const cardComplete = card.lifecycle === "known" && !session.knownOnly;
+  const currentAnswer = isFirstPass ? session.answers[card.id] || "" : "";
 
   app.innerHTML = `
     <section class="shell sentence-review-shell">
-      <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-exit-sentence-review>Exit review</button></div>
+      <div class="topbar">
+        ${createBrandMarkup()}
+        <div class="sentence-review-top-actions">
+          ${isFirstPass ? `<button class="text-button" type="button" data-sentence-review-early-exit>End early · review mistakes</button>` : ""}
+          <button class="back-link" type="button" data-exit-sentence-review>Leave review</button>
+        </div>
+      </div>
       <header class="sentence-review-progress">
-        <div><span>${leftToClear} to clear · ${attemptsQueued} queued</span><strong>${escapeHtml(deck?.name || "Sentence deck")}</strong></div>
+        <div><span>${isFirstPass ? `${answeredCount} / ${session.initialTotal} first pass` : `${relearnRemaining} mistake${relearnRemaining === 1 ? "" : "s"} left`}</span><strong>${escapeHtml(deck?.name || "Sentence deck")}</strong></div>
         <div class="sentence-review-progress-track"><span style="width:${progressPercent}%"></span></div>
-        <span>Correct streak ${formatMasteryScore(card.masteryStreak)} / 4${session.cardIds.indexOf(card.id) < session.index ? " · Relearn" : ""}</span>
+        <span>Correct streak ${formatMasteryScore(card.masteryStreak)} / 4 · ${isFirstPass ? "First pass" : "Mistake review"}</span>
       </header>
       <article class="sentence-review-card ${session.phase === "audio" ? "entering" : ""}" data-sentence-review-card="${escapeAttribute(card.id)}">
-        ${session.knownOnly ? "" : `<button class="sentence-complete-button" type="button" data-sentence-mark-known title="Remove this sentence from future review queues">✓ Complete</button>`}
+        ${session.knownOnly || cardComplete ? "" : `<button class="sentence-complete-button" type="button" data-sentence-mark-known title="Remove this sentence from future review queues">✓ Complete</button>`}
+        <div class="sentence-review-navigation" aria-label="Review navigation">
+          <button class="back-link" type="button" data-sentence-previous ${canGoBack ? "" : "disabled"}><kbd>A</kbd> Previous</button>
+          <span>${isFirstPass ? `Card ${session.index + 1} of ${session.initialTotal}` : `Mistake ${Math.min(session.relearnIndex + 1, session.relearnCardIds.length)} of ${session.relearnCardIds.length}`}</span>
+          <button class="back-link" type="button" data-sentence-next ${canGoForward ? "" : "disabled"}>Next <kbd>D</kbd></button>
+        </div>
         <div class="sentence-review-audio">
-          <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio">&#9654;</button>
+          <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio"><span>&#9654;</span><kbd>Q</kbd></button>
           <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
           ${createSentenceSpeedControls("Speed")}
         </div>
@@ -6129,38 +6208,48 @@ function renderSentenceReviewPlayer() {
           </section>
         </div>
         <div class="sentence-review-controls">
-          ${!frenchVisible ? `<button class="primary-button" type="button" data-sentence-reveal-french>Reveal French</button>` : !englishVisible ? `<button class="primary-button" type="button" data-sentence-reveal-english>Reveal English</button>` : `
+          ${cardComplete ? `<p class="sentence-rating-prompt sentence-complete-status">✓ This sentence is marked complete.</p>` : !frenchVisible ? `
+            <div class="sentence-reveal-actions">
+              <button class="primary-button" type="button" data-sentence-reveal-french>Reveal French <kbd>S</kbd></button>
+              <button class="back-link" type="button" data-sentence-reveal-both>Reveal both <kbd>X</kbd></button>
+            </div>
+          ` : !englishVisible ? `
+            <div class="sentence-reveal-actions">
+              <button class="primary-button" type="button" data-sentence-reveal-english>Reveal English <kbd>Space</kbd></button>
+              <button class="back-link" type="button" data-sentence-reveal-both>Reveal both <kbd>X</kbd></button>
+            </div>
+          ` : `
             ${card.note ? `<details class="sentence-review-note"><summary>Grammar note</summary><p>${escapeHtml(card.note)}</p></details>` : ""}
             <p class="sentence-rating-prompt">Rate your original audio-only understanding</p>
             <div class="sentence-rating-buttons">
-              <button class="sentence-rating missed" type="button" data-sentence-rating="missed" aria-pressed="false"><strong>×</strong><span>Missed · reset to 0</span><kbd>Z</kbd></button>
-              <button class="sentence-rating neutral" type="button" data-sentence-rating="neutral" aria-pressed="false"><strong>●</strong><span>Unsure · keep streak</span><kbd>X</kbd></button>
-              <button class="sentence-rating understood" type="button" data-sentence-rating="understood" aria-pressed="false"><strong>✓</strong><span>Correct · streak +1</span><kbd>C</kbd></button>
+              <button class="sentence-rating missed ${currentAnswer === "missed" ? "selected" : ""}" type="button" data-sentence-rating="missed" aria-pressed="${currentAnswer === "missed"}"><strong>×</strong><span>Wrong · reset to 0</span><kbd>W</kbd></button>
+              <button class="sentence-rating neutral ${currentAnswer === "neutral" ? "selected" : ""}" type="button" data-sentence-rating="neutral" aria-pressed="${currentAnswer === "neutral"}"><strong>●</strong><span>Unsure · keep streak</span><kbd>E</kbd></button>
+              <button class="sentence-rating understood ${currentAnswer === "understood" ? "selected" : ""}" type="button" data-sentence-rating="understood" aria-pressed="${currentAnswer === "understood"}"><strong>✓</strong><span>Correct · streak +1</span><kbd>R</kbd></button>
             </div>
           `}
+          ${cardComplete ? "" : `<button class="sentence-quick-correct" type="button" data-sentence-quick-correct>Correct &amp; next without revealing <kbd>T</kbd></button>`}
         </div>
-        <div class="sentence-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>Space</kbd> reveal</span><span><kbd>S</kbd> replay</span><span><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd> rate</span></div>
+        <div class="sentence-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>Q</kbd> audio</span><span><kbd>Space</kbd> next reveal</span><span><kbd>S</kbd> French</span><span><kbd>X</kbd> both</span><span><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> rate</span><span><kbd>T</kbd> quick correct</span></div>
       </article>
     </section>
   `;
   app.querySelector("[data-exit-sentence-review]").addEventListener("click", exitSentenceReview);
+  app.querySelector("[data-sentence-review-early-exit]")?.addEventListener("click", () => finishSentenceFirstPass(true));
   app.querySelector("[data-sentence-replay]").addEventListener("click", playCurrentSentenceReviewAudio);
+  app.querySelector("[data-sentence-previous]").addEventListener("click", () => moveSentenceReviewHistory(-1));
+  app.querySelector("[data-sentence-next]").addEventListener("click", () => moveSentenceReviewHistory(1));
   bindSentenceSpeedControls();
-  app.querySelector("[data-sentence-reveal-french]")?.addEventListener("click", () => {
-    session.phase = "french";
-    renderSentenceReviewPlayer();
-  });
-  app.querySelector("[data-sentence-reveal-english]")?.addEventListener("click", () => {
-    session.phase = "english";
-    renderSentenceReviewPlayer();
-  });
+  app.querySelector("[data-sentence-reveal-french]")?.addEventListener("click", revealCurrentSentenceFrench);
+  app.querySelector("[data-sentence-reveal-english]")?.addEventListener("click", revealCurrentSentenceEnglish);
+  app.querySelector("[data-sentence-reveal-both]")?.addEventListener("click", revealCurrentSentenceBoth);
   app.querySelectorAll("[data-sentence-rating]").forEach((button) => button.addEventListener("click", () => handleSentenceReviewRating(button.dataset.sentenceRating, button)));
+  app.querySelector("[data-sentence-quick-correct]")?.addEventListener("click", (event) => handleSentenceReviewRating("understood", event.currentTarget));
   app.querySelector("[data-sentence-mark-known]")?.addEventListener("click", handleSentenceReviewKnown);
 }
 
 function handleSentenceReviewRating(rating, button) {
   const session = sentenceReviewSession;
-  const cardId = session?.cardIds[session.index];
+  const cardId = getCurrentSentenceReviewCardId(session);
   if (!cardId || session.ratingPending || !["missed", "neutral", "understood"].includes(rating)) return;
   session.ratingPending = true;
   stopSentenceSpeech();
@@ -6169,37 +6258,170 @@ function handleSentenceReviewRating(rating, button) {
   app.querySelector("[data-sentence-review-card]")?.classList.add(`rating-${rating}`);
   window.setTimeout(() => {
     if (sentenceReviewSession !== session) return;
-    const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, {
-      reviewingKnown: session.knownOnly,
-      dayKey: getSentenceTodayKey()
-    });
-    session.ratings[rating] += 1;
-    session.attempts += 1;
-    if (rating === "understood") {
-      if (!session.passedCardIds.includes(cardId)) session.passedCardIds.push(cardId);
-    } else {
-      session.cardIds.push(cardId);
-    }
-    saveSentenceState(result.state);
-    session.index += 1;
-    session.phase = "audio";
     session.ratingPending = false;
-    renderSentenceReviewPlayer();
-    window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+    if (session.stage === "first-pass") applySentenceFirstPassRating(cardId, rating);
+    else applySentenceRelearnRating(cardId, rating);
   }, 320);
 }
 
 function handleSentenceReviewKnown() {
   const session = sentenceReviewSession;
-  const cardId = session?.cardIds[session.index];
+  const cardId = getCurrentSentenceReviewCardId(session);
   if (!cardId || session.ratingPending) return;
   stopSentenceSpeech();
   const result = window.OghamSentenceCore.setKnown(getSentenceState(), cardId, true);
   saveSentenceState(result.state);
-  if (!session.passedCardIds.includes(cardId)) session.passedCardIds.push(cardId);
-  session.completed += 1;
-  session.cardIds = session.cardIds.filter((id, index) => index <= session.index || id !== cardId);
+  if (!session.completedCardIds.includes(cardId)) session.completedCardIds.push(cardId);
+  if (session.stage === "first-pass") advanceSentenceFirstPass();
+  else {
+    session.relearnRemainingCardIds = session.relearnRemainingCardIds.filter((id) => id !== cardId);
+    session.relearnCardIds = session.relearnCardIds.filter((id, index) => index <= session.relearnIndex || id !== cardId);
+    advanceSentenceRelearn();
+  }
+}
+
+function getCurrentSentenceReviewCardId(session = sentenceReviewSession) {
+  if (!session) return "";
+  return session.stage === "relearn"
+    ? session.relearnCardIds[session.relearnIndex] || ""
+    : session.firstPassCardIds[session.index] || "";
+}
+
+function revealCurrentSentenceFrench() {
+  if (!sentenceReviewSession || sentenceReviewSession.stage === "transition") return;
+  sentenceReviewSession.phase = "french";
+  renderSentenceReviewPlayer();
+}
+
+function revealCurrentSentenceEnglish() {
+  if (!sentenceReviewSession || sentenceReviewSession.stage === "transition") return;
+  sentenceReviewSession.phase = "english";
+  renderSentenceReviewPlayer();
+}
+
+function revealCurrentSentenceBoth() {
+  revealCurrentSentenceEnglish();
+}
+
+function moveSentenceReviewHistory(direction) {
+  const session = sentenceReviewSession;
+  if (!session || session.stage !== "first-pass" || session.ratingPending) return;
+  const nextIndex = session.index + direction;
+  if (nextIndex < 0 || nextIndex > session.furthestIndex) return;
+  stopSentenceSpeech();
+  session.index = nextIndex;
+  const cardId = session.firstPassCardIds[nextIndex];
+  session.phase = session.answers[cardId] || session.completedCardIds.includes(cardId) ? "english" : "audio";
+  renderSentenceReviewPlayer();
+  if (session.phase === "audio") window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function applySentenceFirstPassRating(cardId, rating) {
+  const session = sentenceReviewSession;
+  const previousRating = session.answers[cardId];
+  let result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, {
+    baseMasteryStreak: session.baseStreaks[cardId],
+    replaceExisting: Boolean(previousRating),
+    reviewingKnown: session.knownOnly && !previousRating,
+    dayKey: getSentenceTodayKey()
+  });
+  if (session.originalLifecycles[cardId] === "known" && rating !== "missed") {
+    result = window.OghamSentenceCore.setKnown(result.state, cardId, true);
+  }
+  session.answers[cardId] = rating;
+  saveSentenceState(result.state);
+  advanceSentenceFirstPass();
+}
+
+function advanceSentenceFirstPass() {
+  const session = sentenceReviewSession;
+  if (!session || session.stage !== "first-pass") return;
+  if (session.index >= session.firstPassCardIds.length - 1) {
+    finishSentenceFirstPass(false);
+    return;
+  }
   session.index += 1;
+  session.furthestIndex = Math.max(session.furthestIndex, session.index);
+  const nextCardId = session.firstPassCardIds[session.index];
+  session.phase = session.answers[nextCardId] || session.completedCardIds.includes(nextCardId) ? "english" : "audio";
+  renderSentenceReviewPlayer();
+  if (session.phase === "audio") window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function finishSentenceFirstPass(endedEarly) {
+  const session = sentenceReviewSession;
+  if (!session || session.stage !== "first-pass" || session.ratingPending) return;
+  stopSentenceSpeech();
+  session.endedEarly = Boolean(endedEarly);
+  session.mistakeCardIds = Object.entries(session.answers)
+    .filter(([cardId, rating]) => rating !== "understood" && !session.completedCardIds.includes(cardId))
+    .map(([cardId]) => cardId);
+  session.relearnRemainingCardIds = [...session.mistakeCardIds];
+  if (!session.mistakeCardIds.length) {
+    session.stage = "complete";
+    renderSentenceReviewComplete();
+    return;
+  }
+  session.stage = "transition";
+  renderSentenceRelearnTransition();
+}
+
+function renderSentenceRelearnTransition() {
+  const session = sentenceReviewSession;
+  if (!session) return;
+  const count = session.mistakeCardIds.length;
+  const reviewed = new Set([...Object.keys(session.answers), ...session.completedCardIds]).size;
+  app.innerHTML = `
+    <section class="shell sentence-review-shell">
+      <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-exit-sentence-review>Leave review</button></div>
+      <section class="sentence-review-complete sentence-relearn-transition">
+        <p class="booklet-kicker">${session.endedEarly ? "First pass ended early" : "First pass complete"}</p>
+        <h1>${count} ${count === 1 ? "mistake" : "mistakes"} ready to review</h1>
+        <p>You covered ${reviewed} sentence${reviewed === 1 ? "" : "s"}. These cards will now repeat until each one is correct.</p>
+        <button class="primary-button" type="button" data-start-sentence-relearn>Review mistakes</button>
+      </section>
+    </section>
+  `;
+  app.querySelector("[data-exit-sentence-review]").addEventListener("click", exitSentenceReview);
+  app.querySelector("[data-start-sentence-relearn]").addEventListener("click", startSentenceRelearn);
+}
+
+function startSentenceRelearn() {
+  const session = sentenceReviewSession;
+  if (!session || session.stage !== "transition") return;
+  session.stage = "relearn";
+  session.relearnCardIds = [...session.mistakeCardIds];
+  session.relearnIndex = 0;
+  session.phase = "audio";
+  renderSentenceReviewPlayer();
+  window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+}
+
+function applySentenceRelearnRating(cardId, rating) {
+  const session = sentenceReviewSession;
+  const result = window.OghamSentenceCore.rateCard(getSentenceState(), cardId, rating, {
+    reviewingKnown: session.knownOnly,
+    dayKey: getSentenceTodayKey()
+  });
+  session.relearnRatings[rating] += 1;
+  if (rating === "understood") {
+    session.relearnRemainingCardIds = session.relearnRemainingCardIds.filter((id) => id !== cardId);
+  } else {
+    session.relearnCardIds.push(cardId);
+  }
+  saveSentenceState(result.state);
+  advanceSentenceRelearn();
+}
+
+function advanceSentenceRelearn() {
+  const session = sentenceReviewSession;
+  if (!session || session.stage !== "relearn") return;
+  session.relearnIndex += 1;
+  if (!session.relearnRemainingCardIds.length || session.relearnIndex >= session.relearnCardIds.length) {
+    session.stage = "complete";
+    renderSentenceReviewComplete();
+    return;
+  }
   session.phase = "audio";
   renderSentenceReviewPlayer();
   window.requestAnimationFrame(playCurrentSentenceReviewAudio);
@@ -6212,18 +6434,20 @@ function renderSentenceReviewComplete() {
     setRoute("sentences");
     return;
   }
+  const reviewedCardIds = new Set([...Object.keys(session.answers || {}), ...(session.completedCardIds || [])]);
+  const relearnAttempts = Object.values(session.relearnRatings || {}).reduce((total, count) => total + count, 0);
   app.innerHTML = `
     <section class="shell sentence-review-shell">
       <div class="topbar">${createBrandMarkup()}</div>
       <section class="sentence-review-complete">
-        <p class="booklet-kicker">Session complete</p>
-        <h1>${session.initialTotal} sentence${session.initialTotal === 1 ? "" : "s"} cleared</h1>
-        <p>Every missed or unsure sentence was repeated until you marked it correct.</p>
+        <p class="booklet-kicker">${session.endedEarly ? "Early session complete" : "Session complete"}</p>
+        <h1>${reviewedCardIds.size} sentence${reviewedCardIds.size === 1 ? "" : "s"} reviewed</h1>
+        <p>${session.mistakeCardIds.length ? "Every mistake from this first pass was repeated until correct." : "No mistakes needed a second pass."}</p>
         <div class="sentence-session-results">
-          <span><strong>${session.ratings.missed}</strong> Missed</span>
-          <span><strong>${session.ratings.neutral}</strong> Unsure</span>
-          <span><strong>${session.ratings.understood}</strong> Correct</span>
-          <span><strong>${session.completed}</strong> Marked complete</span>
+          <span><strong>${reviewedCardIds.size}</strong> First-pass cards</span>
+          <span><strong>${session.mistakeCardIds.length}</strong> Mistakes cleared</span>
+          <span><strong>${relearnAttempts}</strong> Relearn attempts</span>
+          <span><strong>${session.completedCardIds.length}</strong> Marked complete</span>
         </div>
         <button class="primary-button" type="button" data-finish-sentence-review>Finish</button>
       </section>
@@ -6241,7 +6465,7 @@ function exitSentenceReview() {
 
 function playCurrentSentenceReviewAudio() {
   const session = sentenceReviewSession;
-  const cardId = session?.cardIds[session.index];
+  const cardId = getCurrentSentenceReviewCardId(session);
   const card = window.OghamSentenceCore.activeCards(getSentenceState()).find((item) => item.id === cardId);
   if (card) playSentenceCardAudio(card);
 }
@@ -6341,20 +6565,41 @@ function getSentenceTodayKey(date = new Date()) {
 
 function handleSentenceReviewShortcut(event) {
   const session = sentenceReviewSession;
-  if (!session || event.altKey || event.ctrlKey || event.metaKey || isEditableSentenceShortcutTarget(event.target)) return;
+  if (!session || !["first-pass", "relearn"].includes(session.stage) || event.altKey || event.ctrlKey || event.metaKey || isEditableSentenceShortcutTarget(event.target)) return;
   const key = event.key.toLocaleLowerCase();
-  if (key === "s") {
+  if (key === "q") {
     event.preventDefault();
     playCurrentSentenceReviewAudio();
     return;
   }
+  if (key === "a" || key === "d") {
+    event.preventDefault();
+    app.querySelector(key === "a" ? "[data-sentence-previous]" : "[data-sentence-next]")?.click();
+    return;
+  }
+  if (key === "s") {
+    event.preventDefault();
+    revealCurrentSentenceFrench();
+    return;
+  }
+  if (key === "x") {
+    event.preventDefault();
+    revealCurrentSentenceBoth();
+    return;
+  }
   if ((event.key === " " || event.code === "Space") && session.phase !== "english") {
     event.preventDefault();
-    app.querySelector(session.phase === "audio" ? "[data-sentence-reveal-french]" : "[data-sentence-reveal-english]")?.click();
+    if (session.phase === "audio") revealCurrentSentenceFrench();
+    else revealCurrentSentenceEnglish();
+    return;
+  }
+  if (key === "t") {
+    event.preventDefault();
+    app.querySelector("[data-sentence-quick-correct]")?.click();
     return;
   }
   if (session.phase !== "english") return;
-  const rating = { z: "missed", x: "neutral", c: "understood" }[key];
+  const rating = { w: "missed", e: "neutral", r: "understood" }[key];
   if (!rating) return;
   event.preventDefault();
   app.querySelector(`[data-sentence-rating="${rating}"]`)?.click();
