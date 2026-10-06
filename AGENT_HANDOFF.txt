@@ -56,6 +56,10 @@ Recent behavior changes
 - Review has a first pass that shows each selected card once, followed by a separate repeat-until-correct stage for wrong and unsure cards. End early stops introducing new cards and reviews only mistakes collected so far. A/D moves through reached first-pass cards so ratings can be corrected; Q replays audio, Space advances the reveal, S reveals French, X reveals both languages, W/E/R rate Wrong/Unsure/Correct, and T marks Correct and advances without revealing. The small Complete action permanently removes a card from normal queues.
 - Review sessions can be limited to 6, 12, 24, or all matching cards. The first-pass header shows live wrong and unsure counts. Only the first pass changes the 0-4 streak; the mistake stage uses practice-only Still learning/Got it choices and repeats without changing streak again. Finishing returns to the all-decks screen.
 - Revealed French sentences tokenize each word into a one-click contextual dictionary lookup. Saved meanings load immediately; otherwise the existing authenticated gloss route drafts the literal and in-sentence meaning for optional storage.
+- Unfinished sentence sessions persist locally per signed-in user. Leaving or refreshing offers a Resume action that restores the first pass, transition, or repeat-until-correct mistake queue.
+- Sentence session sizes now include rough first-pass time estimates. Review setup also has optional Shadowing mode, which asks the learner to repeat the audio aloud before the French can be revealed.
+- Sentence Decks has a Yesterday's mistakes shortcut for each deck and across all decks. It selects active cards whose most recent rating yesterday was Wrong or Unsure.
+- Words tapped during a sentence later rated Wrong or Unsure are automatically marked as sentence trouble words and shown in the dedicated Trouble Words view, while retaining the existing dictionary/practice controls.
 - Lesson page has one Test button instead of Part 1 / Part 2 buttons.
 - Test button unlocks after the final story audio finishes.
 - Part 1 starts with an intro modal over question 1; closing it starts the first test audio.

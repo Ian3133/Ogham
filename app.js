@@ -1059,6 +1059,7 @@ const fluencyReviewScheduleKey = "ogham-fluency-review-schedule";
 const dictionaryEntriesKey = "ogham-dictionary-entries";
 const sentenceStateKey = "ogham-sentence-state";
 const sentencePlaybackRateKey = "ogham-sentence-playback-rate";
+const sentenceReviewSessionKey = "ogham-sentence-review-session-v1";
 const sentenceAudioVersion = "v1";
 const musicLibraryKey = "ogham-music-library";
 const musicLyricsKey = "ogham-music-lyrics";
@@ -1197,6 +1198,7 @@ let sentenceReviewSession = null;
 let sentenceReviewScope = "due";
 let sentenceReviewScopeToken = "";
 let sentenceReviewBatchSize = "all";
+let sentenceReviewShadowingMode = false;
 let currentSentenceAudio = null;
 let captureListMessage = "Loading captures...";
 const captureModule = window.OghamCaptureCore.createCaptureModule({
@@ -2604,6 +2606,7 @@ function normalizeDictionaryEntry(entry = {}, index = 0) {
     sourceType: entry.glossaryId ? "glossary" : (["fluency", "glossary"].includes(entry.sourceType) ? entry.sourceType : "manual"),
     saved: Object.hasOwn(entry, "saved") ? Boolean(entry.saved) : true,
     needsPractice: Boolean(entry.needsPractice),
+    sentenceTrouble: Boolean(entry.sentenceTrouble),
     encounterCount: Math.max(0, Number(entry.encounterCount) || 0),
     firstEncounteredAt: Number(entry.firstEncounteredAt) || 0,
     lastEncounteredAt: Number(entry.lastEncounteredAt) || 0,
@@ -2625,6 +2628,7 @@ function serializeDictionaryEntriesState(state = {}) {
         glossaryId: entry.glossaryId,
         saved: entry.saved,
         needsPractice: entry.needsPractice,
+        sentenceTrouble: entry.sentenceTrouble,
         encounterCount: entry.encounterCount,
         firstEncounteredAt: entry.firstEncounteredAt,
         lastEncounteredAt: entry.lastEncounteredAt,
@@ -2709,7 +2713,8 @@ function upsertDictionaryEntry(entryInput, options = {}) {
       updatedAt: now,
       notes: Object.hasOwn(entryInput, "notes") ? entry.notes : existing.notes,
       saved: Object.hasOwn(entryInput, "saved") ? entry.saved : existing.saved,
-      needsPractice: Object.hasOwn(entryInput, "needsPractice") ? entry.needsPractice : existing.needsPractice
+      needsPractice: Object.hasOwn(entryInput, "needsPractice") ? entry.needsPractice : existing.needsPractice,
+      sentenceTrouble: Object.hasOwn(entryInput, "sentenceTrouble") ? entry.sentenceTrouble : existing.sentenceTrouble
     });
   } else {
     state.entries.unshift(entry);
@@ -3544,6 +3549,12 @@ function render() {
   if (route.startsWith("sentence-review-")) {
     renderSentenceReviewRoute(route.slice("sentence-review-".length));
     renderAccountControls({ hideActions: true });
+    return;
+  }
+
+  if (route === "sentence-trouble-words") {
+    renderDictionary("", "trouble", "recent", { troubleWords: true });
+    renderAccountControls();
     return;
   }
 
@@ -5606,8 +5617,10 @@ function renderSentenceDecks() {
   const reviewedTodayTotal = window.OghamSentenceCore.activeCards(state)
     .filter((card) => card.lifecycle === "active" && card.lastReviewedDay === dayKey).length;
   const remainingTodayTotal = Math.max(0, activeTotal - reviewedTodayTotal);
+  const yesterdayMistakesTotal = getSentenceYesterdayMistakes(state).length;
   const knownTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "known").length;
   const queuedTotal = window.OghamSentenceCore.activeCards(state).filter((card) => card.lifecycle === "queued").length;
+  const troubleWordsTotal = getDictionaryEntriesState().entries.filter((entry) => entry.sentenceTrouble).length;
   const curriculumStatus = getSentenceCurriculumStatus(state);
 
   app.innerHTML = `
@@ -5624,6 +5637,8 @@ function renderSentenceDecks() {
         </div>
         <div class="sentence-header-actions">
           <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
+          <button class="text-button" type="button" data-open-trouble-words>Trouble Words · ${troubleWordsTotal}</button>
+          <button class="back-link" type="button" data-review-yesterday-all ${yesterdayMistakesTotal ? "" : "disabled"}>Yesterday's mistakes · ${yesterdayMistakesTotal}</button>
           <button class="back-link" type="button" data-install-sentence-curriculum ${curriculumStatus.missingCards ? "" : "disabled"}>${curriculumStatus.missingCards ? `Add structure curriculum · ${curriculumStatus.missingCards}` : "Structure curriculum added"}</button>
           <button class="primary-button" type="button" data-review-all ${remainingTodayTotal ? "" : "disabled"}>Review All · ${remainingTodayTotal} left</button>
         </div>
@@ -5657,6 +5672,8 @@ function renderSentenceDecks() {
 
   app.querySelector("[data-sentence-back]").addEventListener("click", () => setRoute(""));
   app.querySelector("[data-open-sentence-inbox]").addEventListener("click", () => setRoute("capture"));
+  app.querySelector("[data-open-trouble-words]").addEventListener("click", () => setRoute("sentence-trouble-words"));
+  app.querySelector("[data-review-yesterday-all]").addEventListener("click", () => setRoute("sentence-review-yesterday-all"));
   app.querySelector("[data-install-sentence-curriculum]").addEventListener("click", handleSentenceCurriculumInstall);
   app.querySelector("[data-review-all]").addEventListener("click", () => setRoute("sentence-review-all"));
   app.querySelector("[data-sentence-deck-create]").addEventListener("submit", handleSentenceDeckCreate);
@@ -5672,6 +5689,9 @@ function renderSentenceDecks() {
   app.querySelectorAll("[data-review-today-deck]").forEach((button) => {
     button.addEventListener("click", () => setRoute(`sentence-review-today-${button.dataset.reviewTodayDeck}`));
   });
+  app.querySelectorAll("[data-review-yesterday-deck]").forEach((button) => {
+    button.addEventListener("click", () => setRoute(`sentence-review-yesterday-${button.dataset.reviewYesterdayDeck}`));
+  });
   app.querySelectorAll("[data-activate-sentence-batch]").forEach((button) => {
     button.addEventListener("click", () => {
       activateNextSentenceBatch(button.dataset.activateSentenceBatch);
@@ -5685,6 +5705,7 @@ function createSentenceDeckCard(state, deck) {
   const stats = window.OghamSentenceCore.getDeckStats(state, deck.id, { dayKey: getSentenceTodayKey() });
   const doneToday = stats.active > 0 && stats.remainingToday === 0;
   const dailyPercent = stats.active ? Math.round((stats.reviewedToday / stats.active) * 100) : 0;
+  const yesterdayMistakes = getSentenceYesterdayMistakes(state, deck.id).length;
   const scores = window.OghamSentenceCore.activeCards(state)
     .filter((card) => card.deckId === deck.id && card.lifecycle === "active")
     .reduce((counts, card) => {
@@ -5717,6 +5738,7 @@ function createSentenceDeckCard(state, deck) {
       <div class="sentence-deck-actions">
         <button class="primary-button" type="button" data-review-sentence-deck="${escapeAttribute(deck.id)}" ${stats.remainingToday ? "" : "disabled"}>${doneToday ? "✓ Done today" : `Review · ${stats.remainingToday} left`}</button>
         <button class="back-link" type="button" data-review-today-deck="${escapeAttribute(deck.id)}" ${stats.reviewedToday ? "" : "disabled"}>Review done today</button>
+        <button class="back-link" type="button" data-review-yesterday-deck="${escapeAttribute(deck.id)}" ${yesterdayMistakes ? "" : "disabled"}>Yesterday's mistakes · ${yesterdayMistakes}</button>
         <button class="back-link" type="button" data-activate-sentence-batch="${escapeAttribute(deck.id)}" ${stats.queued ? "" : "disabled"}>Activate next ${Math.min(5, stats.queued)}</button>
         <button class="text-button" type="button" data-review-known-deck="${escapeAttribute(deck.id)}" ${stats.known ? "" : "disabled"}>Review Completed</button>
       </div>
@@ -5832,6 +5854,7 @@ function renderSentenceDeck(deckId, searchQuery = "") {
   const stats = window.OghamSentenceCore.getDeckStats(state, deck.id, { dayKey: getSentenceTodayKey() });
   const doneToday = stats.active > 0 && stats.remainingToday === 0;
   const dailyPercent = stats.active ? Math.round((stats.reviewedToday / stats.active) * 100) : 0;
+  const yesterdayMistakes = getSentenceYesterdayMistakes(state, deck.id).length;
 
   app.innerHTML = `
     <section class="shell sentence-shell">
@@ -5849,6 +5872,7 @@ function renderSentenceDeck(deckId, searchQuery = "") {
         <div class="sentence-header-actions">
           <button class="primary-button" type="button" data-review-current-deck ${stats.remainingToday ? "" : "disabled"}>${doneToday ? "✓ Done today" : `Review · ${stats.remainingToday} left`}</button>
           <button class="back-link" type="button" data-review-today-current ${stats.reviewedToday ? "" : "disabled"}>Review done today</button>
+          <button class="back-link" type="button" data-review-yesterday-current ${yesterdayMistakes ? "" : "disabled"}>Yesterday's mistakes · ${yesterdayMistakes}</button>
           <button class="text-button" type="button" data-open-sentence-inbox>To Be Sorted</button>
         </div>
       </header>
@@ -5873,6 +5897,7 @@ function renderSentenceDeck(deckId, searchQuery = "") {
   app.querySelector("[data-open-sentence-inbox]").addEventListener("click", () => setRoute("capture"));
   app.querySelector("[data-review-current-deck]").addEventListener("click", () => setRoute(`sentence-review-${deck.id}`));
   app.querySelector("[data-review-today-current]").addEventListener("click", () => setRoute(`sentence-review-today-${deck.id}`));
+  app.querySelector("[data-review-yesterday-current]").addEventListener("click", () => setRoute(`sentence-review-yesterday-${deck.id}`));
   app.querySelector("[data-review-known-current]").addEventListener("click", () => setRoute(`sentence-review-known-${deck.id}`));
   app.querySelector("[data-activate-next-batch]").addEventListener("click", () => {
     activateNextSentenceBatch(deck.id);
@@ -6040,6 +6065,9 @@ function getSentenceReviewScopeDetails(scope = "due") {
 function getSentenceReviewQueueForScope(state, options = {}) {
   const scope = options.scope || "due";
   const threshold = scope.startsWith("below-") ? Number(scope.slice("below-".length)) : null;
+  if (options.reviewedYesterdayOnly) {
+    return getSentenceYesterdayMistakes(state, options.deckId);
+  }
   const queue = window.OghamSentenceCore.getReviewQueue(state, {
     deckId: options.deckId,
     knownOnly: options.knownOnly,
@@ -6057,11 +6085,64 @@ function limitSentenceReviewQueue(queue, batchSize = "all") {
   return Number.isFinite(limit) && limit > 0 ? queue.slice(0, limit) : queue;
 }
 
+function estimateSentenceReviewMinutes(count) {
+  return count ? Math.max(1, Math.ceil((count * 20) / 60)) : 0;
+}
+
+function getSentenceBatchLabel(value, availableCount) {
+  const count = value === "all" ? availableCount : Math.min(Number(value) || 0, availableCount);
+  const label = value === "all" ? "All" : value;
+  return `${label} · ~${estimateSentenceReviewMinutes(count)}m`;
+}
+
+function getSavedSentenceReviewSession(token = "") {
+  const saved = readStoredJson(sentenceReviewSessionKey, null);
+  if (!saved || typeof saved !== "object" || !saved.token || (token && saved.token !== token)) return null;
+  if (!["first-pass", "transition", "relearn"].includes(saved.stage)) return null;
+  if (!Array.isArray(saved.firstPassCardIds) || !saved.firstPassCardIds.length) return null;
+  return {
+    ...saved,
+    answers: saved.answers && typeof saved.answers === "object" ? saved.answers : {},
+    completedCardIds: Array.isArray(saved.completedCardIds) ? saved.completedCardIds : [],
+    mistakeCardIds: Array.isArray(saved.mistakeCardIds) ? saved.mistakeCardIds : [],
+    relearnCardIds: Array.isArray(saved.relearnCardIds) ? saved.relearnCardIds : [],
+    relearnRemainingCardIds: Array.isArray(saved.relearnRemainingCardIds) ? saved.relearnRemainingCardIds : [],
+    relearnRatings: saved.relearnRatings || { missed: 0, neutral: 0, understood: 0 },
+    lookedUpWordsByCard: saved.lookedUpWordsByCard && typeof saved.lookedUpWordsByCard === "object" ? saved.lookedUpWordsByCard : {},
+    ratingPending: false
+  };
+}
+
+function saveSentenceReviewSessionProgress() {
+  if (!sentenceReviewSession || sentenceReviewSession.stage === "complete") return;
+  writeStoredJson(sentenceReviewSessionKey, {
+    ...sentenceReviewSession,
+    ratingPending: false,
+    savedAt: Date.now()
+  });
+}
+
+function clearSavedSentenceReviewSession() {
+  window.localStorage.removeItem(getScopedStorageKey(sentenceReviewSessionKey));
+}
+
+function resumeSentenceReview(token) {
+  const saved = getSavedSentenceReviewSession(token);
+  if (!saved) return;
+  sentenceReviewSession = saved;
+  sentenceReviewShadowingMode = Boolean(saved.shadowing);
+  renderSentenceReviewPlayer();
+  if (sentenceReviewSession?.phase === "audio" && sentenceReviewSession.stage !== "transition") {
+    window.requestAnimationFrame(playCurrentSentenceReviewAudio);
+  }
+}
+
 function renderSentenceReviewRoute(token) {
-  const mode = token.startsWith("known-") ? "known" : token.startsWith("today-") ? "today" : "daily";
+  const mode = token.startsWith("known-") ? "known" : token.startsWith("today-") ? "today" : token.startsWith("yesterday-") ? "yesterday" : "daily";
   const knownOnly = mode === "known";
   const reviewedTodayOnly = mode === "today";
-  const deckId = knownOnly ? token.slice("known-".length) : reviewedTodayOnly ? token.slice("today-".length) : token;
+  const reviewedYesterdayOnly = mode === "yesterday";
+  const deckId = knownOnly ? token.slice("known-".length) : reviewedTodayOnly ? token.slice("today-".length) : reviewedYesterdayOnly ? token.slice("yesterday-".length) : token;
   const state = getSentenceState();
   const deck = deckId === "all" ? null : window.OghamSentenceCore.activeDecks(state).find((item) => item.id === deckId);
   if (deckId !== "all" && !deck) {
@@ -6074,6 +6155,7 @@ function renderSentenceReviewRoute(token) {
       sentenceReviewScopeToken = token;
       sentenceReviewScope = "due";
       sentenceReviewBatchSize = "all";
+      sentenceReviewShadowingMode = false;
     }
     const scope = mode === "daily" ? sentenceReviewScope : "due";
     const scopeDetails = getSentenceReviewScopeDetails(scope);
@@ -6081,20 +6163,24 @@ function renderSentenceReviewRoute(token) {
       ? "completed cards in this deck"
       : reviewedTodayOnly
         ? "cards you reviewed today"
+        : reviewedYesterdayOnly
+          ? "sentences you got wrong or marked unsure yesterday"
         : scopeDetails.description;
     const availableQueue = getSentenceReviewQueueForScope(state, {
       deckId,
       knownOnly,
       reviewedTodayOnly,
+      reviewedYesterdayOnly,
       scope
     });
     const count = limitSentenceReviewQueue(availableQueue, sentenceReviewBatchSize).length;
     const availableCount = availableQueue.length;
+    const resumableSession = getSavedSentenceReviewSession(token);
     app.innerHTML = `
       <section class="shell sentence-review-shell">
         <div class="topbar">${createBrandMarkup()}<button class="back-link" type="button" data-sentence-review-back>Back</button></div>
         <section class="sentence-review-start">
-          <p class="booklet-kicker">${knownOnly ? "Completed check" : reviewedTodayOnly ? "Review again today" : "Today's listening review"}</p>
+          <p class="booklet-kicker">${knownOnly ? "Completed check" : reviewedTodayOnly ? "Review again today" : reviewedYesterdayOnly ? "Yesterday's mistakes" : "Today's listening review"}</p>
           <h1>${escapeHtml(deck?.name || "All Sentence Decks")}</h1>
           ${mode === "daily" ? `
             <div class="sentence-review-scope" role="group" aria-label="Choose which sentences to review">
@@ -6106,12 +6192,19 @@ function renderSentenceReviewRoute(token) {
           <div class="sentence-review-batch" role="group" aria-label="Choose session size">
             <span>Session size</span>
             ${["6", "12", "24", "all"].map((value) => `
-              <button type="button" data-sentence-review-batch="${value}" class="${sentenceReviewBatchSize === value ? "active" : ""}" aria-pressed="${sentenceReviewBatchSize === value}">${value === "all" ? "All" : value}</button>
+              <button type="button" data-sentence-review-batch="${value}" class="${sentenceReviewBatchSize === value ? "active" : ""}" aria-pressed="${sentenceReviewBatchSize === value}">${escapeHtml(getSentenceBatchLabel(value, availableCount))}</button>
             `).join("")}
           </div>
-          <p>${count ? `${count}${count < availableCount ? ` of ${availableCount}` : ""} sentence${count === 1 ? "" : "s"} — ${escapeHtml(reviewDescription)}. The first pass changes your streak once; mistakes then repeat as practice until correct.` : knownOnly ? "There are no completed sentences in this deck." : reviewedTodayOnly ? "You have not completed any sentences here today yet." : scope === "due" ? "Everything in this deck is done for today." : `There are no ${escapeHtml(scopeDetails.description)}.`}</p>
+          <p>${count ? `${count}${count < availableCount ? ` of ${availableCount}` : ""} sentence${count === 1 ? "" : "s"} · about ${estimateSentenceReviewMinutes(count)} minute${estimateSentenceReviewMinutes(count) === 1 ? "" : "s"} before relearning — ${escapeHtml(reviewDescription)}. The first pass changes your streak once; mistakes then repeat as practice until correct.` : knownOnly ? "There are no completed sentences in this deck." : reviewedTodayOnly ? "You have not completed any sentences here today yet." : reviewedYesterdayOnly ? "No mistakes from yesterday are waiting here." : scope === "due" ? "Everything in this deck is done for today." : `There are no ${escapeHtml(scopeDetails.description)}.`}</p>
+          <div class="sentence-shadowing-toggle">
+            <button class="back-link ${sentenceReviewShadowingMode ? "active" : ""}" type="button" data-sentence-shadowing aria-pressed="${sentenceReviewShadowingMode}">Shadowing ${sentenceReviewShadowingMode ? "on" : "off"}</button>
+            <span>Hear it, repeat it aloud, then reveal.</span>
+          </div>
           ${createSentenceSpeedControls("Review speed")}
-          <button class="primary-button" type="button" data-start-sentence-review ${count ? "" : "disabled"}>Start Review</button>
+          <div class="sentence-review-start-actions">
+            ${resumableSession ? `<button class="primary-button" type="button" data-resume-sentence-review>Resume ${resumableSession.stage === "relearn" ? "mistake review" : "unfinished session"}</button>` : ""}
+            <button class="${resumableSession ? "back-link" : "primary-button"}" type="button" data-start-sentence-review ${count ? "" : "disabled"}>${resumableSession ? "Start new session" : "Start Review"}</button>
+          </div>
         </section>
       </section>
     `;
@@ -6128,7 +6221,12 @@ function renderSentenceReviewRoute(token) {
         renderSentenceReviewRoute(token);
       });
     });
-    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, { knownOnly, reviewedTodayOnly, scope, batchSize: sentenceReviewBatchSize }));
+    app.querySelector("[data-sentence-shadowing]").addEventListener("click", () => {
+      sentenceReviewShadowingMode = !sentenceReviewShadowingMode;
+      renderSentenceReviewRoute(token);
+    });
+    app.querySelector("[data-resume-sentence-review]")?.addEventListener("click", () => resumeSentenceReview(token));
+    app.querySelector("[data-start-sentence-review]").addEventListener("click", () => startSentenceReview(token, deckId, { knownOnly, reviewedTodayOnly, reviewedYesterdayOnly, scope, batchSize: sentenceReviewBatchSize, shadowing: sentenceReviewShadowingMode }));
     bindSentenceSpeedControls();
     return;
   }
@@ -6136,10 +6234,12 @@ function renderSentenceReviewRoute(token) {
 }
 
 function startSentenceReview(token, deckId, options = {}) {
+  clearSavedSentenceReviewSession();
   const queue = limitSentenceReviewQueue(getSentenceReviewQueueForScope(getSentenceState(), {
     deckId,
     knownOnly: options.knownOnly,
     reviewedTodayOnly: options.reviewedTodayOnly,
+    reviewedYesterdayOnly: options.reviewedYesterdayOnly,
     scope: options.scope
   }), options.batchSize);
   sentenceReviewSession = {
@@ -6147,6 +6247,7 @@ function startSentenceReview(token, deckId, options = {}) {
     deckId,
     knownOnly: Boolean(options.knownOnly),
     reviewedTodayOnly: Boolean(options.reviewedTodayOnly),
+    reviewedYesterdayOnly: Boolean(options.reviewedYesterdayOnly),
     reviewScope: options.scope || "due",
     batchSize: options.batchSize || "all",
     stage: "first-pass",
@@ -6164,15 +6265,19 @@ function startSentenceReview(token, deckId, options = {}) {
     relearnRemainingCardIds: [],
     relearnIndex: 0,
     relearnRatings: { missed: 0, neutral: 0, understood: 0 },
+    lookedUpWordsByCard: {},
+    shadowing: Boolean(options.shadowing),
     endedEarly: false,
     ratingPending: false
   };
+  saveSentenceReviewSessionProgress();
   renderSentenceReviewPlayer();
   window.requestAnimationFrame(playCurrentSentenceReviewAudio);
 }
 
 function renderSentenceReviewPlayer() {
   const session = sentenceReviewSession;
+  if (session) saveSentenceReviewSessionProgress();
   if (session?.stage === "transition") {
     renderSentenceRelearnTransition();
     return;
@@ -6223,7 +6328,7 @@ function renderSentenceReviewPlayer() {
         </div>
         <div class="sentence-review-audio">
           <button class="sentence-replay-button" type="button" data-sentence-replay aria-label="Replay French audio"><span>&#9654;</span><kbd>Q</kbd></button>
-          <div><p class="booklet-kicker">Listen first</p><h1>What did you hear?</h1></div>
+          <div><p class="booklet-kicker">${session.shadowing && !frenchVisible ? "Shadowing · repeat aloud" : "Listen first"}</p><h1>${session.shadowing && !frenchVisible ? "Say what you heard" : "What did you hear?"}</h1></div>
           ${createSentenceSpeedControls("Speed")}
         </div>
         <div class="sentence-review-reveals">
@@ -6237,7 +6342,12 @@ function renderSentenceReviewPlayer() {
           </section>
         </div>
         <div class="sentence-review-controls">
-          ${cardComplete ? `<p class="sentence-rating-prompt sentence-complete-status">✓ This sentence is marked complete.</p>` : !frenchVisible ? `
+          ${cardComplete ? `<p class="sentence-rating-prompt sentence-complete-status">✓ This sentence is marked complete.</p>` : !frenchVisible && session.shadowing ? `
+            <div class="sentence-shadowing-step">
+              <p>Repeat the French sentence aloud. When you have said it, continue to reveal.</p>
+              <button class="primary-button" type="button" data-sentence-shadow-complete>I repeated it · reveal French <kbd>Space</kbd></button>
+            </div>
+          ` : !frenchVisible ? `
             <div class="sentence-reveal-actions">
               <button class="primary-button" type="button" data-sentence-reveal-french>Reveal French <kbd>S</kbd></button>
               <button class="back-link" type="button" data-sentence-reveal-both>Reveal both <kbd>X</kbd></button>
@@ -6264,9 +6374,9 @@ function renderSentenceReviewPlayer() {
               </div>
             `}
           `}
-          ${cardComplete ? "" : `<button class="sentence-quick-correct" type="button" data-sentence-quick-correct>${isFirstPass ? "Correct &amp; next without revealing" : "Got it &amp; next without revealing"} <kbd>T</kbd></button>`}
+          ${cardComplete || (session.shadowing && !frenchVisible) ? "" : `<button class="sentence-quick-correct" type="button" data-sentence-quick-correct>${isFirstPass ? "Correct &amp; next without revealing" : "Got it &amp; next without revealing"} <kbd>T</kbd></button>`}
         </div>
-        <div class="sentence-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>Q</kbd> audio</span><span><kbd>Space</kbd> next reveal</span><span><kbd>S</kbd> French</span><span><kbd>X</kbd> both</span><span>${isFirstPass ? "<kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> rate" : "<kbd>W</kbd> repeat <kbd>R</kbd> clear"}</span><span><kbd>T</kbd> quick correct</span></div>
+        <div class="sentence-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>Q</kbd> audio</span><span><kbd>Space</kbd> ${session.shadowing && !frenchVisible ? "I repeated it" : "next reveal"}</span><span><kbd>S</kbd> French</span><span><kbd>X</kbd> both</span><span>${isFirstPass ? "<kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> rate" : "<kbd>W</kbd> repeat <kbd>R</kbd> clear"}</span><span><kbd>T</kbd> quick correct</span></div>
       </article>
     </section>
   `;
@@ -6277,6 +6387,7 @@ function renderSentenceReviewPlayer() {
   app.querySelector("[data-sentence-next]").addEventListener("click", () => moveSentenceReviewHistory(1));
   bindSentenceSpeedControls();
   app.querySelector("[data-sentence-reveal-french]")?.addEventListener("click", revealCurrentSentenceFrench);
+  app.querySelector("[data-sentence-shadow-complete]")?.addEventListener("click", completeSentenceShadowing);
   app.querySelector("[data-sentence-reveal-english]")?.addEventListener("click", revealCurrentSentenceEnglish);
   app.querySelector("[data-sentence-reveal-both]")?.addEventListener("click", revealCurrentSentenceBoth);
   app.querySelectorAll("[data-sentence-rating]").forEach((button) => button.addEventListener("click", () => handleSentenceReviewRating(button.dataset.sentenceRating, button)));
@@ -6293,6 +6404,7 @@ function createSentenceReviewFrenchMarkup(card, deck) {
   ).join("");
   return `
     <div class="dictionary-token-line sentence-review-word-line"
+      data-sentence-review-card-id="${escapeAttribute(card.id)}"
       data-dictionary-source-sentence="${escapeAttribute(card.french)}"
       data-dictionary-english-sentence="${escapeAttribute(card.english)}"
       data-dictionary-lesson-id="${escapeAttribute(card.deckId)}"
@@ -6310,8 +6422,55 @@ function bindSentenceReviewWordControls() {
       clearDictionaryTokenSelection();
       button.classList.add("selected");
       const root = button.closest(".dictionary-token-line");
-      openDictionaryGlossPopover(getDictionaryContextFromRoot(root, button.dataset.tokenText));
+      const context = getDictionaryContextFromRoot(root, button.dataset.tokenText);
+      rememberSentenceReviewWordLookup(root?.dataset.sentenceReviewCardId, context);
+      openDictionaryGlossPopover(context);
     });
+  });
+}
+
+function rememberSentenceReviewWordLookup(cardId, context) {
+  const session = sentenceReviewSession;
+  if (!session || !cardId || !context?.term) return;
+  session.lookedUpWordsByCard ||= {};
+  const words = Array.isArray(session.lookedUpWordsByCard[cardId]) ? session.lookedUpWordsByCard[cardId] : [];
+  const lookup = {
+    term: context.term,
+    sourceSentence: context.sourceSentence,
+    englishSentence: context.englishSentence,
+    lessonId: context.lessonId,
+    lessonTitle: context.lessonTitle,
+    lineIndex: context.lineIndex,
+    audio: context.audio
+  };
+  const duplicate = words.some((word) => normalizeDictionaryText(word.term) === normalizeDictionaryText(lookup.term));
+  if (!duplicate) words.push(lookup);
+  session.lookedUpWordsByCard[cardId] = words;
+  saveSentenceReviewSessionProgress();
+  if (["missed", "neutral"].includes(session.answers?.[cardId])) recordSentenceReviewTroubleWords(cardId);
+}
+
+function recordSentenceReviewTroubleWords(cardId) {
+  const words = sentenceReviewSession?.lookedUpWordsByCard?.[cardId];
+  if (!Array.isArray(words)) return;
+  words.forEach((word) => {
+    const candidate = { term: word.term, sourceSentence: word.sourceSentence };
+    const existing = getDictionaryEntriesState().entries.find((entry) => getDictionaryDuplicateKey(entry) === getDictionaryDuplicateKey(candidate));
+    upsertDictionaryEntry(existing ? {
+      ...existing,
+      saved: true,
+      needsPractice: true,
+      sentenceTrouble: true
+    } : {
+      ...word,
+      lemma: word.term,
+      kind: word.term.includes(" ") ? "phrase" : "word",
+      notes: "Looked up during a missed or unsure sentence review.",
+      sourceType: "fluency",
+      saved: true,
+      needsPractice: true,
+      sentenceTrouble: true
+    }, { cloudMode: "debounced" });
   });
 }
 
@@ -6357,18 +6516,26 @@ function getCurrentSentenceReviewCardId(session = sentenceReviewSession) {
 
 function revealCurrentSentenceFrench() {
   if (!sentenceReviewSession || sentenceReviewSession.stage === "transition") return;
+  if (sentenceReviewSession.shadowing && sentenceReviewSession.phase === "audio") return;
   sentenceReviewSession.phase = "french";
   renderSentenceReviewPlayer();
 }
 
 function revealCurrentSentenceEnglish() {
   if (!sentenceReviewSession || sentenceReviewSession.stage === "transition") return;
+  if (sentenceReviewSession.shadowing && sentenceReviewSession.phase === "audio") return;
   sentenceReviewSession.phase = "english";
   renderSentenceReviewPlayer();
 }
 
 function revealCurrentSentenceBoth() {
   revealCurrentSentenceEnglish();
+}
+
+function completeSentenceShadowing() {
+  if (!sentenceReviewSession || !sentenceReviewSession.shadowing || sentenceReviewSession.phase !== "audio") return;
+  sentenceReviewSession.phase = "french";
+  renderSentenceReviewPlayer();
 }
 
 function moveSentenceReviewHistory(direction) {
@@ -6397,6 +6564,7 @@ function applySentenceFirstPassRating(cardId, rating) {
     result = window.OghamSentenceCore.setKnown(result.state, cardId, true);
   }
   session.answers[cardId] = rating;
+  if (rating !== "understood") recordSentenceReviewTroubleWords(cardId);
   saveSentenceState(result.state);
   advanceSentenceFirstPass();
 }
@@ -6437,6 +6605,7 @@ function finishSentenceFirstPass(endedEarly) {
 function renderSentenceRelearnTransition() {
   const session = sentenceReviewSession;
   if (!session) return;
+  saveSentenceReviewSessionProgress();
   const count = session.mistakeCardIds.length;
   const reviewed = new Set([...Object.keys(session.answers), ...session.completedCardIds]).size;
   app.innerHTML = `
@@ -6497,6 +6666,7 @@ function renderSentenceReviewComplete() {
     setRoute("sentences");
     return;
   }
+  clearSavedSentenceReviewSession();
   const reviewedCardIds = new Set([...Object.keys(session.answers || {}), ...(session.completedCardIds || [])]);
   const relearnAttempts = Object.values(session.relearnRatings || {}).reduce((total, count) => total + count, 0);
   app.innerHTML = `
@@ -6521,6 +6691,7 @@ function renderSentenceReviewComplete() {
 
 function finishSentenceReview() {
   stopSentenceSpeech();
+  clearSavedSentenceReviewSession();
   sentenceReviewSession = null;
   setRoute("sentences");
 }
@@ -6528,6 +6699,7 @@ function finishSentenceReview() {
 function exitSentenceReview() {
   const session = sentenceReviewSession;
   stopSentenceSpeech();
+  saveSentenceReviewSessionProgress();
   sentenceReviewSession = null;
   setRoute(session?.deckId && session.deckId !== "all" ? `sentence-deck-${session.deckId}` : "sentences");
 }
@@ -6632,6 +6804,21 @@ function getSentenceTodayKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getSentenceYesterdayKey(date = new Date()) {
+  const yesterday = new Date(date);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return getSentenceTodayKey(yesterday);
+}
+
+function getSentenceYesterdayMistakes(state, deckId = "all") {
+  const yesterdayKey = getSentenceYesterdayKey();
+  return window.OghamSentenceCore.activeCards(state)
+    .filter((card) => card.lifecycle === "active")
+    .filter((card) => deckId === "all" || card.deckId === deckId)
+    .filter((card) => card.lastReviewedDay === yesterdayKey && ["missed", "neutral"].includes(card.lastRating))
+    .sort((left, right) => left.masteryStreak - right.masteryStreak || left.french.localeCompare(right.french));
+}
+
 function handleSentenceReviewShortcut(event) {
   const session = sentenceReviewSession;
   if (!session || !["first-pass", "relearn"].includes(session.stage) || event.altKey || event.ctrlKey || event.metaKey || isEditableSentenceShortcutTarget(event.target)) return;
@@ -6658,7 +6845,8 @@ function handleSentenceReviewShortcut(event) {
   }
   if ((event.key === " " || event.code === "Space") && session.phase !== "english") {
     event.preventDefault();
-    if (session.phase === "audio") revealCurrentSentenceFrench();
+    if (session.phase === "audio" && session.shadowing) completeSentenceShadowing();
+    else if (session.phase === "audio") revealCurrentSentenceFrench();
     else revealCurrentSentenceEnglish();
     return;
   }
@@ -7147,8 +7335,9 @@ async function handleCaptureDelete(event) {
   }
 }
 
-function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphabetical") {
+function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphabetical", options = {}) {
   const state = getDictionaryEntriesState();
+  const troubleWordsView = Boolean(options.troubleWords) || window.location.hash === "#sentence-trouble-words";
   const editingEntry = activeDictionaryEditId
     ? state.entries.find((entry) => entry.id === activeDictionaryEditId)
     : null;
@@ -7158,11 +7347,11 @@ function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphab
     <section class="shell">
       <div class="topbar">
         ${createBrandMarkup()}
-        <button class="back-link" type="button">Back home</button>
+        <button class="back-link" type="button">${troubleWordsView ? "Back to decks" : "Back home"}</button>
       </div>
       <header class="lesson-header">
-        <h1>Dictionary</h1>
-        <p class="lesson-lede">Revisit language encountered in listening practice, group related forms, and add your own terms.</p>
+        <h1>${troubleWordsView ? "Trouble Words" : "Dictionary"}</h1>
+        <p class="lesson-lede">${troubleWordsView ? "Words you looked up while working through a missed or unsure sentence." : "Revisit language encountered in listening practice, group related forms, and add your own terms."}</p>
         <button class="primary-button dictionary-add-button" type="button" data-open-dictionary-form>${showManualForm ? "Close entry form" : "Add entry"}</button>
       </header>
       <section class="dictionary-layout ${showManualForm ? "" : "form-closed"}">
@@ -7213,6 +7402,7 @@ function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphab
                 <option value="all" ${filter === "all" ? "selected" : ""}>All encountered</option>
                 <option value="saved" ${filter === "saved" ? "selected" : ""}>Saved</option>
                 <option value="practice" ${filter === "practice" ? "selected" : ""}>Needs practice</option>
+                <option value="trouble" ${filter === "trouble" ? "selected" : ""}>Sentence trouble words</option>
                 <option value="manual" ${filter === "manual" ? "selected" : ""}>Manual</option>
               </select>
             </label>
@@ -7232,7 +7422,7 @@ function renderDictionary(searchQuery = "", filter = "saved", sortMode = "alphab
     </section>
   `;
 
-  app.querySelector(".back-link").addEventListener("click", () => setRoute(""));
+  app.querySelector(".back-link").addEventListener("click", () => setRoute(troubleWordsView ? "sentences" : ""));
   app.querySelector("[data-open-dictionary-form]").addEventListener("click", () => {
     dictionaryManualFormOpen = !showManualForm;
     if (!dictionaryManualFormOpen) {
@@ -7291,6 +7481,9 @@ function filterDictionaryEntries(entries, filter) {
   }
   if (filter === "practice") {
     return entries.filter((entry) => entry.needsPractice);
+  }
+  if (filter === "trouble") {
+    return entries.filter((entry) => entry.sentenceTrouble);
   }
   if (filter === "manual") {
     return entries.filter((entry) => entry.sourceType === "manual");

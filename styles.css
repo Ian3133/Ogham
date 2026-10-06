@@ -1224,6 +1224,45 @@ h1 {
   margin-top: 18px;
 }
 
+.sentence-review-start-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.sentence-review-start-actions .primary-button {
+  margin-top: 0;
+}
+
+.sentence-shadowing-toggle {
+  align-items: center;
+  background: rgba(39, 108, 99, 0.06);
+  border: 1px solid rgba(39, 108, 99, 0.14);
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 18px auto 8px;
+  max-width: 520px;
+  padding: 10px 12px;
+}
+
+.sentence-shadowing-toggle span,
+.sentence-shadowing-step p {
+  color: var(--muted);
+  font: 700 0.8rem/1.45 Arial, sans-serif;
+  margin: 0;
+}
+
+.sentence-shadowing-toggle .active {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  color: white;
+}
+
 .sentence-review-scope,
 .sentence-review-batch {
   display: flex;
@@ -1532,6 +1571,19 @@ h1 {
   gap: 16px;
   justify-items: center;
   text-align: center;
+}
+
+.sentence-shadowing-step {
+  align-items: center;
+  background: rgba(197, 107, 60, 0.08);
+  border: 1px solid rgba(197, 107, 60, 0.22);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding: 14px 16px;
+  width: 100%;
 }
 
 .sentence-review-note {
