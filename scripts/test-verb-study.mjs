@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const quiz = require("../verb-study-quiz.js");
+const guide = require("../verb-study-guide.js");
+const corpus = JSON.parse(readFileSync(new URL("../verb-study-data.json", import.meta.url)));
+const manifest = JSON.parse(readFileSync(new URL("../audio/verb-study/manifest.json", import.meta.url)));
+const bank = quiz.buildMegaQuestions(corpus.records, manifest.recordings);
+assert.equal(bank.length, 710);
+assert.deepEqual(new Set(bank.map((question) => question.id)), new Set(corpus.records.map((record) => record.id)));
+for (const question of bank) {
+  assert.ok(question.options.length >= 2);
+  assert.equal(new Set(question.options).size, question.options.length);
+  assert.ok(question.options.includes(question.correct));
+  assert.ok(quiz.grade(question, question.correct).correct);
+  const wrong = question.options.find((option) => !question.accepted.includes(option));
+  assert.ok(wrong, `No wrong choice for ${question.id}`);
+  assert.equal(quiz.grade(question, wrong).correct, false);
+  assert.ok(guide.topics[question.record.topic]?.[1], `Missing English definition for ${question.record.topic}`);
+  assert.ok(guide.sections[question.record.section]);
+}
+const present = corpus.records.filter((record) => record.verb === "Manger" && record.topic === "Présent");
+const il = present.find((record) => record.variants.some((variant) => variant.subject === "il"));
+const questions = quiz.buildQuestions(present, corpus.records, manifest.recordings, { [il.id]: "il" });
+assert.ok(quiz.grade(questions.find((question) => question.id === il.id), "mangent").correct);
+assert.equal(quiz.grade(questions.find((question) => question.record.person === "tu"), "mange").correct, false);
+assert.match(guide.typeFor("Manger").label, /Type 1/);
+assert.match(guide.typeFor("Finir").label, /Type 2/);
+assert.match(guide.typeFor("Faire").label, /Type 3/);
+const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+const renderer = app.slice(app.indexOf("function render()"), app.indexOf("function renderHome()"));
+assert.ok(renderer.indexOf('if (route === "verbs")') > renderer.indexOf("renderAuthGate()"), "The web study route must retain the sign-in gate");
+console.log(`PASS: ${bank.length} unique mega-test questions, all ${Object.keys(guide.topics).length} topic definitions, grading, verb types and web sign-in guard.`);

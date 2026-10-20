@@ -86,3 +86,13 @@ Known state
 -----------
 - The live S3 Lesson 1 JSON was once observed still containing old audio paths like audio/lesson-1/story-01.mp3. app.js now normalizes those paths, but re-uploading the updated local JSON files is still best.
 - If a future agent changes the S3 naming scheme, update normalizeLessonAssetPath() in app.js.
+
+Verb Study (2026-10-20)
+-----------------------
+- Home has a Verb Study tile at #verbs, retaining the existing sign-in requirement.
+- All 710 workbook rows, 2,588 recorded French clips, covered English/hover, per-section listening tests and a shuffled 710-question mega test are included.
+- The mega test checkpoints after each answer on this browser, scoped by signed-in user; it is not cloud-synced. Resume is available from the study screen.
+- verb-study-guide.js defines Types 1/2/3 and English descriptions for all 31 topics and all three sections.
+- Production audio/manifest are served from the existing public S3 audio/verb-study/ prefix; local preview reads that directory locally.
+- The localhost-only #verb-study-prototype layout preview remains available. The production route is #verbs.
+- Validate with node scripts/test-verb-study.mjs (requires the generated local audio manifest), node --check app.js, and the existing regression scripts.

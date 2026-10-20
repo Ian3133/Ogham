@@ -3520,6 +3520,10 @@ function getItem(itemId) {
 }
 
 function render() {
+  if (window.OghamVerbStudyPrototype?.isLocalPreview()) {
+    window.OghamVerbStudyPrototype.render(app);
+    return;
+  }
   if (!getCurrentUser() && !isLocalMusicDemo() && !isLocalCaptureDemo() && !isLocalSentenceDemo()) {
     renderAuthGate();
     return;
@@ -3527,6 +3531,11 @@ function render() {
 
   const route = window.location.hash.replace("#", "");
   const routeItem = getItem(route);
+
+  if (route === "verbs") {
+    window.OghamVerbStudyPrototype.render(app, { userId: getCurrentUser()?.sub || "preview" });
+    return;
+  }
 
   if (route === "capture") {
     renderCapture();
@@ -3955,6 +3964,10 @@ function renderHome() {
         </div>
         <div class="home-actions">
           <div class="home-tool-grid">
+            <button class="home-section-card compact" type="button" data-tool="verbs">
+              <span class="booklet-kicker">Practice</span>
+              <span class="home-section-title">Verb Study</span>
+            </button>
             <button class="home-section-card home-section-card-large home-section-card-primary" type="button" data-sentence-home>
               <span class="booklet-kicker">Your sentences</span>
               <span class="home-section-title">Sentence Decks</span>
@@ -10337,6 +10350,10 @@ function stopCurrentAudio(options = {}) {
 }
 
 async function initializeApp() {
+  if (window.OghamVerbStudyPrototype?.isLocalPreview()) {
+    render();
+    return;
+  }
   renderLoading();
 
   try {
@@ -10355,7 +10372,7 @@ async function initializeApp() {
   }
 
   const initialRoute = window.location.hash.replace("#", "");
-  if (initialRoute === "capture" || initialRoute.startsWith("sentence")) {
+  if (initialRoute === "verbs" || initialRoute === "capture" || initialRoute.startsWith("sentence")) {
     if (initialRoute.startsWith("sentence")) await ensureSentenceCloudStateReady();
     render();
     return;
@@ -10380,6 +10397,10 @@ async function loadFullAppData() {
 
 window.addEventListener("hashchange", async () => {
   const route = window.location.hash.replace("#", "");
+  if (window.OghamVerbStudyPrototype?.isRoute()) {
+    render();
+    return;
+  }
   if (route === "capture") {
     render();
     return;

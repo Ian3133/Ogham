@@ -1,4 +1,5 @@
 .env
+audio/verb-study/*.mp3
 .env.*
 audio_pipeline/.env
 server*.log
